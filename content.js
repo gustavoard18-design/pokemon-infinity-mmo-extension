@@ -104,6 +104,7 @@
             { icon: 'enc', tip: `Encontro atual — tecla ${fmt(shortcuts.battle)}`, view: 'battle' },
             { icon: 'calc', tip: `Calculadora de tipos — tecla ${fmt(shortcuts.calc)}`, view: 'calc' },
             { icon: 'team', tip: `Meus Pokémon — tecla ${fmt(shortcuts.myPokemons)}`, view: 'myPokemons' },
+            { icon: 'auc', tip: 'Leilão', view: 'auction' },
             { icon: 'cfg', tip: `Configurações — tecla ${fmt(shortcuts.settings)}`, view: 'settings' },
         ], { tip: `Minimizar — ${fmt(shortcuts.minimize)}` }, { tip: `Expandir — ${fmt(shortcuts.toggleFull)}` });
 
@@ -126,6 +127,11 @@
         myPokemonsFrame.className = 'ph-frame';
         myPokemonsFrame.src = chrome.runtime.getURL('myPokemons.html');
 
+        const auctionFrame = document.createElement('iframe');
+        auctionFrame.id = 'pokemon-auction-frame';
+        auctionFrame.className = 'ph-frame';
+        auctionFrame.src = chrome.runtime.getURL('auction.html');
+
         const chartFrame = document.createElement('iframe');
         chartFrame.id = 'pokemon-chart-frame';
         chartFrame.className = 'ph-frame';
@@ -144,15 +150,19 @@
         // caminho. Cada frame recebe seu próprio postMessage direto assim que
         // carrega, sem passar pela guarda, com o estado atual lido do MESMO
         // objeto `settings` que o resto do build() usa.
-        [calcFrame, battleFrame, myPokemonsFrame, chartFrame].forEach((frame) => {
+        [calcFrame, battleFrame, myPokemonsFrame, auctionFrame, chartFrame].forEach((frame) => {
             frame.addEventListener('load', () => {
                 frame.contentWindow?.postMessage({ type: 'panel-mode', full: settings.maximized === true }, '*');
+                if (frame === auctionFrame && typeof window.__pkmnHelperLatestVip === 'boolean') {
+                    frame.contentWindow?.postMessage({ type: 'auction-character-meta', vip: window.__pkmnHelperLatestVip }, '*');
+                }
             });
         });
 
         body.appendChild(calcFrame);
         body.appendChild(battleFrame);
         body.appendChild(myPokemonsFrame);
+        body.appendChild(auctionFrame);
         body.appendChild(chartFrame);
         body.appendChild(settingsPanel);
 
@@ -397,6 +407,15 @@
             window.addEventListener('message', (event) => {
                 const data = event.data;
                 if (!data || typeof data !== 'object') return;
+                if (data.type === 'auction-command') {
+                    const frame = document.getElementById('pokemon-auction-frame');
+                    if (frame?.contentWindow !== event.source) return;
+                    if (!['bootstrap', 'browse', 'favorite', 'sellables', 'list', 'cancel'].includes(data.action) || typeof data.requestId !== 'string') return;
+                    window.dispatchEvent(new CustomEvent('pkmn-helper-auction-command', { detail: {
+                        requestId: data.requestId.slice(0, 80), action: data.action, params: data.params || {}
+                    } }));
+                    return;
+                }
                 if (data.type === 'panel-shortcut') handleShortcut(data);
                 if (data.type === 'panel-exit-full') {
                     const overlay = document.getElementById(ID);
@@ -412,6 +431,12 @@
                     const active = document.activeElement;
                     if (active && active.classList && active.classList.contains('ph-frame')) active.blur();
                 }
+            });
+        }
+        if (!window.__pkmnHelperAuctionResultListenerAdded) {
+            window.__pkmnHelperAuctionResultListenerAdded = true;
+            window.addEventListener('pkmn-helper-auction-result', (event) => {
+                document.getElementById('pokemon-auction-frame')?.contentWindow?.postMessage({ type: 'auction-result', result: event.detail }, '*');
             });
         }
         // atalhos globais: funcionam com o foco no documento do jogo. Tecla que
@@ -465,8 +490,13 @@
                 const data = ev.detail;
                 const battleFrame = document.getElementById('pokemon-battle-frame');
                 const myPokemonsFrame = document.getElementById('pokemon-myPokemons-frame');
+                const auctionFrame = document.getElementById('pokemon-auction-frame');
                 if (battleFrame) battleFrame.contentWindow.postMessage({ type: 'battle-data', payload: data }, '*');
                 if (myPokemonsFrame) myPokemonsFrame.contentWindow.postMessage({ type: 'character-data', payload: data }, '*');
+                if (auctionFrame && typeof data?.vip === 'boolean') {
+                    window.__pkmnHelperLatestVip = data.vip;
+                    auctionFrame.contentWindow.postMessage({ type: 'auction-character-meta', vip: data.vip }, '*');
+                }
 
                 const isCharacterPayload = !!(data.party || data.pc);
                 // sinal real de fim de luta: só usado aqui pra saber quando voltar
@@ -803,9 +833,10 @@
         const calc = container.querySelector('#pokemon-calc-frame');
         const battle = container.querySelector('#pokemon-battle-frame');
         const myPokemons = container.querySelector('#pokemon-myPokemons-frame');
+        const auction = container.querySelector('#pokemon-auction-frame');
         const chart = container.querySelector('#pokemon-chart-frame');
         const settingsPanel = container.querySelector('#pokemon-settings-panel');
-        if (!calc || !battle || !myPokemons || !chart || !settingsPanel) return;
+        if (!calc || !battle || !myPokemons || !auction || !chart || !settingsPanel) return;
 
         container.dataset.activeView = view;
         syncFullSide(container, currentSettings(container));
@@ -818,7 +849,7 @@
         // sempre que não são a view ativa "sozinha": assim a folha de estilo
         // decide sozinha (nada de display:none preso de uma navegação anterior
         // sobrevivendo até o próximo toggle de F, que não passa por este laço).
-        [calc, battle, myPokemons, chart].forEach((frame) => {
+        [calc, battle, myPokemons, auction, chart].forEach((frame) => {
             const active = frame.id === `pokemon-${view}-frame`;
             const cssManaged = frame === chart || frame.classList.contains('side-active');
             frame.style.display = active ? 'block' : (cssManaged ? '' : 'none');

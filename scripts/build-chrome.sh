@@ -10,6 +10,8 @@ mkdir -p "$DIST"
 
 FILES=(
   app.js
+  auction.html
+  auction.js
   background.js
   battle.html
   battle.js
