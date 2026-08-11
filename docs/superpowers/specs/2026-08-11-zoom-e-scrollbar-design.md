@@ -128,6 +128,9 @@ cortar usuários de Firefox antigo da extensão inteira. O `strict_min_version`
 - **Clamp por largura de painel**: em 200% dentro de um painel de 250px o
   conteúdo fica apertado. É a escolha do usuário — o navegador também deixa
   zoomar até quebrar. Não é bug.
+- **`.ph-header` clipando os próprios controles em zoom alto**: em vez de
+  esconder botões, o cabeçalho quebra linha (`flex-wrap: wrap`) e cresce em
+  altura — clipar esconderia os controles que tirariam o usuário do zoom alto.
 
 ## Barra de rolagem
 
@@ -180,8 +183,15 @@ mesmo bloco, o Chrome perde todo o visual pixelado e cai na barra padrão só
 recolorida.
 
 As propriedades padrão ficam isoladas em
-`@supports not selector(::-webkit-scrollbar)` — verdadeiro só no Firefox,
-ignorado no Chrome. Sem sniffing de navegador.
+`@supports not (background: -webkit-named-image(i))`. Não dá para usar
+`@supports not selector(::-webkit-scrollbar)`: o Firefox 153 passou a
+reconhecer esse seletor (sem implementar a estilização dele), então o teste
+vira verdadeiro só até o Firefox 152 — a partir do 153 a negação dá falso e o
+bloco de propriedades padrão simplesmente para de ser aplicado, deixando o
+Firefox sem nenhum visual de barra pixelada. `-webkit-named-image()` só
+existe em Blink/WebKit, então `@supports not` sobre ela é verdadeira em
+qualquer motor que não seja esses — Firefox incluído, em qualquer versão —
+sem sniffing de navegador.
 
 ### Interação com o zoom
 

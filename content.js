@@ -601,7 +601,12 @@
             }
             #${ID} .ph-header {
                 display: flex; align-items: center; gap: 3px;
-                height: 34px; padding: 0 4px; flex: 0 0 auto;
+                /* sob zoom alto a largura intrínseca da linha (botões de view +
+                   expandir + minimizar + engrenagem) passa dos ~380px do painel
+                   docked; deixa quebrar em vez de cortar, senão os controles que
+                   tirariam o usuário do zoom alto ficariam inalcançáveis */
+                flex-wrap: wrap;
+                min-height: 34px; height: auto; padding: 0 4px; flex: 0 0 auto;
                 background: #08080d; border-bottom: 2px solid #1c1c26;
                 cursor: move; user-select: none;
             }

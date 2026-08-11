@@ -176,12 +176,27 @@
 .px-scroll::-webkit-scrollbar-corner,
 .px-scroll *::-webkit-scrollbar-corner { background: var(--px-bg); }
 
-/* Firefox não tem os pseudo-elementos webkit. Bloco SEPARADO porque no
-   Chrome declarar scrollbar-color/scrollbar-width num elemento DESLIGA
-   as regras ::-webkit-scrollbar dele — no mesmo bloco, o Chrome perderia
-   todo o visual pixelado e cairia na barra padrão só recolorida. A
-   condição é verdadeira só no Gecko, sem sniffing de navegador. */
-@supports not selector(::-webkit-scrollbar) {
+/* Bloco SEPARADO do de cima porque no Chrome declarar scrollbar-color/
+   scrollbar-width num elemento DESLIGA as regras ::-webkit-scrollbar dele —
+   no mesmo bloco, o Chrome perderia todo o visual pixelado e cairia na barra
+   padrão só recolorida.
+
+   A condição NÃO pode ser `@supports not selector(::-webkit-scrollbar)`:
+   o Firefox 153 passou a reconhecer o seletor `::-webkit-scrollbar` (sem
+   implementar a estilização dele), então esse teste virou verdadeiro só no
+   Firefox < 153 — nas versões novas a negação dá falso e o bloco inteiro
+   deixa de ser aplicado, sem erro nem aviso. Pior: como o bloco de cima
+   declara `width/height: 10px` em `::-webkit-scrollbar`, o Firefox 153+
+   passa a honrar esses valores e DESLIGA a barra overlay pra esse
+   container, caindo numa barra clássica sem nenhuma estilização — pior do
+   que antes da feature existir.
+
+   `-webkit-named-image()` só existe em Blink/WebKit, então o `@supports not`
+   sobre ela é verdadeira em todo motor que não seja Chrome/Safari/etc,
+   incluindo qualquer versão do Firefox — sem sniffing de user-agent. Não
+   trocar de volta para `selector(::-webkit-scrollbar)` mesmo que pareça mais
+   direto: é exatamente essa troca que quebra no Firefox 153+. */
+@supports not (background: -webkit-named-image(i)) {
     .px-scroll,
     .px-scroll * {
         scrollbar-width: thin;

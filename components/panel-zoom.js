@@ -3,10 +3,15 @@
 // compartilhado entre as telas de iframe e o content script.
 //
 // Nas páginas da extensão ele mesmo aplica `body { zoom: X }` por um <style>
-// injetado — regra em vez de style inline porque o script pode rodar antes de
-// o <body> existir. No content script (página do jogo) ele NÃO aplica nada
-// sozinho: quem assina (content.js, tooltip.js) decide o que fazer com o fator.
-// É isso que mantém a página do jogo intocada.
+// injetado — regra em vez de style inline em `document.body` porque assim o
+// mesmo `subscribe()` que já existe pra notificar outros consumidores também
+// repinta o `<style>` inteiro a cada mudança de fator, sem guardar referência
+// ao body à parte (as cinco páginas carregam este script no fim do <body>,
+// então ele já existe quando o subscribe roda pela primeira vez).
+//
+// No content script (página do jogo) ele NÃO aplica nada sozinho: quem
+// assina (content.js, tooltip.js) decide o que fazer com o fator. É isso
+// que mantém a página do jogo intocada.
 //
 // O zoom vai no <body>, não no <html>, de propósito: a caixa do tooltip global
 // mora em documentElement (components/tooltip.js), e dentro de uma árvore
@@ -20,10 +25,13 @@ var PokemonHelperZoom = globalThis.PokemonHelperZoom || (() => {
     // degrau válido mais próximo: protege contra config importada com valor
     // arbitrário e contra ruído de ponto flutuante vindo do storage
     function snap(value) {
-        const num = Number(value);
-        if (!Number.isFinite(num)) return DEFAULT;
+        // typeof, não só Number.isFinite: Number(null) é 0 (finito!), então um
+        // config importado com "panelZoom": null cairia no degrau 0.67 (o mais
+        // próximo de 0) em vez do default — só um number de verdade é aceito,
+        // qualquer outra coisa (null, string, undefined, objeto) cai no default.
+        if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT;
         return LEVELS.reduce(
-            (best, level) => (Math.abs(level - num) < Math.abs(best - num) ? level : best),
+            (best, level) => (Math.abs(level - value) < Math.abs(best - value) ? level : best),
             LEVELS[0]
         );
     }
@@ -37,18 +45,35 @@ var PokemonHelperZoom = globalThis.PokemonHelperZoom || (() => {
     // race conditions (hidratação + perdas em cliques rápidos).
     let queue = Promise.resolve();
 
+    // `supported` é o portão único da feature inteira (mesmo espírito do
+    // guard em volta da injeção do <style> logo abaixo e da linha de
+    // Configurações em settings-panel.js): sem suporte real à propriedade
+    // `zoom` do CSS, publicar um fator ≠ 1 faria consumidores (tooltip.js,
+    // content.js) escalar cálculos/CSS vars em cima de um zoom que o
+    // navegador nunca aplica de verdade — no Gecko 109–125, por exemplo,
+    // `box.style.zoom` é descartado silenciosamente, mas a divisão por esse
+    // fator no tooltip continuaria acontecendo, deslocando a caixa. Por isso
+    // o valor exposto (`factor()`, e o argumento passado pro `subscribe`) cai
+    // sempre pro default aqui. `current` continua guardando o valor real
+    // (persistido/snapado), pronto pra valer assim que o navegador ganhar
+    // suporte — só a fachada pública é que é gated.
+    function publicFactor() {
+        return supported ? current : DEFAULT;
+    }
+
     function set(value) {
         const next = snap(value);
         if (next === current) return;
         current = next;
+        const factor = publicFactor();
         listeners.forEach((fn) => {
-            try { fn(current); } catch (error) { console.warn('[Pokemon Helper] Listener de zoom falhou:', error); }
+            try { fn(factor); } catch (error) { console.warn('[Pokemon Helper] Listener de zoom falhou:', error); }
         });
     }
 
     function subscribe(fn) {
         listeners.add(fn);
-        fn(current);
+        fn(publicFactor());
         return () => listeners.delete(fn);
     }
 
@@ -106,10 +131,16 @@ var PokemonHelperZoom = globalThis.PokemonHelperZoom || (() => {
     if (typeof chrome !== 'undefined' && chrome.storage) {
         chrome.storage.onChanged.addListener((changes, areaName) => {
             if (areaName !== 'local' || !changes[PokemonHelperStorage.KEYS.uiPreferences]) return;
-            set(changes[PokemonHelperStorage.KEYS.uiPreferences].newValue?.panelZoom);
+            const newValue = changes[PokemonHelperStorage.KEYS.uiPreferences].newValue;
+            // Hoje todo escritor passa por updateUiPreferences, que sempre grava o
+            // objeto uiPreferences mesclado inteiro — mas um `chrome.storage.local.set`
+            // direto nessa chave no futuro, sem incluir panelZoom, não deve resetar
+            // o zoom de todo mundo pra 100%: campo ausente mantém o fator atual em
+            // vez de cair no default do snap() (que trataria "sem campo" como null).
+            set(newValue && 'panelZoom' in newValue ? newValue.panelZoom : current);
         });
     }
 
-    return Object.freeze({ LEVELS, supported, snap, step, subscribe, factor: () => current });
+    return Object.freeze({ LEVELS, supported, snap, step, subscribe, factor: publicFactor });
 })();
 globalThis.PokemonHelperZoom = PokemonHelperZoom;
