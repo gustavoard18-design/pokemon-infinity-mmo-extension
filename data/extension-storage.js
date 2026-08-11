@@ -46,6 +46,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         startView: 'last',            // 'last' | 'battle' | 'calc' | 'myPokemons'
         startCollapsed: 'remember',   // 'remember' | 'collapsed' | 'open'
         autoSwitchToBattle: true,
+        panelZoom: 1,                 // fator de zoom do conteúdo do painel (ver components/panel-zoom.js)
         // ação → combinação normalizada (ver PokemonHelperShortcutUtils)
         shortcuts: Object.freeze({
             battle: 'e',
