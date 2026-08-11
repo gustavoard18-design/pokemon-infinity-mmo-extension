@@ -74,6 +74,7 @@ errada mais rápido que o olho:
 |---|---|
 | todas | sem tooltip aberto; rodapé "CONECTADO"; aba correta em destaque |
 | `capa-overlay.png` | **nenhum nome ou mensagem de outro jogador** |
+| `aba-leilao.png` | anúncios variados (não um resultado de busca preso) e **a tarja sobre todos os vendedores** |
 | `aba-calculadora.png` | um tipo selecionado e a lista de multiplicadores preenchida |
 | `aba-meus-pokemon.png` | a fita de botões (GOLPES / EXPORTAR / IMPORTAR), filtros avançados **e** cards, tudo na mesma imagem — por isso essa é tirada em modo full |
 | `tela-configuracoes.png` | os cinco blocos, de PAINEL a ATALHOS |
@@ -101,6 +102,8 @@ tooltip não vazar.
 | Tela vazia ou "AGUARDANDO DADOS" | O overlay foi injetado depois do `/character/`. Recarregue a página do jogo. |
 | O modo full não fica de pé | O jogo manda payload o tempo todo e o shell reavalia; o script já reaplica em laço. |
 | Script aborta no recorte do chat | Ele prefere falhar a publicar o chat. Capture a capa à mão com o chat fechado. |
+| Print do leilão pulado | A aba é passiva: só tem dados se o jogador tiver aberto o leilão dentro do jogo nesta sessão. Peça isso e rode de novo. |
+| Script aborta na tarja do vendedor | O card do leilão mudou e a linha "Vendedor" não foi encontrada. Corrija o seletor — **não** gere a imagem sem tarja. |
 
 ## Erros comuns
 

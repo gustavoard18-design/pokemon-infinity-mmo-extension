@@ -4,7 +4,7 @@
 //
 // Pré-requisitos (nada disso vira dependência do projeto — é utilitário de dev):
 //
-//   npm install playwright        # numa pasta qualquer, fora do repo
+//   mkdir -p ~/tools/playwright && cd ~/tools/playwright && npm install playwright
 //   google-chrome \
 //     --user-data-dir=/tmp/perfil-debug-prints \
 //     --remote-debugging-port=9222 \
@@ -12,15 +12,16 @@
 //     https://infinitymmo.net
 //
 // Com o jogo logado e o personagem sincronizado ("CONECTADO" no rodapé do
-// overlay):
+// overlay), a partir da raiz do repositório:
 //
-//   node scripts/screenshots.js docs/images
+//   NODE_PATH=~/tools/playwright/node_modules node scripts/screenshots.js docs/images
 //
-// Gera seis das sete imagens do README. `aba-encontro.png` fica de fora: ela
-// exige uma batalha em andamento, que o script não deve provocar.
+// Gera sete das oito imagens do README. `aba-encontro.png` fica de fora: ela
+// exige uma batalha em andamento, que o script não deve provocar. A do leilão
+// é pulada (com aviso) se a aba não tiver anúncios carregados.
 //
-// A capa recorta o painel de chat do jogo — são nomes e mensagens de outros
-// jogadores, que não têm por que ir para um README público.
+// Dados de terceiros nunca entram nas imagens: a capa recorta o painel de chat
+// do jogo, e o print do leilão aplica tarja sobre o nome dos vendedores.
 // ---------------------------------------------------------------------------
 let chromium;
 try {
@@ -141,6 +142,7 @@ Recarregue a página do jogo e espere o rodapé marcar "CONECTADO".`);
     await confereBuild(game, F);
     const overlay = game.locator(OVERLAY);
     const feitos = [];
+    const log = [];
 
     // clique programático: o clique real deixaria o cursor sobre o botão e o
     // tooltip apareceria no print
@@ -211,6 +213,58 @@ Recarregue a página do jogo e espere o rodapé marcar "CONECTADO".`);
     await overlay.screenshot({ path: path.join(OUT, 'aba-meus-pokemon.png') });
     feitos.push('aba-meus-pokemon.png');
 
+    // ---- Leilão: anúncios expandidos, em modo full ---------------------
+    // a aba é passiva — só tem dados se o jogador tiver aberto o leilão dentro
+    // do jogo nesta sessão. Sem anúncios, pular é melhor que gravar uma tela
+    // de espera por cima de uma imagem boa.
+    const leilao = F['auction.html'];
+    const anuncios = await leilao.evaluate(() => document.querySelectorAll('.pokemon-card').length);
+    if (!anuncios) {
+        log.push('aba-leilao.png pulada: nenhum anúncio carregado (abra o leilão dentro do jogo)');
+    } else {
+        await view('auction');
+        await maximizado();
+        await leilao.evaluate(() => {
+            // sem filtro preso: um print filtrado documenta a busca, não a tela
+            document.getElementById('clear')?.click();
+        });
+        await wait(game, 3500);
+        await leilao.evaluate(() => {
+            const b = document.getElementById('expand-all-pokemon');
+            if (b?.getAttribute('aria-pressed') !== 'true') b?.click();
+        });
+        await wait(game, 900);
+        // tarja no vendedor: são jogadores reais, e a imagem vai para um
+        // repositório público. Aplicada aqui para a redação sobreviver a
+        // qualquer regeneração futura.
+        const redigidos = await leilao.evaluate(() => {
+            let n = 0;
+            document.querySelectorAll('.detail-row').forEach((row) => {
+                if (!/vendedor/i.test(row.querySelector('.detail-key')?.textContent || '')) return;
+                const val = row.querySelector('.detail-val');
+                if (!val) return;
+                val.style.filter = 'blur(4px)';
+                val.dataset.redigido = '1';
+                n += 1;
+            });
+            return n;
+        });
+        if (!redigidos) {
+            throw new Error(`não encontrei a linha "Vendedor" para aplicar a tarja no print do leilão.
+Sem ela, a imagem publicaria nomes de outros jogadores. Confira se o card do
+leilão ainda tem essa linha antes de seguir.`);
+        }
+        await wait(game, 400);
+        await semTooltip(game);
+        await overlay.screenshot({ path: path.join(OUT, 'aba-leilao.png') });
+        feitos.push('aba-leilao.png');
+        await leilao.evaluate(() => document.querySelectorAll('[data-redigido]').forEach((el) => {
+            el.style.filter = '';
+            delete el.dataset.redigido;
+        }));
+        await view('myPokemons');
+    }
+
     // ---- Capa: overlay por cima do jogo --------------------------------
     // encaixado e sem filtros: a capa mostra o painel flutuante sobre o jogo
     await encaixado();
@@ -277,6 +331,6 @@ Ajuste a heurística de recorte ou capture a capa à mão com o chat fechado.`);
     await encaixado();
     await view('battle');
 
-    console.log(JSON.stringify({ feitos }, null, 1));
+    console.log(JSON.stringify({ feitos, avisos: log }, null, 1));
     await browser.close();
 })();

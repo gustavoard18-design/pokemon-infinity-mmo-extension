@@ -67,10 +67,15 @@ tela com o DOM vivo — se o Chrome não está renderizando o checkout atual. Es
 extensão instalada de outro diretório ignora o `--load-extension`, e os prints
 sairiam de outro código sem nenhum aviso.
 
-O script gera seis das sete imagens. `aba-encontro.png` exige uma batalha em
-andamento e continua sendo capturada à mão. A capa recorta o painel de chat do
-jogo e **falha** se não localizar o recorte, em vez de publicar nomes e
-mensagens de outros jogadores.
+O script gera sete das oito imagens. `aba-encontro.png` exige uma batalha em
+andamento e continua sendo capturada à mão; a do leilão é pulada, com aviso, se
+a aba não tiver anúncios carregados (ela é passiva — depende de o jogador ter
+aberto o leilão dentro do jogo).
+
+Dados de terceiros não entram nas imagens: a capa recorta o painel de chat e
+**falha** se não localizar o recorte, e o print do leilão aplica tarja sobre o
+nome dos vendedores — as duas proteções ficam no script, para sobreviverem a
+qualquer regeneração futura.
 
 O passo a passo completo, com a conferência visual de cada imagem, está na skill
 `.claude/skills/atualizar-prints-do-readme/`.

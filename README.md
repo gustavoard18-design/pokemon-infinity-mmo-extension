@@ -21,6 +21,7 @@ jeito.
   - [Tabela de tipos](#tabela-de-tipos)
   - [Meus Pokémon](#meus-pokémon)
     - [Exportar e importar a lista](#exportar-e-importar-a-lista)
+  - [Leilão](#leilão)
 - [Configurações](#configurações)
 - [Atalhos de teclado](#atalhos-de-teclado)
 - [Limitações e observações](#limitações-e-observações)
@@ -108,8 +109,8 @@ overlay quando houver uma versão mais nova disponível na branch escolhida.
 2. Fechado/minimizado, o overlay vira uma bolha flutuante com o emoji 🧭 —
    clique nela para reabrir o painel no tamanho salvo.
 3. No cabeçalho do painel (arrastável, para reposicionar) ficam os ícones
-   das 4 abas — Encontro, Calculadora, Meus Pokémon, Configurações —, um
-   botão de expandir e o botão de minimizar (`_`).
+   das 5 abas — Encontro, Calculadora, Meus Pokémon, Leilão, Configurações —,
+   um botão de expandir e o botão de minimizar (`_`).
 4. O painel encaixado pode ser redimensionado pelas bordas/cantos, e sua
    posição fica salva entre sessões.
 5. O rodapé mostra a barra de status: "CONECTADO" ou "AGUARDANDO DADOS", o
@@ -263,6 +264,33 @@ O formato é este, e a importação também aceita um JSON cru com apenas
   "pc": [ { "name": "Caixa 1", "pokemon": [] } ]
 }
 ```
+
+### Leilão
+
+Uma leitura mais confortável do leilão do jogo, com os mesmos cards de Meus
+Pokémon. A aba é **passiva**: ela não consulta nada sozinha — espera você abrir
+o leilão dentro do jogo e reaproveita essa consulta. Até lá mostra que está
+aguardando.
+
+- Quatro modos: **Explorar**, **Meus anúncios**, **Favoritos** e **Anunciar**.
+- Busca por nome, ordenação (mais recentes, menor/maior preço, terminando) e
+  filtros de tipo, natureza, nível, preço, shiny e IV 100%.
+- Carregamento incremental: role a lista para trazer mais anúncios; o contador
+  mostra quantos foram carregados do total.
+- Cada anúncio mostra preço, vendedor, tempo restante e, ao expandir, natureza,
+  habilidade, item e os IVs individuais — os mesmos dados do card de Meus
+  Pokémon.
+- **Detalhes de todos** expande ou recolhe todos os anúncios de uma vez, e vale
+  também para os que chegarem depois pelo scroll.
+- Favoritar e desfavoritar acontecem por clique na estrela do card.
+
+Nenhuma compra ou venda acontece sozinha: toda operação continua sendo uma ação
+explícita sua, na sua sessão do jogo.
+
+![Aba Leilão em modo full com anúncios expandidos](docs/images/aba-leilao.png)
+
+> Os nomes dos vendedores estão borrados nesta imagem de propósito — são
+> jogadores reais, e o print vai para um repositório público.
 
 ## Configurações
 
