@@ -33,6 +33,9 @@ var PokemonHelperZoom = globalThis.PokemonHelperZoom || (() => {
 
     let current = DEFAULT;
     const listeners = new Set();
+    // Fila de promises que serializa todas as mudanças de zoom, evitando
+    // race conditions (hidratação + perdas em cliques rápidos).
+    let queue = Promise.resolve();
 
     function set(value) {
         const next = snap(value);
@@ -50,25 +53,37 @@ var PokemonHelperZoom = globalThis.PokemonHelperZoom || (() => {
     }
 
     function step(delta) {
-        // Lê o valor persistido em vez de confiar no placeholder inicial (`current`).
-        // Se `step()` rodar antes de `getUiPreferences()` resolver, a janela de
-        // corrida desapareceria — o código derivaria a mudança do valor real do
-        // usuário. Se outro contexto mudar o zoom concorrentemente, também pegamos
-        // o valor correto. Sem essa leitura, um clique rápido antes da hidratação
-        // inicial gravaria um incremento sobre DEFAULT (1) em vez de sobre a pref
-        // real do usuário, silenciosamente sobrescrevendo a preferência no storage.
-        return PokemonHelperStorage.getUiPreferences()
-            .then((preferences) => {
-                const from = snap(preferences.panelZoom);
-                const index = LEVELS.indexOf(from);
-                const nextIndex = Math.min(LEVELS.length - 1, Math.max(0, index + delta));
-                const next = LEVELS[nextIndex];
-
-                if (next === from) return from;
-
+        // Usa fila de promises para evitar dois tipos de race:
+        //
+        // 1. Race de hidratação: se `step()` rodasse antes de
+        //    `getUiPreferences()` (inicial) resolver, calcularia `next` a partir
+        //    de DEFAULT (1) em vez do valor real do usuário, silenciosamente
+        //    sobrescrevendo a preferência no storage.
+        //
+        // 2. Race de atualização perdida em cliques rápidos: se cada `step()`
+        //    fizesse sua própria leitura fresca do storage, dois cliques antes
+        //    de ambas as escritas resolverem leriam o mesmo valor antiquado,
+        //    calculariam o mesmo `next`, e apenas uma mudança seria persistida.
+        //
+        // A fila serializa: a hidratação inicial é o primeiro elo, cada `step()`
+        // é encadeado depois. Quando um elo roda, `current` é sempre correto —
+        // ou hidratado, ou atualizado pelo `step()` anterior — logo derivar
+        // `next` dele é seguro. `set()` já atualiza `current` sincronicamente,
+        // mantendo-o fresco. O listener de `chrome.storage.onChanged` também o
+        // atualiza se outro contexto mudar o zoom.
+        queue = queue
+            .then(() => {
+                const index = LEVELS.indexOf(current);
+                const next = LEVELS[Math.min(LEVELS.length - 1, Math.max(0, index + delta))];
+                if (next === current) return current;
                 set(next); // pinta já; o storage confirma logo em seguida
                 return PokemonHelperStorage.setUiPreferences({ panelZoom: next }).then(() => next);
+            })
+            .catch((error) => {
+                console.warn('[Pokemon Helper] Falha ao persistir zoom:', error);
+                return current;
             });
+        return queue;
     }
 
     if (isExtensionPage && supported) {
@@ -83,7 +98,8 @@ var PokemonHelperZoom = globalThis.PokemonHelperZoom || (() => {
         });
     }
 
-    PokemonHelperStorage.getUiPreferences()
+    // Primeiro elo da fila: hidratação do valor persistido.
+    queue = PokemonHelperStorage.getUiPreferences()
         .then((preferences) => set(preferences.panelZoom))
         .catch(() => {});
 
