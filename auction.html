@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leilão</title>
+    <link rel="stylesheet" href="pixel-theme.css">
+    <link rel="stylesheet" href="components/type-tag.css">
+    <link rel="stylesheet" href="components/nature-effect.css">
+    <link rel="stylesheet" href="components/pokemon-card.css">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 9px 10px 14px; background: var(--px-bg); color: var(--px-text); font: 12px var(--px-font-body); }
+        button, input, select { font: inherit; }
+        .auction-tabs { display: flex; gap: 5px; margin-bottom: 8px; }
+        .auction-tab[aria-selected="true"] { color: var(--px-on-dark); background: var(--px-accent); border-color: var(--px-accent); }
+        .auction-filters { display: grid; grid-template-columns: minmax(130px,2fr) repeat(3,minmax(82px,1fr)); gap: 5px; padding: 7px; border: 1px solid var(--px-line); background: var(--px-bg-card); }
+        .filter-checks { display: flex; gap: 10px; align-items: center; grid-column: 1/-1; flex-wrap: wrap; }
+        .filter-checks label { display: flex; gap: 4px; align-items: center; }
+        .filter-actions { display: flex; gap: 5px; grid-column: 1/-1; }
+        .filter-actions .px-btn:first-child { flex: 1; }
+        .auction-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0; color: var(--px-text-dim); }
+        .auction-badges { display: flex; gap: 3px; flex-wrap: wrap; }
+        .auction-badge { padding: 2px 4px; font: 8px var(--px-font-mono); color: var(--px-accent); border: 1px solid currentColor; }
+        .auction-card-actions { display: flex; justify-content: flex-end; margin-top: -3px; }
+        .auction-favorite { min-width: 30px; padding: 3px 7px; color: var(--px-text-dim); font-size: 15px; line-height: 1; }
+        .auction-favorite[aria-pressed="true"] { color: var(--px-mid); }
+        .auction-feedback { min-height: 16px; margin: 5px 0 0; color: var(--px-text-dim); }
+        .auction-feedback.error { color: var(--px-bad); }
+        .sell-toolbar { display: grid; grid-template-columns: minmax(150px, 1fr) 130px auto auto; gap: 5px; padding: 7px; border: 1px solid var(--px-line); background: var(--px-bg-card); }
+        .sell-toolbar-summary { grid-column: 1/-1; display: flex; justify-content: space-between; gap: 8px; color: var(--px-text-dim); }
+        .sell-card-meta { display: grid; grid-template-columns: auto minmax(100px,1fr); gap: 5px; align-items: center; }
+        .sell-select { display: flex; align-items: center; gap: 4px; color: var(--px-text-val); }
+        .sell-price { width: 100%; }
+        .sell-warning { color: var(--px-mid); font: 8px var(--px-font-mono); }
+        .pokemon-card.sell-selected { outline: 1px solid var(--px-accent); }
+        .sell-review { margin: 8px 0; padding: 8px; border: 1px solid var(--px-border); background: var(--px-bg-card); }
+        .sell-review h2 { margin: 0 0 6px; font: 12px var(--px-font-mono); color: var(--px-accent); }
+        .sell-review p { margin: 4px 0; }
+        .sell-group-title { margin: 9px 0 3px; font: 10px var(--px-font-mono); color: var(--px-accent); }
+        .sell-review-cards { margin: 7px 0; }
+        .sell-queue-status { font: 9px var(--px-font-mono); color: var(--px-text-dim); }
+        .sell-queue-status.error { color: var(--px-bad); }
+        .sell-queue-status.success { color: var(--px-good); }
+        .listing-action { width: 100%; }
+        .auction-price { color: var(--px-mid); font: 12px var(--px-font-mono); white-space: nowrap; }
+        .empty { margin: 8px 0; padding: 20px; text-align: center; border: 1px dashed var(--px-border); color: var(--px-text-dim); }
+        .error { color: var(--px-bad); }
+        .auction-sentinel { min-height: 34px; display: flex; align-items: center; justify-content: center; color: var(--px-text-dim); }
+        .auction-sentinel.can-load { cursor: pointer; }
+        .auction-meta-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+        .px-btn[aria-pressed="true"] { background: var(--px-accent); border-color: var(--px-accent); color: var(--px-on-dark); }
+        [hidden] { display: none !important; }
+        @media (max-width: 620px) { .auction-filters { grid-template-columns: repeat(2,minmax(0,1fr)); } .sell-toolbar { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+    <nav class="auction-tabs" aria-label="Seções do leilão">
+        <button class="px-btn auction-tab" data-tab="browse" aria-selected="true">EXPLORAR</button>
+        <button class="px-btn auction-tab" data-tab="mine" aria-selected="false">MEUS ANÚNCIOS</button>
+        <button class="px-btn auction-tab" data-tab="favorites" aria-selected="false">FAVORITOS</button>
+        <button class="px-btn auction-tab" data-tab="sell" aria-selected="false">ANUNCIAR</button>
+    </nav>
+    <form id="auction-filters" class="auction-filters">
+        <input id="name-search" class="px-input" type="search" placeholder="Buscar Pokémon por nome…" aria-label="Buscar Pokémon por nome" autocomplete="off">
+        <select id="sort" class="px-input" aria-label="Ordenação"><option value="new">Mais recentes</option><option value="price_asc">Menor preço</option><option value="price_desc">Maior preço</option><option value="ending">Terminando</option></select>
+        <select id="type" class="px-input" aria-label="Tipo"><option value="">Todos os tipos</option></select>
+        <select id="nature" class="px-input" aria-label="Natureza"><option value="">Todas as naturezas</option></select>
+        <input id="level-min" class="px-input" type="number" min="1" max="100" value="1" aria-label="Nível mínimo">
+        <input id="level-max" class="px-input" type="number" min="1" max="100" value="100" aria-label="Nível máximo">
+        <input id="price-min" class="px-input" type="number" min="0" value="0" aria-label="Preço mínimo">
+        <input id="price-max" class="px-input" type="number" min="0" placeholder="Preço máximo" aria-label="Preço máximo">
+        <div class="filter-checks"><label><input id="shiny" type="checkbox"> SHINY</label><label><input id="perfect" type="checkbox"> IV 100%</label></div>
+        <div class="filter-actions"><button class="px-btn" type="submit">APLICAR FILTROS</button><button class="px-btn" id="clear" type="button">LIMPAR</button></div>
+    </form>
+    <section id="sell-toolbar" class="sell-toolbar" hidden>
+        <input id="sell-search" class="px-input" type="search" placeholder="Filtrar vendáveis por nome…" aria-label="Filtrar vendáveis por nome">
+        <input id="sell-common-price" class="px-input" type="number" min="1" max="999999999" step="1" placeholder="Preço comum" aria-label="Preço comum">
+        <button id="sell-apply-price" class="px-btn" type="button">APLICAR AOS SELECIONADOS</button>
+        <button id="sell-clear-selection" class="px-btn" type="button">LIMPAR SELEÇÃO</button>
+        <button id="sell-select-visible" class="px-btn" type="button">SELECIONAR VISÍVEIS</button>
+        <button id="sell-review-button" class="px-btn" type="button" disabled>REVISAR SELEÇÃO</button>
+        <div class="sell-toolbar-summary"><span id="sell-selection-summary">0 selecionado(s)</span><span id="sell-capacity">Capacidade: verificando…</span></div>
+    </section>
+    <div id="favorite-feedback" class="auction-feedback" role="status" aria-live="polite"></div>
+    <section id="sell-review" class="sell-review" hidden aria-live="polite"></section>
+    <div class="auction-meta"><span id="summary">Aguardando consulta…</span><span class="auction-meta-actions"><button class="px-btn" id="expand-all-pokemon" type="button" aria-pressed="false">DETALHES DE TODOS</button><button class="px-btn" id="refresh" type="button">ATUALIZAR</button></span></div>
+    <main id="auction-content" aria-live="polite"><p class="empty">Carregando leilão…</p></main>
+    <div id="auction-sentinel" class="auction-sentinel" aria-live="polite"></div>
+    <script src="data/extension-storage.js"></script>
+    <script src="components/tooltip.js"></script>
+    <script src="components/pixel-icon.js"></script>
+    <script src="components/type-tag.js"></script>
+    <script src="components/nature-effect.js"></script>
+    <script src="components/ability-info.js"></script>
+    <script src="components/pokemon-card.js"></script>
+    <script src="data/constants.js"></script>
+    <script src="components/shortcut-forwarder.js"></script>
+    <script src="auction.js"></script>
+</body>
+</html>

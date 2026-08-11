@@ -296,11 +296,6 @@ function applyFilters() {
 // Render — cartões e grupos no design system v2 (pixel).
 // ---------------------------------------------------------------------
 
-// mesmas faixas usadas no encontro (battle.js): >=26 verde, >=15 âmbar
-const ivStatColor = (iv) => iv >= 26 ? 'var(--px-good)' : iv >= 15 ? 'var(--px-mid)' : 'var(--px-bad)';
-// faixa do IV total (%): >=80 verde, >=50 âmbar
-const ivPercentColor = (percent) => percent >= 80 ? 'var(--px-good)' : percent >= 50 ? 'var(--px-mid)' : 'var(--px-bad)';
-
 const MOVE_CATEGORY_STYLE = {
     physical: { label: 'FÍS', color: '#e0803c' },
     special: { label: 'ESP', color: '#4a90e2' },
@@ -310,20 +305,6 @@ const MOVE_CATEGORY_STYLE = {
 function moveCategoryInfo(category) {
     const key = String(category ?? '').trim().toLowerCase();
     return MOVE_CATEGORY_STYLE[key] || { label: '—', color: 'var(--px-text-dim)' };
-}
-
-function ivTooltipText(ivs) {
-    return STAT_KEYS.map((stat) => `${stat.toUpperCase()} ${ivs[stat]}`).join(' · ');
-}
-
-// chips de +/- da nature (verde/vermelho), a partir de getNatureEffect
-function natureModsHTML(effect) {
-    if (!effect) return '';
-    if (effect.increases === effect.decreases) {
-        return '<span class="nat-mod" style="color:var(--px-mid)">NEUTRA</span>';
-    }
-    return `<span class="nat-mod" style="color:var(--px-good)">${effect.increases}⬆</span>`
-        + `<span class="nat-mod" style="color:var(--px-bad)">${effect.decreases}⬇</span>`;
 }
 
 function syncUiState() {
@@ -354,23 +335,15 @@ function renderDetailRows(viewModel) {
     // avaliação de IVs/natureza/stats (grade Ruim..Excelente) + papel ofensivo
     // principal — mesma fonte (PokemonIvEvaluation) usada no encontro (battle.js)
     const evaluation = PokemonIvEvaluation.evaluate(viewModel.pokemon);
-    return `
-        <div class="detail-row"><span class="detail-key">Natureza</span><span class="detail-val">${escapeHtml(viewModel.natureName)} ${natureModsHTML(viewModel.natureEffect)}</span></div>
-        <div class="detail-row"><span class="detail-key">Habilidade</span><span class="detail-val" data-ability="${escapeHtml(viewModel.ability)}">${escapeHtml(PokemonAbilityInfo.label(viewModel.ability))}</span></div>
-        <div class="detail-row"><span class="detail-key">Item</span><span class="detail-val">${escapeHtml(viewModel.heldItem)}</span></div>
+    return PokemonCard.detailRows(viewModel, { afterRows: `
         <div class="detail-row"><span class="detail-key">Posição</span><span class="detail-val">${escapeHtml(viewModel.slotLabel)}</span></div>
         <div class="detail-row"><span class="detail-key">Avaliação</span><span class="detail-val">${PokemonIvEvaluation.html(viewModel.pokemon)} ${PokemonHelperTooltip.iconHTML('Avalia IVs, natureza e stats base pra classificar o Pokémon.')}</span></div>
         <div class="detail-row"><span class="detail-key">Atq Principal</span><span class="detail-val">${escapeHtml(evaluation.role)}</span></div>
-    `;
+    ` });
 }
 
 function renderIvDetails(viewModel) {
-    return `<div class="pokemon-iv-grid">${STAT_KEYS.map((stat) => `
-        <div class="pokemon-iv">
-            <span class="k">${stat.toUpperCase()}</span>
-            <span class="v" style="color:${ivStatColor(viewModel.ivs[stat])}">${viewModel.ivs[stat]}</span>
-        </div>
-    `).join('')}</div>`;
+    return PokemonCard.ivGrid(viewModel);
 }
 
 function renderMoveDetails(viewModel) {
@@ -397,40 +370,10 @@ function renderPokemonCard(viewModel) {
     const expanded = UI_STATE.forceExpandAll
         ? !UI_STATE.fullCollapsed.has(viewModel.key)
         : UI_STATE.expandedPokemon.has(viewModel.key);
-    const detailsId = `pokemon-details-${viewModel.key.replace(/:/g, '-')}`;
-    const icon = viewModel.iconUrl
-        ? `<img class="pokemon-icon" src="${viewModel.iconUrl}" alt="${escapeHtml(viewModel.name)} icon">`
-        : '<span class="pokemon-icon"><span class="pxl-pokeball"></span></span>';
-    const genderClass = viewModel.gender.class === 'male' ? 'pokemon-gender-m' : viewModel.gender.class === 'female' ? 'pokemon-gender-f' : '';
-    const gender = genderClass ? `<span class="${genderClass}">${viewModel.gender.symbol}</span>` : '';
-    const shiny = viewModel.shiny ? '<span data-tip="Shiny!">✨</span>' : '';
-    const chips = viewModel.typeKeys.map((type) => typeTagHTML(type, { stack: true })).join('');
-    const ivColor = ivPercentColor(viewModel.ivPercent);
-    const cardStyle = viewModel.typeKeys[0] ? ` style="--card-type-color:${PokemonPixelIcons.typeColor(viewModel.typeKeys[0])}"` : '';
-
-    return `
-        <article class="pokemon-card pokemon-card--${viewModel.location}" data-pokemon-key="${viewModel.key}"${cardStyle}>
-            <button type="button" class="pokemon-card-toggle" aria-expanded="${expanded}" aria-controls="${detailsId}">
-                ${icon}
-                <span class="pokemon-id-col">
-                    <span class="pokemon-name">
-                        <span class="pokemon-name-text">${escapeHtml(viewModel.name)}</span>
-                        ${gender}
-                        ${shiny}
-                    </span>
-                    <span class="pokemon-chips">${chips}</span>
-                </span>
-                <span class="pokemon-right">
-                    <span class="pokemon-level">Lv. ${viewModel.level || '—'}</span>
-                    <span class="pokemon-ivbar" data-tip="${escapeHtml(ivTooltipText(viewModel.ivs))}">
-                        <span class="px-bar"><span class="px-bar-fill" style="width:${viewModel.ivPercent}%;background:${ivColor}"></span></span>
-                        <span class="pokemon-ivbar-label" style="color:${ivColor}">${viewModel.ivPercent}%</span>
-                    </span>
-                </span>
-            </button>
-            <div class="pokemon-details" id="${detailsId}" ${expanded ? '' : 'hidden'}>${renderDetailRows(viewModel)}${renderIvDetails(viewModel)}${renderMoveDetails(viewModel)}</div>
-        </article>
-    `;
+    return PokemonCard.render(viewModel, {
+        expanded,
+        detailsHtml: renderDetailRows(viewModel) + renderIvDetails(viewModel) + renderMoveDetails(viewModel)
+    });
 }
 
 function renderPokemonList(viewModels, location = 'all') {
