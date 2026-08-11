@@ -443,6 +443,7 @@ function render() {
                 <span class="enc-name">${escapeHtml(foe.name || foe.species)}</span>
                 <span class="enc-level">Lv${foe.level ?? '-'}</span>${gender}
                 ${foe.shiny ? '<span class="best-badge badge-stab" data-tip="Shiny!">★</span>' : ''}
+                ${SCREEN_PREFS.showSmogonLink ? PokemonTransfer.smogonLinkHTML(foe.name || foe.species) : ''}
             </div>
             <div class="enc-types">${foeTypes.map((type) => typeTagHTML(type)).join('')}</div>
             <div class="enc-hp">
@@ -547,11 +548,27 @@ window.addEventListener('message', (event) => {
 });
 
 document.getElementById('content').addEventListener('click', (event) => {
+    const externo = event.target.closest('.px-extlink');
+    if (externo) {
+        event.preventDefault();
+        event.stopPropagation();
+        window.open(externo.dataset.smogon, '_blank', 'noopener');
+        return;
+    }
     const btn = event.target.closest('[data-action="toggle-move"]');
     if (!btn) return;
     const slug = btn.dataset.slug;
     if (openMoves.has(slug)) openMoves.delete(slug); else openMoves.add(slug);
     render();
+});
+
+document.getElementById('content').addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const externo = event.target.closest?.('.px-extlink');
+    if (!externo) return;
+    event.preventDefault();
+    event.stopPropagation();
+    window.open(externo.dataset.smogon, '_blank', 'noopener');
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {

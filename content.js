@@ -74,11 +74,24 @@
         });
     }
 
+    if (!window.__pkmnHelperZoomListenerAdded) {
+        window.__pkmnHelperZoomListenerAdded = true;
+        PokemonHelperZoom.subscribe((factor) => {
+            const container = document.getElementById(ID);
+            if (container) container.style.setProperty('--ph-zoom', String(factor));
+        });
+    }
+
     function build(settings) {
         injectStyle();
 
         const container = document.createElement('div');
         container.id = ID;
+        // cobre o scroll do painel de Configurações (.ph-settings) com o mesmo
+        // visual das telas; escopa as regras de pixel-theme.css, que também é
+        // injetado na página do jogo, só ao que é nosso
+        container.className = 'px-scroll';
+        container.style.setProperty('--ph-zoom', String(PokemonHelperZoom.factor()));
         // referência ao MESMO objeto `settings` que arrastar/redimensionar/
         // maximizar mutam neste build() — o painel de configurações (função
         // separada, sem acesso a este closure) usa isso pra editar o estado
@@ -104,6 +117,7 @@
             { icon: 'enc', tip: `Encontro atual — tecla ${fmt(shortcuts.battle)}`, view: 'battle' },
             { icon: 'calc', tip: `Calculadora de tipos — tecla ${fmt(shortcuts.calc)}`, view: 'calc' },
             { icon: 'team', tip: `Meus Pokémon — tecla ${fmt(shortcuts.myPokemons)}`, view: 'myPokemons' },
+            { icon: 'auc', tip: `Leilão — tecla ${fmt(shortcuts.auction)}`, view: 'auction' },
             { icon: 'cfg', tip: `Configurações — tecla ${fmt(shortcuts.settings)}`, view: 'settings' },
         ], { tip: `Minimizar — ${fmt(shortcuts.minimize)}` }, { tip: `Expandir — ${fmt(shortcuts.toggleFull)}` });
 
@@ -126,6 +140,11 @@
         myPokemonsFrame.className = 'ph-frame';
         myPokemonsFrame.src = chrome.runtime.getURL('myPokemons.html');
 
+        const auctionFrame = document.createElement('iframe');
+        auctionFrame.id = 'pokemon-auction-frame';
+        auctionFrame.className = 'ph-frame';
+        auctionFrame.src = chrome.runtime.getURL('auction.html');
+
         const chartFrame = document.createElement('iframe');
         chartFrame.id = 'pokemon-chart-frame';
         chartFrame.className = 'ph-frame';
@@ -144,15 +163,19 @@
         // caminho. Cada frame recebe seu próprio postMessage direto assim que
         // carrega, sem passar pela guarda, com o estado atual lido do MESMO
         // objeto `settings` que o resto do build() usa.
-        [calcFrame, battleFrame, myPokemonsFrame, chartFrame].forEach((frame) => {
+        [calcFrame, battleFrame, myPokemonsFrame, auctionFrame, chartFrame].forEach((frame) => {
             frame.addEventListener('load', () => {
                 frame.contentWindow?.postMessage({ type: 'panel-mode', full: settings.maximized === true }, '*');
+                if (frame === auctionFrame && typeof window.__pkmnHelperLatestVip === 'boolean') {
+                    frame.contentWindow?.postMessage({ type: 'auction-character-meta', vip: window.__pkmnHelperLatestVip }, '*');
+                }
             });
         });
 
         body.appendChild(calcFrame);
         body.appendChild(battleFrame);
         body.appendChild(myPokemonsFrame);
+        body.appendChild(auctionFrame);
         body.appendChild(chartFrame);
         body.appendChild(settingsPanel);
 
@@ -328,7 +351,7 @@
         // a tabela 18×18 só aparece no modo expandido, ao lado das views de
         // conteúdo (syncFullSide) — estas são as views que a exibem
         const CHART_HOST_VIEWS = ['calc', 'battle'];
-        const VIEW_ACTIONS = { battle: 'battle', calc: 'calc', myPokemons: 'myPokemons', settings: 'settings' };
+        const VIEW_ACTIONS = { battle: 'battle', calc: 'calc', myPokemons: 'myPokemons', auction: 'auction', settings: 'settings' };
 
         // retorna true quando de fato executou algo, false quando não fez nada
         // (ex.: painel colapsado ignora toggleFull/minimize) — quem consome a
@@ -338,8 +361,15 @@
             const container = document.getElementById(ID);
             if (!container) return false;
             if (container.classList.contains('collapsed')) {
+                // minimizar é um toggle bolha <-> painel: da bolha ele é o
+                // caminho de volta. Sem isto, quem minimizou pelo teclado ficava
+                // preso — só o clique na bolha trazia o painel de volta.
+                if (action === 'minimize') {
+                    setCollapsed(container, currentSettings(container), false);
+                    return true;
+                }
                 // da bolha, atalho de view expande e abre a aba;
-                // toggleFull/minimize não fazem sentido colapsado
+                // toggleFull não faz sentido colapsado
                 if (!VIEW_ACTIONS[action] && action !== 'typeChart') return false;
                 setCollapsed(container, currentSettings(container), false);
             }
@@ -397,6 +427,15 @@
             window.addEventListener('message', (event) => {
                 const data = event.data;
                 if (!data || typeof data !== 'object') return;
+                if (data.type === 'auction-command') {
+                    const frame = document.getElementById('pokemon-auction-frame');
+                    if (frame?.contentWindow !== event.source) return;
+                    if (!['bootstrap', 'browse', 'favorite', 'sellables', 'list', 'cancel'].includes(data.action) || typeof data.requestId !== 'string') return;
+                    window.dispatchEvent(new CustomEvent('pkmn-helper-auction-command', { detail: {
+                        requestId: data.requestId.slice(0, 80), action: data.action, params: data.params || {}
+                    } }));
+                    return;
+                }
                 if (data.type === 'panel-shortcut') handleShortcut(data);
                 if (data.type === 'panel-exit-full') {
                     const overlay = document.getElementById(ID);
@@ -412,6 +451,12 @@
                     const active = document.activeElement;
                     if (active && active.classList && active.classList.contains('ph-frame')) active.blur();
                 }
+            });
+        }
+        if (!window.__pkmnHelperAuctionResultListenerAdded) {
+            window.__pkmnHelperAuctionResultListenerAdded = true;
+            window.addEventListener('pkmn-helper-auction-result', (event) => {
+                document.getElementById('pokemon-auction-frame')?.contentWindow?.postMessage({ type: 'auction-result', result: event.detail }, '*');
             });
         }
         // atalhos globais: funcionam com o foco no documento do jogo. Tecla que
@@ -465,8 +510,13 @@
                 const data = ev.detail;
                 const battleFrame = document.getElementById('pokemon-battle-frame');
                 const myPokemonsFrame = document.getElementById('pokemon-myPokemons-frame');
+                const auctionFrame = document.getElementById('pokemon-auction-frame');
                 if (battleFrame) battleFrame.contentWindow.postMessage({ type: 'battle-data', payload: data }, '*');
                 if (myPokemonsFrame) myPokemonsFrame.contentWindow.postMessage({ type: 'character-data', payload: data }, '*');
+                if (auctionFrame && typeof data?.vip === 'boolean') {
+                    window.__pkmnHelperLatestVip = data.vip;
+                    auctionFrame.contentWindow.postMessage({ type: 'auction-character-meta', vip: data.vip }, '*');
+                }
 
                 const isCharacterPayload = !!(data.party || data.pc);
                 // sinal real de fim de luta: só usado aqui pra saber quando voltar
@@ -558,7 +608,12 @@
             }
             #${ID} .ph-header {
                 display: flex; align-items: center; gap: 3px;
-                height: 34px; padding: 0 4px; flex: 0 0 auto;
+                /* sob zoom alto a largura intrínseca da linha (botões de view +
+                   expandir + minimizar + engrenagem) passa dos ~380px do painel
+                   docked; deixa quebrar em vez de cortar, senão os controles que
+                   tirariam o usuário do zoom alto ficariam inalcançáveis */
+                flex-wrap: wrap;
+                min-height: 34px; height: auto; padding: 0 4px; flex: 0 0 auto;
                 background: #08080d; border-bottom: 2px solid #1c1c26;
                 cursor: move; user-select: none;
             }
@@ -579,6 +634,15 @@
             #${ID}.full-side .ph-frame { position: static; height: 100%; }
             #${ID}.full-side #pokemon-chart-frame { display: block; flex: 1 1 auto; min-width: 0; order: 1; }
             #${ID}.full-side .ph-frame.side-active { display: block; flex: 0 0 var(--ph-side-width, 360px); border-right: 2px solid #23232f; order: 0; }
+            /* zoom só nos filhos, nunca no container: ele é position: fixed com
+               top/right/width/height em px, e zoom escalaria esses offsets junto,
+               quebrando arrastar/redimensionar/maximizar. A .ph-body fica de fora
+               porque contém os iframes, que já se auto-escalam por dentro
+               (components/panel-zoom.js) — zoom aqui daria zoom ao quadrado. */
+            #${ID} .ph-header,
+            #${ID} .ph-status,
+            #${ID} .ph-settings { zoom: var(--ph-zoom, 1); }
+            #${ID} .ph-step:disabled { opacity: .35; cursor: default; }
             #${ID} .ph-status {
                 flex: 0 0 auto; height: 22px;
                 display: flex; align-items: center; gap: 7px; padding: 0 8px;
@@ -730,6 +794,7 @@
             battle: `Encontro atual — tecla ${fmt(shortcuts.battle)}`,
             calc: `Calculadora de tipos — tecla ${fmt(shortcuts.calc)}`,
             myPokemons: `Meus Pokémon — tecla ${fmt(shortcuts.myPokemons)}`,
+            auction: `Leilão — tecla ${fmt(shortcuts.auction)}`,
             settings: `Configurações — tecla ${fmt(shortcuts.settings)}`
         };
         container.querySelectorAll('.ph-view-btn').forEach((btn) => {
@@ -803,9 +868,10 @@
         const calc = container.querySelector('#pokemon-calc-frame');
         const battle = container.querySelector('#pokemon-battle-frame');
         const myPokemons = container.querySelector('#pokemon-myPokemons-frame');
+        const auction = container.querySelector('#pokemon-auction-frame');
         const chart = container.querySelector('#pokemon-chart-frame');
         const settingsPanel = container.querySelector('#pokemon-settings-panel');
-        if (!calc || !battle || !myPokemons || !chart || !settingsPanel) return;
+        if (!calc || !battle || !myPokemons || !auction || !chart || !settingsPanel) return;
 
         container.dataset.activeView = view;
         syncFullSide(container, currentSettings(container));
@@ -818,7 +884,7 @@
         // sempre que não são a view ativa "sozinha": assim a folha de estilo
         // decide sozinha (nada de display:none preso de uma navegação anterior
         // sobrevivendo até o próximo toggle de F, que não passa por este laço).
-        [calc, battle, myPokemons, chart].forEach((frame) => {
+        [calc, battle, myPokemons, auction, chart].forEach((frame) => {
             const active = frame.id === `pokemon-${view}-frame`;
             const cssManaged = frame === chart || frame.classList.contains('side-active');
             frame.style.display = active ? 'block' : (cssManaged ? '' : 'none');

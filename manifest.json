@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Infinity MMO Extension",
-  "version": "1.4.51",
+  "version": "1.4.52",
   "description": "",
   "action": {},
   "background": {
@@ -24,6 +24,8 @@
         "battle.js",
         "chart.html",
         "chart.js",
+        "auction.html",
+        "auction.js",
         "pixel-theme.css",
         "myPokemons.html",
         "myPokemons.js",

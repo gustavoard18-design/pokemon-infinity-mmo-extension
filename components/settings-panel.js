@@ -17,6 +17,12 @@ function buildSettingsPanel(shell) {
                 <span class="ph-width-value" id="ph-width-value"></span>
                 <button type="button" class="ph-step" id="ph-width-plus">+</button>
             </div>
+            <div class="ph-setting-row" id="ph-zoom-row" data-tip="Tamanho do conteúdo do painel, de 67% a 200%. Não afeta a página do jogo.">
+                <span class="ph-setting-label">Zoom</span>
+                <button type="button" class="ph-step" id="ph-zoom-minus">-</button>
+                <span class="ph-width-value" id="ph-zoom-value"></span>
+                <button type="button" class="ph-step" id="ph-zoom-plus">+</button>
+            </div>
             <div class="ph-setting-row">
                 <span class="ph-setting-label" id="ph-update-notifications-label">Avisar sobre atualizações</span>
                 <button type="button" class="ph-toggle" id="ph-update-notifications" role="switch" aria-checked="false" aria-labelledby="ph-update-notifications-label"></button>
@@ -52,6 +58,10 @@ function buildSettingsPanel(shell) {
                 <span class="ph-setting-label" id="ph-mp-pokemon-label">Pokémon já expandidos</span>
                 <button type="button" class="ph-toggle" id="ph-mp-pokemon" role="switch" aria-checked="false" aria-labelledby="ph-mp-pokemon-label"></button>
             </div>
+            <div class="ph-setting-row" data-tip="Botão ↗ no cartão, abre o Pokémon no Smogon em outra aba.">
+                <span class="ph-setting-label" id="ph-mp-smogon-label">Link do Smogon</span>
+                <button type="button" class="ph-toggle" id="ph-mp-smogon" role="switch" aria-checked="true" aria-labelledby="ph-mp-smogon-label"></button>
+            </div>
             <div class="ph-subhead">BATALHA</div>
             <div class="ph-setting-row">
                 <span class="ph-setting-label" id="ph-bt-stats-label">IVs / Stats</span>
@@ -76,6 +86,10 @@ function buildSettingsPanel(shell) {
             <div class="ph-setting-row">
                 <span class="ph-setting-label" id="ph-bt-mymoves-label">Seus golpes</span>
                 <button type="button" class="ph-toggle" id="ph-bt-mymoves" role="switch" aria-checked="true" aria-labelledby="ph-bt-mymoves-label"></button>
+            </div>
+            <div class="ph-setting-row" data-tip="Botão ↗ ao lado do nome do oponente, abre a página dele no Smogon.">
+                <span class="ph-setting-label" id="ph-bt-smogon-label">Link do Smogon</span>
+                <button type="button" class="ph-toggle" id="ph-bt-smogon" role="switch" aria-checked="true" aria-labelledby="ph-bt-smogon-label"></button>
             </div>
             <div class="ph-set-head">ATALHOS</div>
             <div class="ph-shortcut-grid" id="ph-shortcut-grid"></div>
@@ -102,6 +116,7 @@ function buildSettingsPanel(shell) {
             ['battle', 'Encontro atual'],
             ['calc', 'Calculadora de tipos'],
             ['myPokemons', 'Meus Pokémon'],
+            ['auction', 'Leilão'],
             ['settings', 'Configurações'],
             ['typeChart', 'Tabela de tipos (expande o painel)'],
             ['toggleFull', 'Expandir / recolher'],
@@ -253,6 +268,7 @@ function buildSettingsPanel(shell) {
             if (!ui) return ui;
             if ('startView' in ui && !START_VIEW_VALUES.includes(ui.startView)) delete ui.startView;
             if ('startCollapsed' in ui && !START_COLLAPSED_VALUES.includes(ui.startCollapsed)) delete ui.startCollapsed;
+            if ('panelZoom' in ui) ui.panelZoom = PokemonHelperZoom.snap(ui.panelZoom);
             if (ui.shortcuts) {
                 const seenCombos = new Set();
                 const cleanShortcuts = {};
@@ -447,6 +463,49 @@ function buildSettingsPanel(shell) {
             if (settings) widthValue.textContent = `${shell.dockedWidth(settings)}px`;
         });
 
+        const zoomRow = panel.querySelector('#ph-zoom-row');
+        const zoomValue = panel.querySelector('#ph-zoom-value');
+        const zoomMinus = panel.querySelector('#ph-zoom-minus');
+        const zoomPlus = panel.querySelector('#ph-zoom-plus');
+        if (!PokemonHelperZoom.supported) {
+            // Firefox < 126 não tem a propriedade zoom; some com o controle em
+            // vez de deixar um botão que não faz nada
+            zoomRow.hidden = true;
+        } else {
+            const levels = PokemonHelperZoom.LEVELS;
+            // pintado por subscribe (não pelo retorno do clique) pra acompanhar
+            // também mudanças vindas de importar config e de "Restaurar tudo".
+            //
+            // O overlay é REINJETADO (não recriado do zero) a cada toggle de
+            // fechar/abrir — background.js roda buildSettingsPanel() de novo,
+            // mas PokemonHelperZoom é um singleton cacheado em globalThis, cujo
+            // Set de listeners sobrevive à reinjeção. Sem essa auto-limpeza,
+            // cada ciclo fechar/reabrir deixaria mais uma closure presa nesse
+            // Set, apontando pra nós de DOM já removidos do painel anterior —
+            // crescimento sem limite e escrita em nós mortos a cada step/set.
+            // unsubscribeZoom só existe depois que subscribe() retorna;
+            // subscribe() chama o callback de forma síncrona durante o próprio
+            // registro, então a checagem abaixo precisa exigir unsubscribeZoom
+            // definido antes de tratar o painel como desconectado — senão essa
+            // primeira chamada (painel ainda nem anexado ao documento) tentaria
+            // invocar uma função que ainda não existe.
+            let unsubscribeZoom;
+            unsubscribeZoom = PokemonHelperZoom.subscribe((factor) => {
+                if (unsubscribeZoom && !zoomRow.isConnected) {
+                    unsubscribeZoom();
+                    return;
+                }
+                zoomValue.textContent = `${Math.round(factor * 100)}%`;
+                zoomMinus.disabled = factor === levels[0];
+                zoomPlus.disabled = factor === levels[levels.length - 1];
+            });
+            const stepZoom = (delta) => PokemonHelperZoom.step(delta).catch((error) => {
+                console.warn('[Pokemon Helper] Não foi possível salvar o zoom:', error);
+            });
+            zoomMinus.addEventListener('click', () => stepZoom(-1));
+            zoomPlus.addEventListener('click', () => stepZoom(1));
+        }
+
         const tooltipsToggle = panel.querySelector('#ph-tooltips');
         PokemonHelperStorage.getUiPreferences()
             .then((preferences) => setToggleState(tooltipsToggle, preferences.tooltipsEnabled))
@@ -481,11 +540,14 @@ function buildSettingsPanel(shell) {
                 (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { expandGroupsByDefault: v } } }));
             bindPrefToggle('ph-mp-pokemon', prefs.screens.myPokemons.expandPokemonByDefault,
                 (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { expandPokemonByDefault: v } } }));
+            bindPrefToggle('ph-mp-smogon', prefs.screens.myPokemons.showSmogonLink,
+                (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { showSmogonLink: v } } }));
 
             const battleToggles = [
                 ['ph-bt-stats', 'showIvs'], ['ph-bt-weak', 'showWeaknesses'],
                 ['ph-bt-moves', 'showFoeMoves'], ['ph-bt-balls', 'showPokeballs'],
-                ['ph-bt-stages', 'showStatChanges'], ['ph-bt-mymoves', 'showMyMoves']
+                ['ph-bt-stages', 'showStatChanges'], ['ph-bt-mymoves', 'showMyMoves'],
+                ['ph-bt-smogon', 'showSmogonLink']
             ];
             battleToggles.forEach(([id, field]) => {
                 bindPrefToggle(id, prefs.screens.battle[field],
