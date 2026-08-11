@@ -77,6 +77,10 @@
    <span role="link"> tratado por delegação — âncora aninhada seria inválida.
    Fica aqui, e não no CSS de um componente, porque as duas telas o usam. */
 .px-extlink {
+    /* empurrado para a borda direita da linha: o nome (com gênero e shiny)
+       fica agrupado à esquerda e o link isolado à direita, em vez de colado
+       no fim de um texto de largura variável */
+    margin-left: auto;
     flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
     font-family: var(--px-font-mono); font-size: 9px; line-height: 1;
     padding: 1px 3px; border: 1px solid var(--px-accent);
