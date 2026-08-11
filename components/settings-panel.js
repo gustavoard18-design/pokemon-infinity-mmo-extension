@@ -52,6 +52,10 @@ function buildSettingsPanel(shell) {
                 <span class="ph-setting-label" id="ph-mp-pokemon-label">Pokémon já expandidos</span>
                 <button type="button" class="ph-toggle" id="ph-mp-pokemon" role="switch" aria-checked="false" aria-labelledby="ph-mp-pokemon-label"></button>
             </div>
+            <div class="ph-setting-row" data-tip="Selo S no cartão, abre o Pokémon no Smogon em outra aba.">
+                <span class="ph-setting-label" id="ph-mp-smogon-label">Link do Smogon</span>
+                <button type="button" class="ph-toggle" id="ph-mp-smogon" role="switch" aria-checked="true" aria-labelledby="ph-mp-smogon-label"></button>
+            </div>
             <div class="ph-subhead">BATALHA</div>
             <div class="ph-setting-row">
                 <span class="ph-setting-label" id="ph-bt-stats-label">IVs / Stats</span>
@@ -481,6 +485,8 @@ function buildSettingsPanel(shell) {
                 (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { expandGroupsByDefault: v } } }));
             bindPrefToggle('ph-mp-pokemon', prefs.screens.myPokemons.expandPokemonByDefault,
                 (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { expandPokemonByDefault: v } } }));
+            bindPrefToggle('ph-mp-smogon', prefs.screens.myPokemons.showSmogonLink,
+                (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { showSmogonLink: v } } }));
 
             const battleToggles = [
                 ['ph-bt-stats', 'showIvs'], ['ph-bt-weak', 'showWeaknesses'],

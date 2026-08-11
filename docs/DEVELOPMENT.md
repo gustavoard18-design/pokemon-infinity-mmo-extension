@@ -89,7 +89,7 @@ data/extension-storage.js → components/pixel-icon.js → components/tooltip.js
 | `index.html` / `app.js` | iframe | Calculadora de tipos |
 | `battle.html` / `battle.js` | iframe | Dados do encontro atual |
 | `chart.html` / `chart.js` | iframe | Tabela completa e filtros de tipos |
-| `myPokemons.html` / `myPokemons.js` | iframe | Party, caixas, detalhes, ordenação e filtros de Pokémon |
+| `myPokemons.html` / `myPokemons.js` | iframe | Party, caixas, detalhes, ordenação e filtros de Pokémon; exportar/importar a lista (a lista importada vive só na memória do iframe, nunca no storage) |
 | `auction.html` / `auction.js` | iframe | Consulta paginada do leilão, filtros, Meus anúncios e Favoritos |
 
 **`components/`** (compartilhado entre iframes e/ou `content.js`):
@@ -106,6 +106,7 @@ data/extension-storage.js → components/pixel-icon.js → components/tooltip.js
 | `type-chart-data.js` | Tabela de efetividade de tipos, compartilhada entre `app.js` e `chart.js` |
 | `pokemon-filters.js` / `pokemon-filters.css` | Painel reutilizável de filtros avançados para listas de Pokémon |
 | `pokemon-card.js` / `pokemon-card.css` | Card compartilhado por Meus Pokémons e Leilão; renderiza cabeçalho, Nature +/-, Habilidade hidratável, Item e IVs, aceitando extensões de contexto |
+| `pokemon-transfer.js` | Exportar/importar a lista de Meus Pokémon (`PokemonTransfer`): whitelist de campos, envelope `{ format, version, exportedAt, party, pc }`, parser tolerante que também aceita `{ party, pc }` cru, e o slug do link do Smogon. Sem DOM e sem `chrome.*` |
 | `catch-rate.js` | Cálculo de taxa de captura |
 | `iv-evaluation.js` | Avaliação de Atributos, IVs e Nature para classificar um Pokémon |
 | `ability-info.js` | Normalização e lookup de dados de habilidade |

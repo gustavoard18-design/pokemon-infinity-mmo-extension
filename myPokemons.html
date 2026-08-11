@@ -50,6 +50,12 @@
         .pokemon-move-name { flex: 1; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .pokemon-move-category { font-family: var(--px-font-mono); font-size: 9px; }
         .pokemon-move-pp { font-family: var(--px-font-mono); font-size: 9px; color: var(--px-text-dim); width: 44px; text-align: right; }
+        .transfer-status { margin: 0; font-family: var(--px-font-mono); font-size: 9px; line-height: 1.4; color: var(--px-text-dim); }
+        .transfer-status[data-kind="ok"] { color: var(--px-good); }
+        .transfer-status[data-kind="erro"] { color: var(--px-bad); }
+        .imported-banner { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; padding: 5px 7px; border: 1px solid var(--px-accent); background: var(--px-bg-btn2); }
+        .imported-banner-label { font-family: var(--px-font-mono); font-size: 9px; letter-spacing: 1.5px; color: var(--px-accent); }
+        .imported-banner-file { flex: 1; min-width: 0; font-size: 11px; color: var(--px-text-val); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .empty { margin: 0; padding: 16px; border: 1px dashed var(--px-border); text-align: center; color: var(--px-text-dim); }
         [hidden] { display: none !important; }
         body.full .pokemon-list { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
@@ -66,8 +72,19 @@
             <div class="pokemon-toolbar-actions">
                 <button type="button" class="px-btn" id="expand-all-groups" aria-pressed="false" data-tip="Expande ou recolhe todos os grupos (Meu Time e Caixas) de uma vez.">GRUPOS ABERTOS</button>
                 <button type="button" class="px-btn" id="expand-all-pokemon" aria-pressed="false" data-tip="Abre os detalhes de todos os Pokémon de uma vez. Cada grupo abre e fecha pelo próprio título.">DETALHES DE TODOS</button>
+                <button type="button" class="px-btn" id="toggle-moves" aria-pressed="true" data-tip="Mostra ou esconde a lista de golpes em todos os cartões.">GOLPES</button>
+                <button type="button" class="px-btn" id="export-pokemon" data-tip="Baixa um JSON com o time e todas as caixas, ignorando os filtros.">EXPORTAR</button>
+                <button type="button" class="px-btn" id="import-pokemon" data-tip="Abre um JSON exportado por outra pessoa. A lista fica só nesta sessão.">IMPORTAR</button>
+                <input type="file" id="import-file" accept="application/json,.json" hidden>
             </div>
+            <p class="transfer-status" id="transfer-status" role="status" hidden></p>
             <div class="pokemon-advanced-filters" id="pokemon-advanced-filters" hidden></div>
+        </div>
+
+        <div class="imported-banner" id="imported-banner" hidden>
+            <span class="imported-banner-label">LISTA IMPORTADA</span>
+            <span class="imported-banner-file" id="imported-banner-file"></span>
+            <button type="button" class="px-btn" id="exit-imported">VOLTAR AOS MEUS</button>
         </div>
 
         <div id="content">
@@ -86,6 +103,7 @@
     <script src="components/ability-info.js"></script>
     <script src="components/iv-evaluation.js"></script>
     <script src="components/pokemon-card.js"></script>
+    <script src="components/pokemon-transfer.js"></script>
     <script src="components/pokemon-filters.js"></script>
     <script src="data/constants.js"></script>
     <script src="components/shortcut-forwarder.js"></script>

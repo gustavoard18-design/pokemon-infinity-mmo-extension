@@ -1,5 +1,18 @@
 let LOCAL_PAYLOAD = { party: [], pc: [] };
 
+// lista importada de um arquivo: vive só na memória do iframe, nunca vai para
+// o chrome.storage e nunca se mistura ao payload real do jogo (LOCAL_PAYLOAD,
+// que continua sendo atualizado em segundo plano enquanto o modo está ativo)
+const IMPORT_STATE = { active: false, fileName: '', payload: null };
+
+function activePayload() {
+    return IMPORT_STATE.active ? IMPORT_STATE.payload : LOCAL_PAYLOAD;
+}
+
+function payloadIsEmpty(payload) {
+    return !(payload?.party?.length) && !(payload?.pc?.some((box) => box?.pokemon?.length));
+}
+
 const ICON_URL = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/dream-world/';
 const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 
@@ -28,7 +41,10 @@ const UI_STATE = {
     // no modo full os detalhes começam todos abertos, mas o usuário pode
     // recolher card a card — os recolhidos vivem aqui, fora do Set
     // persistido (expandedPokemon), e zeram a cada entrada no modo full.
-    fullCollapsed: new Set()
+    fullCollapsed: new Set(),
+    // seção de golpes de todos os cartões — estado só da sessão, como os
+    // outros dois toggles globais da barra de ferramentas
+    showMoves: true
 };
 
 // defaults de expansão da tela (Configurações → TELAS). Começa com os
@@ -36,12 +52,14 @@ const UI_STATE = {
 // storage resolver, o comportamento é o padrão — aceitável e raro.
 let SCREEN_PREFS = Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES.screens.myPokemons);
 PokemonHelperStorage.getUiPreferences()
-    .then((prefs) => { SCREEN_PREFS = prefs.screens.myPokemons; })
+    .then((prefs) => { SCREEN_PREFS = prefs.screens.myPokemons; renderIfLoaded(); })
     .catch(() => {});
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !changes[PokemonHelperStorage.KEYS.uiPreferences]) return;
+    // re-render para o link do Smogon aparecer/sumir assim que a configuração
+    // muda, sem precisar fechar e reabrir a aba
     PokemonHelperStorage.getUiPreferences()
-        .then((prefs) => { SCREEN_PREFS = prefs.screens.myPokemons; })
+        .then((prefs) => { SCREEN_PREFS = prefs.screens.myPokemons; renderIfLoaded(); })
         .catch(() => {});
 });
 
@@ -144,7 +162,8 @@ function createPokemonViewModel(pokemon, location) {
     };
 }
 
-function rebuildDataState(data) {
+function rebuildDataState() {
+    const data = activePayload();
     const party = Array.isArray(data?.party) ? data.party : [];
     const pc = Array.isArray(data?.pc) ? data.pc : [];
     const groups = [{ key: 'party', kind: 'party', title: 'Meu time', capacity: 6, boxIndex: null }];
@@ -346,6 +365,15 @@ function renderIvDetails(viewModel) {
     return PokemonCard.ivGrid(viewModel);
 }
 
+// selo discreto ao lado do nome. Vive dentro do <button> do cartão, então não
+// pode ser uma âncora: o clique é tratado pelo delegador de #content.
+function renderSmogonLink(viewModel) {
+    if (!SCREEN_PREFS.showSmogonLink) return '';
+    const url = PokemonTransfer.smogonUrl(viewModel.name);
+    if (!url) return '';
+    return `<span class="smogon-link" role="link" tabindex="0" data-smogon="${escapeHtml(url)}" data-tip="Abrir no Smogon — build, stats e estratégias">S</span>`;
+}
+
 function renderMoveDetails(viewModel) {
     if (!viewModel.moves.length) {
         return `<div class="moves-head"><span class="px-label">Golpes</span></div><p class="empty">Nenhum golpe disponível.</p>`;
@@ -370,9 +398,11 @@ function renderPokemonCard(viewModel) {
     const expanded = UI_STATE.forceExpandAll
         ? !UI_STATE.fullCollapsed.has(viewModel.key)
         : UI_STATE.expandedPokemon.has(viewModel.key);
+    const moves = UI_STATE.showMoves ? renderMoveDetails(viewModel) : '';
     return PokemonCard.render(viewModel, {
         expanded,
-        detailsHtml: renderDetailRows(viewModel) + renderIvDetails(viewModel) + renderMoveDetails(viewModel)
+        nameBadgesHtml: renderSmogonLink(viewModel),
+        detailsHtml: renderDetailRows(viewModel) + renderIvDetails(viewModel) + moves
     });
 }
 
@@ -449,6 +479,8 @@ function syncGlobalControls() {
     groupsToggle?.setAttribute('aria-pressed', String(allGroupsExpanded));
     if (groupsToggle) groupsToggle.hidden = removeGroups;
     document.getElementById('expand-all-pokemon')?.setAttribute('aria-pressed', String(allPokemonExpanded));
+    document.getElementById('toggle-moves')?.setAttribute('aria-pressed', String(UI_STATE.showMoves));
+    syncTransferControls();
 }
 
 function render() {
@@ -466,6 +498,113 @@ function applyAndRender() {
     render();
 }
 
+// evita trocar a mensagem inicial de "aguardando" por um render vazio quando
+// as preferências chegam antes do primeiro payload do personagem
+function renderIfLoaded() {
+    if (DATA_STATE.groups.length > 0) render();
+}
+
+// ---------------------------------------------------------------------
+// Exportar / importar — arquivo JSON no modelo de components/pokemon-transfer.js
+// ---------------------------------------------------------------------
+
+const TRANSFER_MESSAGES = {
+    json: 'Arquivo inválido: não é um JSON válido.',
+    shape: 'Arquivo inválido: não contém uma lista de Pokémon.',
+    empty: 'Arquivo sem Pokémon.'
+};
+
+function setTransferStatus(message, kind) {
+    const status = document.getElementById('transfer-status');
+    if (!status) return;
+    status.textContent = message || '';
+    status.hidden = !message;
+    if (kind) status.dataset.kind = kind;
+    else delete status.dataset.kind;
+}
+
+function syncTransferControls() {
+    const exportButton = document.getElementById('export-pokemon');
+    if (exportButton) exportButton.disabled = payloadIsEmpty(activePayload());
+    const banner = document.getElementById('imported-banner');
+    if (banner) banner.hidden = !IMPORT_STATE.active;
+    const fileLabel = document.getElementById('imported-banner-file');
+    if (fileLabel) fileLabel.textContent = IMPORT_STATE.fileName;
+}
+
+// a lista importada e a do jogo usam chaves de card diferentes (party:0,
+// pc:2:13 apontam para Pokémon distintos), então a expansão recomeça do padrão
+function resetViewState() {
+    UI_STATE.expandedGroups.clear();
+    UI_STATE.expandedPokemon.clear();
+    UI_STATE.fullCollapsed.clear();
+    UI_STATE.knownGroups.clear();
+    UI_STATE.initialized = false;
+}
+
+function exportPokemon() {
+    const payload = activePayload();
+    if (payloadIsEmpty(payload)) {
+        setTransferStatus('Nada para exportar — aguardando os dados do personagem.', 'erro');
+        return;
+    }
+    const name = PokemonTransfer.filename();
+    const json = JSON.stringify(PokemonTransfer.buildExport(payload), null, 2);
+    try {
+        const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setTransferStatus(`Exportado: ${name}`, 'ok');
+    } catch (error) {
+        // download dentro do iframe pode ser recusado pelo navegador —
+        // a área de transferência mantém o dado acessível
+        console.warn('[Pokemon Helper] Falha ao baixar a exportação:', error);
+        navigator.clipboard?.writeText(json)
+            .then(() => setTransferStatus('Download bloqueado — JSON copiado para a área de transferência.', 'ok'))
+            .catch(() => setTransferStatus('Não foi possível exportar neste navegador.', 'erro'));
+    }
+}
+
+function enterImportedMode(payload, fileName, count) {
+    IMPORT_STATE.active = true;
+    IMPORT_STATE.payload = payload;
+    IMPORT_STATE.fileName = fileName;
+    resetViewState();
+    rebuildDataState();
+    applyAndRender();
+    setTransferStatus(`Importado: ${fileName} — ${count} Pokémon.`, 'ok');
+}
+
+function exitImportedMode() {
+    IMPORT_STATE.active = false;
+    IMPORT_STATE.payload = null;
+    IMPORT_STATE.fileName = '';
+    resetViewState();
+    rebuildDataState();
+    applyAndRender();
+    setTransferStatus('', null);
+}
+
+function importPokemonFile(file) {
+    const reader = new FileReader();
+    reader.onerror = () => setTransferStatus('Não foi possível ler o arquivo.', 'erro');
+    reader.onload = () => {
+        const result = PokemonTransfer.parse(String(reader.result || ''));
+        // arquivo inválido não derruba a lista que já está na tela
+        if (!result.ok) {
+            setTransferStatus(TRANSFER_MESSAGES[result.error] || TRANSFER_MESSAGES.shape, 'erro');
+            return;
+        }
+        enterImportedMode(result.payload, file.name, result.count);
+    };
+    reader.readAsText(file);
+}
+
 function toggleSetValue(set, key) {
     if (set.has(key)) set.delete(key);
     else set.add(key);
@@ -478,6 +617,7 @@ function bindControls() {
     const advancedPanel = document.getElementById('pokemon-advanced-filters');
     const groupsToggle = document.getElementById('expand-all-groups');
     const pokemonToggle = document.getElementById('expand-all-pokemon');
+    const movesToggle = document.getElementById('toggle-moves');
 
     filterController = PokemonFilters.mount(advancedPanel, {
         onApply(values) {
@@ -517,6 +657,24 @@ function bindControls() {
         render();
     });
 
+    movesToggle.addEventListener('click', () => {
+        UI_STATE.showMoves = !UI_STATE.showMoves;
+        render();
+    });
+
+    document.getElementById('export-pokemon').addEventListener('click', exportPokemon);
+
+    const importInput = document.getElementById('import-file');
+    document.getElementById('import-pokemon').addEventListener('click', () => importInput.click());
+    importInput.addEventListener('change', () => {
+        const file = importInput.files?.[0];
+        // zera o input para o mesmo arquivo poder ser reimportado depois
+        importInput.value = '';
+        if (file) importPokemonFile(file);
+    });
+
+    document.getElementById('exit-imported').addEventListener('click', exitImportedMode);
+
     pokemonToggle.addEventListener('click', () => {
         const shouldExpand = pokemonToggle.getAttribute('aria-pressed') !== 'true';
         DATA_STATE.filteredPokemon.forEach((viewModel) => {
@@ -535,6 +693,15 @@ function bindControls() {
     });
 
     content.addEventListener('click', (event) => {
+        // antes do cartão: o selo fica dentro do <button>, e sem parar aqui o
+        // clique também expandiria/recolheria os detalhes
+        const smogon = event.target.closest('.smogon-link');
+        if (smogon) {
+            event.preventDefault();
+            event.stopPropagation();
+            window.open(smogon.dataset.smogon, '_blank', 'noopener');
+            return;
+        }
         const groupButton = event.target.closest('.pokemon-group-toggle');
         if (groupButton) {
             const group = groupButton.closest('[data-group-key]');
@@ -554,6 +721,17 @@ function bindControls() {
             render();
         }
     });
+
+    content.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const smogon = event.target.closest?.('.smogon-link');
+        if (!smogon) return;
+        event.preventDefault();
+        event.stopPropagation();
+        window.open(smogon.dataset.smogon, '_blank', 'noopener');
+    });
+
+    syncTransferControls();
 }
 
 bindControls();
@@ -564,7 +742,13 @@ window.addEventListener('message', (event) => {
     if (type !== 'character-data' || !hasData) return;
     if (payload.pc?.length > 0) LOCAL_PAYLOAD.pc = payload.pc;
     if (payload.party?.length > 0) LOCAL_PAYLOAD.party = payload.party;
-    rebuildDataState(LOCAL_PAYLOAD);
+    // no modo importado os dados do jogo continuam chegando e ficam guardados,
+    // mas não trocam a lista que está na tela
+    if (IMPORT_STATE.active) {
+        syncTransferControls();
+        return;
+    }
+    rebuildDataState();
     applyAndRender();
 });
 

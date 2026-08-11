@@ -21,6 +21,7 @@ jeito.
   - [Calculadora](#calculadora)
   - [Tabela de tipos](#tabela-de-tipos)
   - [Meus Pokémon](#meus-pokémon)
+    - [Exportar e importar a lista](#exportar-e-importar-a-lista)
 - [Configurações](#configurações)
 - [Atalhos de teclado](#atalhos-de-teclado)
 - [Limitações e observações](#limitações-e-observações)
@@ -204,10 +205,20 @@ Mostrada assim que há um oponente capturado numa batalha.
 - Botão **GRUPOS ABERTOS** — expande/recolhe todos os grupos de uma vez.
 - Botão **DETALHES DE TODOS** — expande/recolhe os detalhes de todos os
   Pokémon visíveis de uma vez.
+- Botão **GOLPES** — mostra/esconde a lista de golpes em todos os cards de
+  uma vez. Desligado, o card expandido fica bem mais curto, o que ajuda
+  quando o que interessa é comparar IVs e naturezas. Volta ligado quando a
+  página é recarregada.
+- Botões **EXPORTAR** e **IMPORTAR** — veja
+  [Exportar e importar a lista](#exportar-e-importar-a-lista).
 - Card de Pokémon (colapsável): sprite, nome, gênero, indicador de shiny
-  (✨), chips de tipo, nível e barra de IV total. Expandido, mostra
-  natureza, habilidade (com tooltip), item, posição, avaliação, atq
-  principal, grade de IVs por stat e a lista de golpes conhecidos.
+  (✨), selo **S** do Smogon, chips de tipo, nível e barra de IV total.
+  Expandido, mostra natureza, habilidade (com tooltip), item, posição,
+  avaliação, atq principal, grade de IVs por stat (com barra colorida por
+  atributo) e a lista de golpes conhecidos.
+- Selo **S** — abre o Pokémon no
+  [Smogon](https://www.smogon.com/dex/sm/) em outra aba, para consultar
+  build, stats e estratégias. Pode ser desligado em Configurações → TELAS.
 - Contador por grupo: "visíveis/total" com filtro ativo, ou
   "ocupados/capacidade" sem filtro.
 - Painel de filtros avançados (botões **Limpar** e **Aplicar**):
@@ -223,6 +234,39 @@ Mostrada assim que há um oponente capturado numa batalha.
 
 ![Aba Meus Pokémon com filtros avançados abertos](docs/images/aba-meus-pokemon.png)
 <!-- TODO imagem: aba Meus Pokémon com o painel de filtros avançados aberto e alguns cards expandidos -->
+
+#### Exportar e importar a lista
+
+Dá para salvar a sua coleção inteira num arquivo e abrir a coleção de outra
+pessoa na mesma tela, com os mesmos filtros, ordenações e detalhes.
+
+- **EXPORTAR** baixa `meus-pokemons-AAAA-MM-DD.json` com o time e **todas** as
+  caixas, ignorando os filtros que estiverem ligados. O botão fica desabilitado
+  enquanto o personagem não sincroniza.
+- **IMPORTAR** abre um desses arquivos. A tela passa a mostrar a lista
+  importada e exibe a faixa **LISTA IMPORTADA**, com o botão **VOLTAR AOS
+  MEUS**.
+- A lista importada existe **só naquela sessão**: ela não é salva, não se
+  mistura com os seus Pokémon e some ao recarregar a página. Enquanto ela está
+  na tela, os dados do jogo continuam sendo recebidos em segundo plano.
+- O arquivo tem só os dados dos Pokémon — nome, nível, gênero, shiny, natureza,
+  habilidade, item, tipos, IVs, stats e golpes. Nada de conta, sessão ou
+  qualquer outro dado seu.
+- Arquivo corrompido ou fora do formato mostra o motivo e mantém a lista que já
+  estava na tela.
+
+O formato é este, e a importação também aceita um JSON cru com apenas
+`party` e `pc`:
+
+```json
+{
+  "format": "infinity-mmo-extension/my-pokemons",
+  "version": 1,
+  "exportedAt": "2026-08-11T02:40:00.000Z",
+  "party": [ { "name": "Pikachu", "level": 42 } ],
+  "pc": [ { "name": "Caixa 1", "pokemon": [] } ]
+}
+```
 
 ## Configurações
 
@@ -258,6 +302,8 @@ Cinco blocos, nesta ordem na tela.
 - **Pokémon já expandidos** (padrão desligado) — cards nascem com os
   detalhes abertos na primeira carga da tela (toggles manuais depois têm
   prioridade).
+- **Link do Smogon** (padrão ligado) — mostra o selo **S** no card, que abre
+  o Pokémon no Smogon em outra aba. A mudança vale na hora, sem recarregar.
 
 *Batalha* (todos ligados por padrão) — mostram/ocultam seções da aba
 Encontro:

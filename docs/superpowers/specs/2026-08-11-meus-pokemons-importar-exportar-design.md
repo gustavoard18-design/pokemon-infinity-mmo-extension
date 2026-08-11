@@ -94,11 +94,12 @@ descartadas, como já acontece com os dados do jogo.
 Dois botões novos na fita de ações da barra de ferramentas, ao lado de "GRUPOS
 ABERTOS" e "DETALHES DE TODOS": **EXPORTAR** e **IMPORTAR**.
 
-- **EXPORTAR** serializa `LOCAL_PAYLOAD` inteiro — party e todas as caixas,
-  ignorando filtro, busca e ordenação ativos — e dispara o download via `Blob` +
-  âncora `download`. Se o navegador recusar o download dentro do iframe, o
-  conteúdo vai para a área de transferência e a mensagem informa isso.
-  Sem dados do personagem ainda, o botão fica desabilitado.
+- **EXPORTAR** serializa a **lista ativa** inteira — party e todas as caixas,
+  ignorando filtro, busca e ordenação — e dispara o download via `Blob` + âncora
+  `download`. Lista ativa é a do jogador; no modo importado, é a que está na
+  tela, para o arquivo poder ser repassado adiante. Se o navegador recusar o
+  download dentro do iframe, o conteúdo vai para a área de transferência e a
+  mensagem informa isso. Enquanto não houver Pokémon, o botão fica desabilitado.
 - **IMPORTAR** abre um `<input type="file">` oculto (`accept=".json"`).
 
 Ao importar com sucesso, a tela entra em **modo importado**:

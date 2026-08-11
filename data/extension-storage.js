@@ -59,7 +59,8 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         screens: Object.freeze({
             myPokemons: Object.freeze({
                 expandPokemonByDefault: false,
-                expandGroupsByDefault: true
+                expandGroupsByDefault: true,
+                showSmogonLink: true
             }),
             battle: Object.freeze({
                 showStatChanges: true,
