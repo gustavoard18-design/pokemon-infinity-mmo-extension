@@ -49,11 +49,11 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         panelZoom: 1,                 // fator de zoom do conteúdo do painel (ver components/panel-zoom.js)
         // ação → combinação normalizada (ver PokemonHelperShortcutUtils)
         shortcuts: Object.freeze({
-            battle: 'e',
-            calc: 'c',
-            myPokemons: 'm',
-            settings: ',',
-            typeChart: 't',
+            battle: '1',
+            calc: '2',
+            myPokemons: '3',
+            settings: '4',
+            typeChart: '5',
             toggleFull: 'f',
             minimize: 'escape'
         }),

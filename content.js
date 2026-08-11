@@ -613,6 +613,15 @@
             #${ID}.full-side .ph-frame { position: static; height: 100%; }
             #${ID}.full-side #pokemon-chart-frame { display: block; flex: 1 1 auto; min-width: 0; order: 1; }
             #${ID}.full-side .ph-frame.side-active { display: block; flex: 0 0 var(--ph-side-width, 360px); border-right: 2px solid #23232f; order: 0; }
+            /* zoom só nos filhos, nunca no container: ele é position: fixed com
+               top/right/width/height em px, e zoom escalaria esses offsets junto,
+               quebrando arrastar/redimensionar/maximizar. A .ph-body fica de fora
+               porque contém os iframes, que já se auto-escalam por dentro
+               (components/panel-zoom.js) — zoom aqui daria zoom ao quadrado. */
+            #${ID} .ph-header,
+            #${ID} .ph-status,
+            #${ID} .ph-settings { zoom: var(--ph-zoom, 1); }
+            #${ID} .ph-step:disabled { opacity: .35; cursor: default; }
             #${ID} .ph-status {
                 flex: 0 0 auto; height: 22px;
                 display: flex; align-items: center; gap: 7px; padding: 0 8px;
