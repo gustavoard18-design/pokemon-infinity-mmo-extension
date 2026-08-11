@@ -79,6 +79,10 @@
 
         const container = document.createElement('div');
         container.id = ID;
+        // cobre o scroll do painel de Configurações (.ph-settings) com o mesmo
+        // visual das telas; escopa as regras de pixel-theme.css, que também é
+        // injetado na página do jogo, só ao que é nosso
+        container.className = 'px-scroll';
         // referência ao MESMO objeto `settings` que arrastar/redimensionar/
         // maximizar mutam neste build() — o painel de configurações (função
         // separada, sem acesso a este closure) usa isso pra editar o estado
