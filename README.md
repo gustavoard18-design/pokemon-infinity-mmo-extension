@@ -389,13 +389,18 @@ sobre o painel do overlay (nunca disparam na página do jogo).
 | Ação | Atalho padrão | Onde funciona |
 |---|---|---|
 | Abrir/fechar o overlay inteiro | `Ctrl+Shift+Y` | Atalho do navegador (`chrome://extensions/shortcuts`) |
-| Encontro | `E` | Com foco no painel |
-| Calculadora | `C` | Com foco no painel |
-| Meus Pokémon | `M` | Com foco no painel |
-| Configurações | `,` (vírgula) | Com foco no painel |
+| Encontro | `1` | Com foco no painel |
+| Calculadora | `2` | Com foco no painel |
+| Meus Pokémon | `3` | Com foco no painel |
+| Leilão | `4` | Com foco no painel |
+| Configurações | `5` | Com foco no painel |
 | Tabela de tipos | `T` | Com foco no painel |
 | Expandir/recolher (modo full) | `F` | Com foco no painel |
-| Minimizar/voltar | `Esc` | Com foco no painel |
+| Minimizar/voltar | `Q` | Com foco no painel |
+
+Os números seguem a ordem dos ícones no cabeçalho. `Q` alterna entre a
+bolha e o painel nos dois sentidos: minimiza quando o painel está aberto e
+o traz de volta quando está minimizado.
 
 ## Limitações e observações
 

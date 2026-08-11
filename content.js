@@ -117,7 +117,7 @@
             { icon: 'enc', tip: `Encontro atual — tecla ${fmt(shortcuts.battle)}`, view: 'battle' },
             { icon: 'calc', tip: `Calculadora de tipos — tecla ${fmt(shortcuts.calc)}`, view: 'calc' },
             { icon: 'team', tip: `Meus Pokémon — tecla ${fmt(shortcuts.myPokemons)}`, view: 'myPokemons' },
-            { icon: 'auc', tip: 'Leilão', view: 'auction' },
+            { icon: 'auc', tip: `Leilão — tecla ${fmt(shortcuts.auction)}`, view: 'auction' },
             { icon: 'cfg', tip: `Configurações — tecla ${fmt(shortcuts.settings)}`, view: 'settings' },
         ], { tip: `Minimizar — ${fmt(shortcuts.minimize)}` }, { tip: `Expandir — ${fmt(shortcuts.toggleFull)}` });
 
@@ -351,7 +351,7 @@
         // a tabela 18×18 só aparece no modo expandido, ao lado das views de
         // conteúdo (syncFullSide) — estas são as views que a exibem
         const CHART_HOST_VIEWS = ['calc', 'battle'];
-        const VIEW_ACTIONS = { battle: 'battle', calc: 'calc', myPokemons: 'myPokemons', settings: 'settings' };
+        const VIEW_ACTIONS = { battle: 'battle', calc: 'calc', myPokemons: 'myPokemons', auction: 'auction', settings: 'settings' };
 
         // retorna true quando de fato executou algo, false quando não fez nada
         // (ex.: painel colapsado ignora toggleFull/minimize) — quem consome a
@@ -361,8 +361,15 @@
             const container = document.getElementById(ID);
             if (!container) return false;
             if (container.classList.contains('collapsed')) {
+                // minimizar é um toggle bolha <-> painel: da bolha ele é o
+                // caminho de volta. Sem isto, quem minimizou pelo teclado ficava
+                // preso — só o clique na bolha trazia o painel de volta.
+                if (action === 'minimize') {
+                    setCollapsed(container, currentSettings(container), false);
+                    return true;
+                }
                 // da bolha, atalho de view expande e abre a aba;
-                // toggleFull/minimize não fazem sentido colapsado
+                // toggleFull não faz sentido colapsado
                 if (!VIEW_ACTIONS[action] && action !== 'typeChart') return false;
                 setCollapsed(container, currentSettings(container), false);
             }
@@ -787,6 +794,7 @@
             battle: `Encontro atual — tecla ${fmt(shortcuts.battle)}`,
             calc: `Calculadora de tipos — tecla ${fmt(shortcuts.calc)}`,
             myPokemons: `Meus Pokémon — tecla ${fmt(shortcuts.myPokemons)}`,
+            auction: `Leilão — tecla ${fmt(shortcuts.auction)}`,
             settings: `Configurações — tecla ${fmt(shortcuts.settings)}`
         };
         container.querySelectorAll('.ph-view-btn').forEach((btn) => {

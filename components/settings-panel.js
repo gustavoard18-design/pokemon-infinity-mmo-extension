@@ -116,6 +116,7 @@ function buildSettingsPanel(shell) {
             ['battle', 'Encontro atual'],
             ['calc', 'Calculadora de tipos'],
             ['myPokemons', 'Meus Pokémon'],
+            ['auction', 'Leilão'],
             ['settings', 'Configurações'],
             ['typeChart', 'Tabela de tipos (expande o painel)'],
             ['toggleFull', 'Expandir / recolher'],

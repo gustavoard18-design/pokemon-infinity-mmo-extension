@@ -48,14 +48,17 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         autoSwitchToBattle: true,
         panelZoom: 1,                 // fator de zoom do conteúdo do painel (ver components/panel-zoom.js)
         // ação → combinação normalizada (ver PokemonHelperShortcutUtils)
+        // 1..5 seguem a ordem dos ícones no cabeçalho; quem já customizou não é
+        // afetado, porque mergeUiPreferences preserva o que estiver salvo
         shortcuts: Object.freeze({
-            battle: 'e',
-            calc: 'c',
-            myPokemons: 'm',
-            settings: ',',
+            battle: '1',
+            calc: '2',
+            myPokemons: '3',
+            auction: '4',
+            settings: '5',
             typeChart: 't',
             toggleFull: 'f',
-            minimize: 'escape'
+            minimize: 'q'
         }),
         screens: Object.freeze({
             myPokemons: Object.freeze({
