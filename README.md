@@ -309,6 +309,13 @@ Cinco blocos, nesta ordem na tela.
 - **Largura** — stepper `-`/`+`, de 250 a 380px em passos de 20px (padrão
   300px). Ajusta a largura do painel encaixado (ou a largura salva para
   quando você sair do modo full).
+- **Zoom** — stepper `-`/`+` nos degraus 67% · 75% · 80% · 90% · 100% ·
+  110% · 125% · 150% · 175% · 200% (padrão 100%). Escala o conteúdo da
+  extensão — textos, ícones, cartões, cabeçalho e a própria tela de
+  Configurações — refluindo o layout, igual ao Ctrl+`+`/`-` do navegador.
+  O tamanho da caixa do painel não muda (isso é a **Largura** e o
+  redimensionamento pelas bordas), e a página do jogo não é afetada.
+  No Firefox a linha só aparece a partir da versão 126.
 - **Avisar sobre atualizações** — toggle (padrão desligado). Liga a
   checagem periódica de nova versão e o aviso nas telas.
 - **Canal beta** — toggle, só aparece com "Avisar" ligado (padrão

@@ -116,7 +116,8 @@ separadas: uma no isolated world com a lista de arquivos abaixo (nessa ordem,
 por dependência entre eles) e outra no MAIN world só com `interceptor.js`:
 
 ```
-data/extension-storage.js → components/pixel-icon.js → components/tooltip.js
+data/extension-storage.js → components/pixel-icon.js
+→ components/panel-zoom.js → components/tooltip.js
 → components/header-buttons.js → components/shortcut-utils.js
 → components/settings-panel.js → content.js
 ```
@@ -139,6 +140,7 @@ data/extension-storage.js → components/pixel-icon.js → components/tooltip.js
 | Arquivo | Papel |
 |---|---|
 | `pixel-icon.js` | Ícones pixel-art 7×7 do design system (bitmap via `box-shadow`) e contraste automático de texto sobre cores de tipo |
+| `panel-zoom.js` | Fator de zoom do conteúdo do painel (`PokemonHelperZoom`): escada de degraus, snap, persistência em `panelZoom` e notificação por `subscribe`. Nas páginas da extensão aplica `body { zoom }` sozinho; no content script só distribui o fator, para nunca tocar na página do jogo |
 | `tooltip.js` | Tooltip global por delegação de eventos (`data-tip`), respeita a preferência `tooltipsEnabled` |
 | `header-buttons.js` | Barra de abas do overlay (encontro / calculadora / meus pokémons / config + expandir + minimizar) |
 | `shortcut-utils.js` | Normalização e exibição de combinações de atalho (formato canônico `ctrl+shift+e`, `t`, `escape`) |
