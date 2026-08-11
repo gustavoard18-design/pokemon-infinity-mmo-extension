@@ -28,7 +28,7 @@ refluir o layout — sem afetar em nada a página do jogo.
 | Onde se controla | Só na tela de Configurações, seção PAINEL. Sem atalhos de teclado, sem Ctrl+scroll |
 | Degraus | Escada do Chrome: 67% · 75% · 80% · 90% · 100% · 110% · 125% · 150% · 175% · 200% |
 | Escopo da preferência | Valor único e global, não por view |
-| Barra de rolagem | Visual pixelado completo no Chrome (`::-webkit-scrollbar`), aproximação por cores no Firefox (propriedades padrão) |
+| Barra de rolagem | Visual pixelado completo no Chrome (`::-webkit-scrollbar`); Firefox mantém a barra de rolagem padrão do navegador (estilização descoped) |
 
 ## Zoom
 
@@ -167,13 +167,15 @@ Via `::-webkit-scrollbar`:
 - `::-webkit-scrollbar-button` e `-corner` neutralizados: sem setinhas nem
   quadrado cinza.
 
-### Firefox — aproximação
+### Firefox — fora de escopo
 
-Via `scrollbar-width: thin` e `scrollbar-color: <thumb> <track>` com as mesmas
-cores. O Gecko não expõe forma nem borda do thumb, então fica a mesma paleta e
-proporção, sem o contorno quadrado. É o teto do que dá para fazer sem
-reimplementar a barra em JS — descartado por ser código novo para manter em seis
-telas e por costumar quebrar rolagem por teclado, touch e acessibilidade.
+Estilizar a barra do Firefox foi descartado (decisão consciente do dono do
+projeto, não limitação técnica de última hora): o bloco `scrollbar-width`/
+`scrollbar-color` que seria a via Gecko para essa estilização acaba não
+alcançando o Firefox de qualquer forma (ver seção seguinte) — reimplementar a
+barra em JS para cobrir esse caso seria código novo para manter em seis
+telas e costuma quebrar rolagem por teclado, touch e acessibilidade. Firefox
+mantém a barra de rolagem padrão do navegador.
 
 ### Separação obrigatória dos dois blocos
 
@@ -183,15 +185,30 @@ mesmo bloco, o Chrome perde todo o visual pixelado e cai na barra padrão só
 recolorida.
 
 As propriedades padrão ficam isoladas em
-`@supports not (background: -webkit-named-image(i))`. Não dá para usar
-`@supports not selector(::-webkit-scrollbar)`: o Firefox 153 passou a
-reconhecer esse seletor (sem implementar a estilização dele), então o teste
-vira verdadeiro só até o Firefox 152 — a partir do 153 a negação dá falso e o
-bloco de propriedades padrão simplesmente para de ser aplicado, deixando o
-Firefox sem nenhum visual de barra pixelada. `-webkit-named-image()` só
-existe em Blink/WebKit, então `@supports not` sobre ela é verdadeira em
-qualquer motor que não seja esses — Firefox incluído, em qualquer versão —
-sem sniffing de navegador.
+`@supports not selector(::-webkit-scrollbar)`. Medido no Chrome instalado
+nesta máquina (151): `CSS.supports('selector(::-webkit-scrollbar)')` é
+`true`, logo a negação é `false` e o Chrome não entra nesse bloco — só o
+bloco `::-webkit-scrollbar` se aplica lá, que é o que garante o visual
+pixelado no navegador alvo principal.
+
+Uma tentativa anterior usou `@supports not (background:
+-webkit-named-image(i))`, na crença de que essa função é Blink+WebKit
+(cobrindo Chrome). Isso é errado — medido no mesmo Chrome 151,
+`CSS.supports('background: -webkit-named-image(i)')` é `false`
+(`-webkit-named-image()` é WebKit-only, ou seja, Safari, não Blink), então a
+negação dava `true`, o Chrome entrava nos dois blocos ao mesmo tempo e
+perdia o `::-webkit-scrollbar` inteiro, caindo na barra padrão só
+recolorida — uma regressão visual no navegador alvo principal. Não usar essa
+condição.
+
+Efeito colateral aceito no Firefox: a partir da versão 153 o Firefox também
+reporta `selector(::-webkit-scrollbar)` como suportado, mesmo sem
+implementar a estilização do seletor — então a negação também dá `false` lá,
+e o bloco de propriedades padrão (a única via que o Firefox conseguiria
+honrar) deixa de ser aplicado. Firefox mantém a barra de rolagem padrão do
+navegador, em qualquer versão. Isso é aceito por decisão de escopo (ver
+seção anterior), não corrigido com sniffing de engine, terceira condição ou
+mudança no `strict_min_version`.
 
 ### Interação com o zoom
 
