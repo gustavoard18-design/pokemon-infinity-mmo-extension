@@ -16,9 +16,13 @@
 //
 //   NODE_PATH=~/tools/playwright/node_modules node scripts/screenshots.js docs/images
 //
-// Gera sete das oito imagens do README. `aba-encontro.png` fica de fora: ela
-// exige uma batalha em andamento, que o script não deve provocar. A do leilão
-// é pulada (com aviso) se a aba não tiver anúncios carregados.
+// Gera sete das oito imagens do README. A oitava, `aba-encontro.png`, sai com
+//
+//   NODE_PATH=... node scripts/screenshots.js docs/images --encontro
+//
+// e exige uma batalha já na tela: o script nunca provoca batalha na conta do
+// jogador. A imagem do leilão é pulada (com aviso) se a aba não tiver anúncios
+// carregados.
 //
 // Dados de terceiros nunca entram nas imagens: a capa recorta o painel de chat
 // do jogo, e o print do leilão aplica tarja sobre o nome dos vendedores.
@@ -42,7 +46,12 @@ const path = require('path');
 const fs = require('fs');
 
 const RAIZ = path.join(__dirname, '..');
-const OUT = process.argv[2] || path.join(process.cwd(), 'docs/images');
+const ARGS = process.argv.slice(2);
+// --encontro: captura só aba-encontro.png, e exige uma batalha na tela. É a
+// única imagem que o fluxo normal não gera, porque o script não deve provocar
+// batalha na conta do jogador.
+const SO_ENCONTRO = ARGS.includes('--encontro');
+const OUT = ARGS.find((a) => !a.startsWith('--')) || path.join(process.cwd(), 'docs/images');
 const OVERLAY = '#pokemon-type-matchup-overlay';
 const wait = (p, ms) => p.waitForTimeout(ms);
 
@@ -144,6 +153,12 @@ Recarregue a página do jogo e espere o rodapé marcar "CONECTADO".`);
     const feitos = [];
     const log = [];
 
+    const semTooltipEPrint = async (arquivo) => {
+        await semTooltip(game);
+        await overlay.screenshot({ path: path.join(OUT, arquivo) });
+        feitos.push(arquivo);
+    };
+
     // clique programático: o clique real deixaria o cursor sobre o botão e o
     // tooltip apareceria no print
     const view = async (name) => {
@@ -178,6 +193,27 @@ Recarregue a página do jogo e espere o rodapé marcar "CONECTADO".`);
     };
 
     await encaixado();
+
+    // ---- Encontro (só com --encontro): exige batalha na tela ------------
+    if (SO_ENCONTRO) {
+        await view('battle');
+        const cena = await F['battle.html'].evaluate(() => ({
+            encontro: !!document.querySelector('.enc-screen'),
+            melhorJogada: !!document.querySelector('.best-box')
+        }));
+        if (!cena.encontro) {
+            throw new Error(`a aba Encontro está vazia: entre numa batalha antes de rodar com --encontro.`);
+        }
+        if (!cena.melhorJogada) {
+            throw new Error(`a caixa MELHOR JOGADA não está na tela — ela só aparece contra um
+oponente ainda NÃO capturado, e é o que a legenda do README promete.
+Entre numa batalha selvagem com um oponente novo.`);
+        }
+        await semTooltipEPrint('aba-encontro.png');
+        console.log(JSON.stringify({ feitos, avisos: log }, null, 1));
+        await browser.close();
+        return;
+    }
 
     // ---- Calculadora: modo ataque com um tipo escolhido ---------------
     await view('calc');

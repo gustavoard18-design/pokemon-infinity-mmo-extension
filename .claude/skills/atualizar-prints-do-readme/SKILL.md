@@ -81,16 +81,19 @@ errada mais rápido que o olho:
 | `modo-full.png` | tabela de tipos ao lado, com tipo ainda selecionado |
 | `tabela-tipos.png` | grade 18×18 inteira, sem corte |
 
-## `aba-encontro.png` é manual
+## `aba-encontro.png` depende do usuário
 
-O script se recusa a capturá-la de propósito: ela exige uma batalha em
-andamento, e a ferramenta não deve provocar batalha na conta do usuário.
+Ela exige uma batalha em andamento, e a ferramenta não deve provocar batalha na
+conta do usuário. Peça para ele entrar numa **batalha selvagem com oponente
+ainda não capturado** — sem isso não aparece a caixa MELHOR JOGADA, que é o que
+a legenda do README promete — e avisar. Com a batalha de pé:
 
-Peça ao usuário para entrar numa **batalha selvagem com oponente ainda não
-capturado** (senão não aparece a caixa MELHOR JOGADA) e avisar. Com a batalha
-de pé, capture o elemento `#pokemon-type-matchup-overlay` na aba Encontro, do
-mesmo jeito que o script faz nas outras — reaproveite `semTooltip()` para o
-tooltip não vazar.
+```bash
+NODE_PATH=~/tools/playwright/node_modules node scripts/screenshots.js docs/images --encontro
+```
+
+O script confere o encontro e a caixa antes de fotografar, e aborta explicando
+o que falta. É rápido: dá para rodar enquanto o usuário segura o turno.
 
 ## Armadilhas
 

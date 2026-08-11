@@ -163,7 +163,6 @@ Mostrada assim que há um oponente capturado numa batalha.
 - Badge **GOTCHA** — substitui a seção de golpes quando a captura dá certo.
 
 ![Aba Encontro mostrando dados do oponente](docs/images/aba-encontro.png)
-<!-- TODO imagem: aba Encontro em batalha, com a caixa MELHOR JOGADA e a seção Golpes dele visíveis -->
 
 ### Calculadora
 

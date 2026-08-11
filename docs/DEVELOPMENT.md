@@ -67,10 +67,17 @@ tela com o DOM vivo — se o Chrome não está renderizando o checkout atual. Es
 extensão instalada de outro diretório ignora o `--load-extension`, e os prints
 sairiam de outro código sem nenhum aviso.
 
-O script gera sete das oito imagens. `aba-encontro.png` exige uma batalha em
-andamento e continua sendo capturada à mão; a do leilão é pulada, com aviso, se
-a aba não tiver anúncios carregados (ela é passiva — depende de o jogador ter
-aberto o leilão dentro do jogo).
+Isso gera sete das oito imagens. A oitava sai com a batalha já na tela:
+
+```bash
+NODE_PATH=~/tools/playwright/node_modules node scripts/screenshots.js docs/images --encontro
+```
+
+O script nunca provoca batalha na conta do jogador — com `--encontro` ele exige
+um encontro ativo e a caixa MELHOR JOGADA (que só aparece contra oponente ainda
+não capturado), e aborta explicando se faltar. A imagem do leilão é pulada, com
+aviso, se a aba não tiver anúncios carregados: ela é passiva e depende de o
+jogador ter aberto o leilão dentro do jogo.
 
 Dados de terceiros não entram nas imagens: a capa recorta o painel de chat e
 **falha** se não localizar o recorte, e o print do leilão aplica tarja sobre o
