@@ -45,6 +45,22 @@ verificação é manual, carregando a extensão e exercitando a aba do overlay
 afetada (veja [DevTools no infinitymmo.net](#devtools-no-infinitymmonet)
 para inspecionar cada contexto).
 
+### Prints do README
+
+`scripts/screenshots.js` regenera as imagens de `docs/images/` dirigindo, via
+CDP, um Chrome já logado no jogo — o mesmo Chrome com porta de debug descrito em
+[DevTools no infinitymmo.net](#devtools-no-infinitymmonet), carregando a
+extensão com `--load-extension`. Com o overlay marcando "CONECTADO":
+
+```bash
+npm install playwright   # fora do repo: não é dependência do projeto
+node scripts/screenshots.js docs/images
+```
+
+O script gera seis das sete imagens. `aba-encontro.png` exige uma batalha em
+andamento e continua sendo capturada à mão. A capa recorta o painel de chat do
+jogo, para não publicar nomes e mensagens de outros jogadores.
+
 ## Arquitetura
 
 A extensão roda em quatro contextos isolados, que só trocam dados por
