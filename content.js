@@ -74,6 +74,14 @@
         });
     }
 
+    if (!window.__pkmnHelperZoomListenerAdded) {
+        window.__pkmnHelperZoomListenerAdded = true;
+        PokemonHelperZoom.subscribe((factor) => {
+            const container = document.getElementById(ID);
+            if (container) container.style.setProperty('--ph-zoom', String(factor));
+        });
+    }
+
     function build(settings) {
         injectStyle();
 
@@ -83,6 +91,7 @@
         // visual das telas; escopa as regras de pixel-theme.css, que também é
         // injetado na página do jogo, só ao que é nosso
         container.className = 'px-scroll';
+        container.style.setProperty('--ph-zoom', String(PokemonHelperZoom.factor()));
         // referência ao MESMO objeto `settings` que arrastar/redimensionar/
         // maximizar mutam neste build() — o painel de configurações (função
         // separada, sem acesso a este closure) usa isso pra editar o estado
