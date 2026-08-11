@@ -71,6 +71,22 @@
     cursor: pointer;
 }
 .px-btn.active { background: var(--px-accent); border-color: var(--px-accent); color: var(--px-on-dark); }
+
+/* Link externo compacto (hoje: Smogon), usado no cartão de Meus Pokémon e no
+   cabeçalho do Encontro. Vive dentro de um <button> nos dois casos, então é um
+   <span role="link"> tratado por delegação — âncora aninhada seria inválida.
+   Fica aqui, e não no CSS de um componente, porque as duas telas o usam. */
+.px-extlink {
+    /* empurrado para a borda direita da linha: o nome (com gênero e shiny)
+       fica agrupado à esquerda e o link isolado à direita, em vez de colado
+       no fim de um texto de largura variável */
+    margin-left: auto;
+    flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--px-font-mono); font-size: 9px; line-height: 1;
+    padding: 1px 3px; border: 1px solid var(--px-accent);
+    background: transparent; color: var(--px-accent); cursor: pointer;
+}
+.px-extlink:hover, .px-extlink:focus-visible { background: var(--px-accent); color: var(--px-on-dark); }
 .px-btn.px-btn-accent { color: var(--px-accent); }
 .px-btn:disabled, .px-btn[aria-disabled="true"] { opacity: .4; cursor: not-allowed; }
 
@@ -119,9 +135,80 @@
 @keyframes px-blip { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 .px-blip { width: 6px; height: 6px; background: var(--px-good); animation: px-blip 1.6s steps(2, end) infinite; }
 
-.px-scroll::-webkit-scrollbar { width: 7px; height: 7px; }
-.px-scroll::-webkit-scrollbar-track { background: var(--px-bg); }
-.px-scroll::-webkit-scrollbar-thumb { background: #2e2e3c; }
+/* ---------------------------------------------------------------------
+   Barra de rolagem pixelada. ESCOPADA sob .px-scroll de propósito: este
+   arquivo também é injetado no <head> da página do jogo por content.js,
+   e uma regra solta aqui repintaria as barras do próprio jogo. A classe
+   vive no <html> das telas de iframe e no container do overlay; o
+   seletor com `*` pega qualquer descendente rolável (filtros avançados,
+   overflow horizontal da tabela de tipos, painel de configurações) sem
+   precisar marcar um por um.
+--------------------------------------------------------------------- */
+.px-scroll::-webkit-scrollbar,
+.px-scroll *::-webkit-scrollbar { width: 10px; height: 10px; }
+
+.px-scroll::-webkit-scrollbar-track,
+.px-scroll *::-webkit-scrollbar-track {
+    background: var(--px-bg);
+    box-shadow: inset 1px 0 0 var(--px-border);
+}
+.px-scroll::-webkit-scrollbar-track:horizontal,
+.px-scroll *::-webkit-scrollbar-track:horizontal {
+    box-shadow: inset 0 1px 0 var(--px-border);
+}
+
+.px-scroll::-webkit-scrollbar-thumb,
+.px-scroll *::-webkit-scrollbar-thumb {
+    background: var(--px-bg-badge);
+    border-radius: 0;
+    box-shadow: inset 0 0 0 1px var(--px-border-btn);
+}
+.px-scroll::-webkit-scrollbar-thumb:hover,
+.px-scroll *::-webkit-scrollbar-thumb:hover { background: var(--px-border-tip); }
+.px-scroll::-webkit-scrollbar-thumb:active,
+.px-scroll *::-webkit-scrollbar-thumb:active {
+    background: var(--px-accent);
+    box-shadow: inset 0 0 0 1px var(--px-accent-hover);
+}
+
+.px-scroll::-webkit-scrollbar-button,
+.px-scroll *::-webkit-scrollbar-button { display: none; }
+.px-scroll::-webkit-scrollbar-corner,
+.px-scroll *::-webkit-scrollbar-corner { background: var(--px-bg); }
+
+/* Bloco SEPARADO do de cima porque no Chrome declarar scrollbar-color/
+   scrollbar-width num elemento DESLIGA as regras ::-webkit-scrollbar dele —
+   no mesmo bloco, o Chrome perderia todo o visual pixelado e cairia na barra
+   padrão só recolorida.
+
+   A condição é `@supports not selector(::-webkit-scrollbar)`. Medido no
+   Chrome 151: `CSS.supports('selector(::-webkit-scrollbar)')` é `true`, logo
+   a negação é `false` e o Chrome NÃO entra neste bloco — só o bloco
+   `::-webkit-scrollbar` acima se aplica, que é o que importa aqui.
+
+   `@supports not (background: -webkit-named-image(i))` foi tentada antes e
+   é uma regressão: `-webkit-named-image()` é WebKit-only (Safari), não
+   Blink — medido no mesmo Chrome 151,
+   `CSS.supports('background: -webkit-named-image(i)')` é `false`, então a
+   negação dava `true` e o Chrome também entrava neste bloco, desligando o
+   `::-webkit-scrollbar` e caindo na barra padrão recolorida. Não usar essa
+   condição de novo.
+
+   Efeito colateral aceito no Firefox: a partir da versão 153 o Firefox
+   também reporta `selector(::-webkit-scrollbar)` como suportado, mesmo sem
+   implementar a estilização dele — então a negação também dá `false` lá, e
+   este bloco (que é o único que o Firefox conseguiria honrar, via
+   scrollbar-width/scrollbar-color) deixa de ser aplicado. Firefox mantém a
+   barra de rolagem padrão do navegador. Isso foi decidido conscientemente:
+   estilizar a barra do Firefox está fora de escopo aqui — sem sniffing de
+   engine, sem terceira condição, sem mexer no strict_min_version. */
+@supports not selector(::-webkit-scrollbar) {
+    .px-scroll,
+    .px-scroll * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--px-bg-badge) var(--px-bg);
+    }
+}
 
 
 /* ---------------------------------------------------------------------

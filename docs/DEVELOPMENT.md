@@ -45,6 +45,48 @@ verificação é manual, carregando a extensão e exercitando a aba do overlay
 afetada (veja [DevTools no infinitymmo.net](#devtools-no-infinitymmonet)
 para inspecionar cada contexto).
 
+### Prints do README
+
+`scripts/screenshots.js` regenera as imagens de `docs/images/` dirigindo, via
+CDP, um Chrome já logado no jogo — o mesmo Chrome com porta de debug descrito em
+[DevTools no infinitymmo.net](#devtools-no-infinitymmonet), carregando a
+extensão com `--load-extension`. Com o overlay marcando "CONECTADO":
+
+```bash
+# fora do repo: Playwright é utilitário de dev, não dependência do projeto
+mkdir -p ~/tools/playwright && cd ~/tools/playwright && npm install playwright
+
+cd <raiz do repositório>
+NODE_PATH=~/tools/playwright/node_modules node scripts/screenshots.js docs/images
+```
+
+O script faz um pré-voo antes de fotografar: aborta se o personagem não
+sincronizou, se os iframes não carregaram e — comparando ids e scripts de cada
+tela com o DOM vivo — se o Chrome não está renderizando o checkout atual. Esse
+último caso é a armadilha do processo: um perfil de debug que já tenha a
+extensão instalada de outro diretório ignora o `--load-extension`, e os prints
+sairiam de outro código sem nenhum aviso.
+
+Isso gera sete das oito imagens. A oitava sai com a batalha já na tela:
+
+```bash
+NODE_PATH=~/tools/playwright/node_modules node scripts/screenshots.js docs/images --encontro
+```
+
+O script nunca provoca batalha na conta do jogador — com `--encontro` ele exige
+um encontro ativo e a caixa MELHOR JOGADA (que só aparece contra oponente ainda
+não capturado), e aborta explicando se faltar. A imagem do leilão é pulada, com
+aviso, se a aba não tiver anúncios carregados: ela é passiva e depende de o
+jogador ter aberto o leilão dentro do jogo.
+
+Dados de terceiros não entram nas imagens: a capa recorta o painel de chat e
+**falha** se não localizar o recorte, e o print do leilão aplica tarja sobre o
+nome dos vendedores — as duas proteções ficam no script, para sobreviverem a
+qualquer regeneração futura.
+
+O passo a passo completo, com a conferência visual de cada imagem, está na skill
+`.claude/skills/atualizar-prints-do-readme/`.
+
 ## Arquitetura
 
 A extensão roda em quatro contextos isolados, que só trocam dados por
@@ -74,7 +116,8 @@ separadas: uma no isolated world com a lista de arquivos abaixo (nessa ordem,
 por dependência entre eles) e outra no MAIN world só com `interceptor.js`:
 
 ```
-data/extension-storage.js → components/pixel-icon.js → components/tooltip.js
+data/extension-storage.js → components/pixel-icon.js
+→ components/panel-zoom.js → components/tooltip.js
 → components/header-buttons.js → components/shortcut-utils.js
 → components/settings-panel.js → content.js
 ```
@@ -89,7 +132,7 @@ data/extension-storage.js → components/pixel-icon.js → components/tooltip.js
 | `index.html` / `app.js` | iframe | Calculadora de tipos |
 | `battle.html` / `battle.js` | iframe | Dados do encontro atual |
 | `chart.html` / `chart.js` | iframe | Tabela completa e filtros de tipos |
-| `myPokemons.html` / `myPokemons.js` | iframe | Party, caixas, detalhes, ordenação e filtros de Pokémon |
+| `myPokemons.html` / `myPokemons.js` | iframe | Party, caixas, detalhes, ordenação e filtros de Pokémon; exportar/importar a lista (a lista importada vive só na memória do iframe, nunca no storage) |
 | `auction.html` / `auction.js` | iframe | Consulta paginada do leilão, filtros, Meus anúncios e Favoritos |
 
 **`components/`** (compartilhado entre iframes e/ou `content.js`):
@@ -97,6 +140,7 @@ data/extension-storage.js → components/pixel-icon.js → components/tooltip.js
 | Arquivo | Papel |
 |---|---|
 | `pixel-icon.js` | Ícones pixel-art 7×7 do design system (bitmap via `box-shadow`) e contraste automático de texto sobre cores de tipo |
+| `panel-zoom.js` | Fator de zoom do conteúdo do painel (`PokemonHelperZoom`): escada de degraus, snap, persistência em `panelZoom` e notificação por `subscribe`. Nas páginas da extensão aplica `body { zoom }` sozinho; no content script só distribui o fator, para nunca tocar na página do jogo |
 | `tooltip.js` | Tooltip global por delegação de eventos (`data-tip`), respeita a preferência `tooltipsEnabled` |
 | `header-buttons.js` | Barra de abas do overlay (encontro / calculadora / meus pokémons / config + expandir + minimizar) |
 | `shortcut-utils.js` | Normalização e exibição de combinações de atalho (formato canônico `ctrl+shift+e`, `t`, `escape`) |
@@ -106,6 +150,7 @@ data/extension-storage.js → components/pixel-icon.js → components/tooltip.js
 | `type-chart-data.js` | Tabela de efetividade de tipos, compartilhada entre `app.js` e `chart.js` |
 | `pokemon-filters.js` / `pokemon-filters.css` | Painel reutilizável de filtros avançados para listas de Pokémon |
 | `pokemon-card.js` / `pokemon-card.css` | Card compartilhado por Meus Pokémons e Leilão; renderiza cabeçalho, Nature +/-, Habilidade hidratável, Item e IVs, aceitando extensões de contexto |
+| `pokemon-transfer.js` | Exportar/importar a lista de Meus Pokémon (`PokemonTransfer`): whitelist de campos, envelope `{ format, version, exportedAt, party, pc }`, parser tolerante que também aceita `{ party, pc }` cru, e o slug do link do Smogon. Sem DOM e sem `chrome.*` |
 | `catch-rate.js` | Cálculo de taxa de captura |
 | `iv-evaluation.js` | Avaliação de Atributos, IVs e Nature para classificar um Pokémon |
 | `ability-info.js` | Normalização e lookup de dados de habilidade |

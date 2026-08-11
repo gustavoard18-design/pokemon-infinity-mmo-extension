@@ -7,7 +7,6 @@ time e do PC, e um painel de configurações para ajustar tudo isso do seu
 jeito.
 
 ![Overlay aberto sobre o jogo infinitymmo.net](docs/images/capa-overlay.png)
-<!-- TODO imagem: overlay aberto (aba Encontro ou Meus Pokémon) por cima do jogo, mostrando o painel flutuante -->
 
 ## Sumário
 
@@ -21,6 +20,8 @@ jeito.
   - [Calculadora](#calculadora)
   - [Tabela de tipos](#tabela-de-tipos)
   - [Meus Pokémon](#meus-pokémon)
+    - [Exportar e importar a lista](#exportar-e-importar-a-lista)
+  - [Leilão](#leilão)
 - [Configurações](#configurações)
 - [Atalhos de teclado](#atalhos-de-teclado)
 - [Limitações e observações](#limitações-e-observações)
@@ -108,8 +109,8 @@ overlay quando houver uma versão mais nova disponível na branch escolhida.
 2. Fechado/minimizado, o overlay vira uma bolha flutuante com o emoji 🧭 —
    clique nela para reabrir o painel no tamanho salvo.
 3. No cabeçalho do painel (arrastável, para reposicionar) ficam os ícones
-   das 4 abas — Encontro, Calculadora, Meus Pokémon, Configurações —, um
-   botão de expandir e o botão de minimizar (`_`).
+   das 5 abas — Encontro, Calculadora, Meus Pokémon, Leilão, Configurações —,
+   um botão de expandir e o botão de minimizar (`_`).
 4. O painel encaixado pode ser redimensionado pelas bordas/cantos, e sua
    posição fica salva entre sessões.
 5. O rodapé mostra a barra de status: "CONECTADO" ou "AGUARDANDO DADOS", o
@@ -160,9 +161,17 @@ Mostrada assim que há um oponente capturado numa batalha.
 - Seção **Seus golpes** (ocultável) — golpes disponíveis para usar no turno,
   com PP restante; some quando o Pokémon é capturado.
 - Badge **GOTCHA** — substitui a seção de golpes quando a captura dá certo.
+- Botão **↗** ao lado do nome do oponente — abre a página dele no
+  [Smogon](https://www.smogon.com/dex/sm/) em outra aba, na dex da geração
+  SM. Serve para checar rapidamente, no meio do encontro, o que aquele
+  Pokémon costuma carregar: builds usadas, distribuição de EVs, natures
+  recomendadas e o papel competitivo dele. Útil principalmente contra
+  espécies que você ainda não conhece, para decidir se vale a pena capturar
+  e como treinar depois. Pode ser desligado em Configurações → TELAS →
+  BATALHA. O mesmo botão aparece nos cards de
+  [Meus Pokémon](#meus-pokémon).
 
 ![Aba Encontro mostrando dados do oponente](docs/images/aba-encontro.png)
-<!-- TODO imagem: aba Encontro em batalha, com a caixa MELHOR JOGADA e a seção Golpes dele visíveis -->
 
 ### Calculadora
 
@@ -179,7 +188,6 @@ Mostrada assim que há um oponente capturado numa batalha.
   invertidas no modo Defesa (verde = bom para quem defende).
 
 ![Aba Calculadora com tipos selecionados](docs/images/aba-calculadora.png)
-<!-- TODO imagem: aba Calculadora com alguns tipos selecionados e o resultado agrupado por multiplicador -->
 
 ### Tabela de tipos
 
@@ -193,7 +201,6 @@ Mostrada assim que há um oponente capturado numa batalha.
 - Botão **◂ VOLTAR** — sai do modo full e retorna às abas encaixadas.
 
 ![Tabela de tipos completa em modo full](docs/images/tabela-tipos.png)
-<!-- TODO imagem: tabela de tipos 18x18 em modo full, com uma linha/coluna destacada -->
 
 ### Meus Pokémon
 
@@ -204,10 +211,21 @@ Mostrada assim que há um oponente capturado numa batalha.
 - Botão **GRUPOS ABERTOS** — expande/recolhe todos os grupos de uma vez.
 - Botão **DETALHES DE TODOS** — expande/recolhe os detalhes de todos os
   Pokémon visíveis de uma vez.
+- Botão **GOLPES** — mostra/esconde a lista de golpes em todos os cards de
+  uma vez. Desligado, o card expandido fica bem mais curto, o que ajuda
+  quando o que interessa é comparar IVs e naturezas. Volta ligado quando a
+  página é recarregada.
+- Botões **EXPORTAR** e **IMPORTAR** — veja
+  [Exportar e importar a lista](#exportar-e-importar-a-lista).
 - Card de Pokémon (colapsável): sprite, nome, gênero, indicador de shiny
-  (✨), chips de tipo, nível e barra de IV total. Expandido, mostra
-  natureza, habilidade (com tooltip), item, posição, avaliação, atq
-  principal, grade de IVs por stat e a lista de golpes conhecidos.
+  (✨), botão **↗** do Smogon, chips de tipo, nível e barra de IV total.
+  Expandido, mostra natureza, habilidade (com tooltip), item, posição,
+  avaliação, atq principal, grade de IVs por stat (com barra colorida por
+  atributo) e a lista de golpes conhecidos.
+- Botão **↗** — abre aquele Pokémon no
+  [Smogon](https://www.smogon.com/dex/sm/) em outra aba. O mesmo botão existe
+  na aba Encontro; veja [Encontro](#encontro) para o que ele serve. Pode ser
+  desligado em Configurações → TELAS.
 - Contador por grupo: "visíveis/total" com filtro ativo, ou
   "ocupados/capacidade" sem filtro.
 - Painel de filtros avançados (botões **Limpar** e **Aplicar**):
@@ -222,7 +240,66 @@ Mostrada assim que há um oponente capturado numa batalha.
   - **IV mínimo** — um campo numérico (0–31) por stat.
 
 ![Aba Meus Pokémon com filtros avançados abertos](docs/images/aba-meus-pokemon.png)
-<!-- TODO imagem: aba Meus Pokémon com o painel de filtros avançados aberto e alguns cards expandidos -->
+
+#### Exportar e importar a lista
+
+Dá para salvar a sua coleção inteira num arquivo e abrir a coleção de outra
+pessoa na mesma tela, com os mesmos filtros, ordenações e detalhes.
+
+- **EXPORTAR** baixa `meus-pokemons-AAAA-MM-DD.json` com o time e **todas** as
+  caixas, ignorando os filtros que estiverem ligados. O botão fica desabilitado
+  enquanto o personagem não sincroniza.
+- **IMPORTAR** abre um desses arquivos. A tela passa a mostrar a lista
+  importada e exibe a faixa **LISTA IMPORTADA**, com o botão **VOLTAR AOS
+  MEUS**.
+- A lista importada existe **só naquela sessão**: ela não é salva, não se
+  mistura com os seus Pokémon e some ao recarregar a página. Enquanto ela está
+  na tela, os dados do jogo continuam sendo recebidos em segundo plano.
+- O arquivo tem só os dados dos Pokémon — nome, nível, gênero, shiny, natureza,
+  habilidade, item, tipos, IVs, stats e golpes. Nada de conta, sessão ou
+  qualquer outro dado seu.
+- Arquivo corrompido ou fora do formato mostra o motivo e mantém a lista que já
+  estava na tela.
+
+O formato é este, e a importação também aceita um JSON cru com apenas
+`party` e `pc`:
+
+```json
+{
+  "format": "infinity-mmo-extension/my-pokemons",
+  "version": 1,
+  "exportedAt": "2026-08-11T02:40:00.000Z",
+  "party": [ { "name": "Pikachu", "level": 42 } ],
+  "pc": [ { "name": "Caixa 1", "pokemon": [] } ]
+}
+```
+
+### Leilão
+
+Uma leitura mais confortável do leilão do jogo, com os mesmos cards de Meus
+Pokémon. A aba é **passiva**: ela não consulta nada sozinha — espera você abrir
+o leilão dentro do jogo e reaproveita essa consulta. Até lá mostra que está
+aguardando.
+
+- Quatro modos: **Explorar**, **Meus anúncios**, **Favoritos** e **Anunciar**.
+- Busca por nome, ordenação (mais recentes, menor/maior preço, terminando) e
+  filtros de tipo, natureza, nível, preço, shiny e IV 100%.
+- Carregamento incremental: role a lista para trazer mais anúncios; o contador
+  mostra quantos foram carregados do total.
+- Cada anúncio mostra preço, vendedor, tempo restante e, ao expandir, natureza,
+  habilidade, item e os IVs individuais — os mesmos dados do card de Meus
+  Pokémon.
+- **Detalhes de todos** expande ou recolhe todos os anúncios de uma vez, e vale
+  também para os que chegarem depois pelo scroll.
+- Favoritar e desfavoritar acontecem por clique na estrela do card.
+
+Nenhuma compra ou venda acontece sozinha: toda operação continua sendo uma ação
+explícita sua, na sua sessão do jogo.
+
+![Aba Leilão em modo full com anúncios expandidos](docs/images/aba-leilao.png)
+
+> Os nomes dos vendedores estão borrados nesta imagem de propósito — são
+> jogadores reais, e o print vai para um repositório público.
 
 ## Configurações
 
@@ -232,6 +309,13 @@ Cinco blocos, nesta ordem na tela.
 - **Largura** — stepper `-`/`+`, de 250 a 380px em passos de 20px (padrão
   300px). Ajusta a largura do painel encaixado (ou a largura salva para
   quando você sair do modo full).
+- **Zoom** — stepper `-`/`+` nos degraus 67% · 75% · 80% · 90% · 100% ·
+  110% · 125% · 150% · 175% · 200% (padrão 100%). Escala o conteúdo da
+  extensão — textos, ícones, cartões, cabeçalho e a própria tela de
+  Configurações — refluindo o layout, igual ao Ctrl+`+`/`-` do navegador.
+  O tamanho da caixa do painel não muda (isso é a **Largura** e o
+  redimensionamento pelas bordas), e a página do jogo não é afetada.
+  No Firefox a linha só aparece a partir da versão 126.
 - **Avisar sobre atualizações** — toggle (padrão desligado). Liga a
   checagem periódica de nova versão e o aviso nas telas.
 - **Canal beta** — toggle, só aparece com "Avisar" ligado (padrão
@@ -258,6 +342,8 @@ Cinco blocos, nesta ordem na tela.
 - **Pokémon já expandidos** (padrão desligado) — cards nascem com os
   detalhes abertos na primeira carga da tela (toggles manuais depois têm
   prioridade).
+- **Link do Smogon** (padrão ligado) — mostra o botão **↗** no card, que abre
+  o Pokémon no Smogon em outra aba. A mudança vale na hora, sem recarregar.
 
 *Batalha* (todos ligados por padrão) — mostram/ocultam seções da aba
 Encontro:
@@ -267,6 +353,7 @@ Encontro:
 - **Pokébolas**
 - **Atributos alterados**
 - **Seus golpes**
+- **Link do Smogon** — o botão **↗** ao lado do nome do oponente
 
 **ATALHOS**
 - Um botão por ação, mostrando a combinação atual. Clicar entra em modo de
@@ -290,10 +377,8 @@ Encontro:
   (painel, comportamento, telas, atalhos) aos padrões de fábrica.
 
 ![Tela de Configurações com os cinco blocos](docs/images/tela-configuracoes.png)
-<!-- TODO imagem: aba Configurações mostrando os blocos PAINEL, COMPORTAMENTO e TELAS -->
 
 ![Modo full com a tabela de tipos ao lado do conteúdo](docs/images/modo-full.png)
-<!-- TODO imagem: painel em modo full (Encontro ou Calculadora) ocupando a maior parte da tela, com a tabela de tipos ao lado -->
 
 ## Atalhos de teclado
 
@@ -304,13 +389,18 @@ sobre o painel do overlay (nunca disparam na página do jogo).
 | Ação | Atalho padrão | Onde funciona |
 |---|---|---|
 | Abrir/fechar o overlay inteiro | `Ctrl+Shift+Y` | Atalho do navegador (`chrome://extensions/shortcuts`) |
-| Encontro | `E` | Com foco no painel |
-| Calculadora | `C` | Com foco no painel |
-| Meus Pokémon | `M` | Com foco no painel |
-| Configurações | `,` (vírgula) | Com foco no painel |
+| Encontro | `1` | Com foco no painel |
+| Calculadora | `2` | Com foco no painel |
+| Meus Pokémon | `3` | Com foco no painel |
+| Leilão | `4` | Com foco no painel |
+| Configurações | `5` | Com foco no painel |
 | Tabela de tipos | `T` | Com foco no painel |
 | Expandir/recolher (modo full) | `F` | Com foco no painel |
-| Minimizar/voltar | `Esc` | Com foco no painel |
+| Minimizar/voltar | `Q` | Com foco no painel |
+
+Os números seguem a ordem dos ícones no cabeçalho. `Q` alterna entre a
+bolha e o painel nos dois sentidos: minimiza quando o painel está aberto e
+o traz de volta quando está minimizado.
 
 ## Limitações e observações
 

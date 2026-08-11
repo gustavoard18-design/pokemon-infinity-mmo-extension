@@ -22,4 +22,5 @@
 .pokemon-iv-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
 .pokemon-iv { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--px-bg-btn2); padding: 3px 0; }
 .pokemon-iv .k { font-family: var(--px-font-mono); font-size: 8px; color: var(--px-text-dim); }
+.pokemon-iv .px-bar { width: 78%; }
 .pokemon-iv .v { font-family: var(--px-font-mono); font-size: 10px; }

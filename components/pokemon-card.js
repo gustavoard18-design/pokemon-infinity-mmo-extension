@@ -26,8 +26,18 @@ var PokemonCard = globalThis.PokemonCard || (() => {
             ${options.afterRows || ''}`;
     }
 
+    // mesma leitura da grade de IVs do Encontro (battle.js): barra proporcional
+    // a iv/31 na cor da faixa, com o número logo abaixo
     function ivGrid(viewModel) {
-        return `<div class="pokemon-iv-grid">${STAT_KEYS.map((stat) => `<div class="pokemon-iv"><span class="k">${stat.toUpperCase()}</span><span class="v" style="color:${ivStatColor(viewModel.ivs?.[stat] || 0)}">${viewModel.ivs?.[stat] ?? 0}</span></div>`).join('')}</div>`;
+        return `<div class="pokemon-iv-grid">${STAT_KEYS.map((stat) => {
+            const iv = Math.min(Math.max(Number(viewModel.ivs?.[stat] ?? 0), 0), 31);
+            const color = ivStatColor(iv);
+            return `<div class="pokemon-iv" data-tip="${stat.toUpperCase()} — IV ${iv}/31">
+                <span class="k">${stat.toUpperCase()}</span>
+                <span class="px-bar"><span class="px-bar-fill" style="width:${Math.round(iv / 31 * 100)}%;background:${color}"></span></span>
+                <span class="v" style="color:${color}">${iv}</span>
+            </div>`;
+        }).join('')}</div>`;
     }
 
     function render(viewModel, options = {}) {
@@ -46,7 +56,7 @@ var PokemonCard = globalThis.PokemonCard || (() => {
         return `<article class="pokemon-card pokemon-card--${location}${options.className ? ` ${escapeHtml(options.className)}` : ''}" data-pokemon-key="${escapeHtml(viewModel.key)}"${cardStyle}>
             <button type="button" class="pokemon-card-toggle" aria-expanded="${expanded}" aria-controls="${detailsId}">
                 ${icon}
-                <span class="pokemon-id-col"><span class="pokemon-name"><span class="pokemon-name-text">${escapeHtml(viewModel.name)}</span>${gender}${shiny}</span><span class="pokemon-chips">${chips}</span>${options.badgesHtml || ''}</span>
+                <span class="pokemon-id-col"><span class="pokemon-name"><span class="pokemon-name-text">${escapeHtml(viewModel.name)}</span>${gender}${shiny}${options.nameBadgesHtml || ''}</span><span class="pokemon-chips">${chips}</span>${options.badgesHtml || ''}</span>
                 <span class="pokemon-right">${options.rightTopHtml || `<span class="pokemon-level">Lv. ${viewModel.level || '—'}</span>`}<span class="pokemon-ivbar" data-tip="${escapeHtml(ivTooltipText(viewModel.ivs))}"><span class="px-bar"><span class="px-bar-fill" style="width:${viewModel.ivPercent || 0}%;background:${ivColor}"></span></span><span class="pokemon-ivbar-label" style="color:${ivColor}">${viewModel.ivPercent || 0}%</span></span></span>
             </button>
             ${options.metaHtml || ''}

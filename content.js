@@ -74,11 +74,24 @@
         });
     }
 
+    if (!window.__pkmnHelperZoomListenerAdded) {
+        window.__pkmnHelperZoomListenerAdded = true;
+        PokemonHelperZoom.subscribe((factor) => {
+            const container = document.getElementById(ID);
+            if (container) container.style.setProperty('--ph-zoom', String(factor));
+        });
+    }
+
     function build(settings) {
         injectStyle();
 
         const container = document.createElement('div');
         container.id = ID;
+        // cobre o scroll do painel de Configurações (.ph-settings) com o mesmo
+        // visual das telas; escopa as regras de pixel-theme.css, que também é
+        // injetado na página do jogo, só ao que é nosso
+        container.className = 'px-scroll';
+        container.style.setProperty('--ph-zoom', String(PokemonHelperZoom.factor()));
         // referência ao MESMO objeto `settings` que arrastar/redimensionar/
         // maximizar mutam neste build() — o painel de configurações (função
         // separada, sem acesso a este closure) usa isso pra editar o estado
@@ -104,7 +117,7 @@
             { icon: 'enc', tip: `Encontro atual — tecla ${fmt(shortcuts.battle)}`, view: 'battle' },
             { icon: 'calc', tip: `Calculadora de tipos — tecla ${fmt(shortcuts.calc)}`, view: 'calc' },
             { icon: 'team', tip: `Meus Pokémon — tecla ${fmt(shortcuts.myPokemons)}`, view: 'myPokemons' },
-            { icon: 'auc', tip: 'Leilão', view: 'auction' },
+            { icon: 'auc', tip: `Leilão — tecla ${fmt(shortcuts.auction)}`, view: 'auction' },
             { icon: 'cfg', tip: `Configurações — tecla ${fmt(shortcuts.settings)}`, view: 'settings' },
         ], { tip: `Minimizar — ${fmt(shortcuts.minimize)}` }, { tip: `Expandir — ${fmt(shortcuts.toggleFull)}` });
 
@@ -338,7 +351,7 @@
         // a tabela 18×18 só aparece no modo expandido, ao lado das views de
         // conteúdo (syncFullSide) — estas são as views que a exibem
         const CHART_HOST_VIEWS = ['calc', 'battle'];
-        const VIEW_ACTIONS = { battle: 'battle', calc: 'calc', myPokemons: 'myPokemons', settings: 'settings' };
+        const VIEW_ACTIONS = { battle: 'battle', calc: 'calc', myPokemons: 'myPokemons', auction: 'auction', settings: 'settings' };
 
         // retorna true quando de fato executou algo, false quando não fez nada
         // (ex.: painel colapsado ignora toggleFull/minimize) — quem consome a
@@ -348,8 +361,15 @@
             const container = document.getElementById(ID);
             if (!container) return false;
             if (container.classList.contains('collapsed')) {
+                // minimizar é um toggle bolha <-> painel: da bolha ele é o
+                // caminho de volta. Sem isto, quem minimizou pelo teclado ficava
+                // preso — só o clique na bolha trazia o painel de volta.
+                if (action === 'minimize') {
+                    setCollapsed(container, currentSettings(container), false);
+                    return true;
+                }
                 // da bolha, atalho de view expande e abre a aba;
-                // toggleFull/minimize não fazem sentido colapsado
+                // toggleFull não faz sentido colapsado
                 if (!VIEW_ACTIONS[action] && action !== 'typeChart') return false;
                 setCollapsed(container, currentSettings(container), false);
             }
@@ -588,7 +608,12 @@
             }
             #${ID} .ph-header {
                 display: flex; align-items: center; gap: 3px;
-                height: 34px; padding: 0 4px; flex: 0 0 auto;
+                /* sob zoom alto a largura intrínseca da linha (botões de view +
+                   expandir + minimizar + engrenagem) passa dos ~380px do painel
+                   docked; deixa quebrar em vez de cortar, senão os controles que
+                   tirariam o usuário do zoom alto ficariam inalcançáveis */
+                flex-wrap: wrap;
+                min-height: 34px; height: auto; padding: 0 4px; flex: 0 0 auto;
                 background: #08080d; border-bottom: 2px solid #1c1c26;
                 cursor: move; user-select: none;
             }
@@ -609,6 +634,15 @@
             #${ID}.full-side .ph-frame { position: static; height: 100%; }
             #${ID}.full-side #pokemon-chart-frame { display: block; flex: 1 1 auto; min-width: 0; order: 1; }
             #${ID}.full-side .ph-frame.side-active { display: block; flex: 0 0 var(--ph-side-width, 360px); border-right: 2px solid #23232f; order: 0; }
+            /* zoom só nos filhos, nunca no container: ele é position: fixed com
+               top/right/width/height em px, e zoom escalaria esses offsets junto,
+               quebrando arrastar/redimensionar/maximizar. A .ph-body fica de fora
+               porque contém os iframes, que já se auto-escalam por dentro
+               (components/panel-zoom.js) — zoom aqui daria zoom ao quadrado. */
+            #${ID} .ph-header,
+            #${ID} .ph-status,
+            #${ID} .ph-settings { zoom: var(--ph-zoom, 1); }
+            #${ID} .ph-step:disabled { opacity: .35; cursor: default; }
             #${ID} .ph-status {
                 flex: 0 0 auto; height: 22px;
                 display: flex; align-items: center; gap: 7px; padding: 0 8px;
@@ -760,6 +794,7 @@
             battle: `Encontro atual — tecla ${fmt(shortcuts.battle)}`,
             calc: `Calculadora de tipos — tecla ${fmt(shortcuts.calc)}`,
             myPokemons: `Meus Pokémon — tecla ${fmt(shortcuts.myPokemons)}`,
+            auction: `Leilão — tecla ${fmt(shortcuts.auction)}`,
             settings: `Configurações — tecla ${fmt(shortcuts.settings)}`
         };
         container.querySelectorAll('.ph-view-btn').forEach((btn) => {
