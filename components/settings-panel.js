@@ -17,6 +17,12 @@ function buildSettingsPanel(shell) {
                 <span class="ph-width-value" id="ph-width-value"></span>
                 <button type="button" class="ph-step" id="ph-width-plus">+</button>
             </div>
+            <div class="ph-setting-row" id="ph-zoom-row" data-tip="Tamanho do conteúdo do painel, de 67% a 200%. Não afeta a página do jogo.">
+                <span class="ph-setting-label">Zoom</span>
+                <button type="button" class="ph-step" id="ph-zoom-minus">-</button>
+                <span class="ph-width-value" id="ph-zoom-value"></span>
+                <button type="button" class="ph-step" id="ph-zoom-plus">+</button>
+            </div>
             <div class="ph-setting-row">
                 <span class="ph-setting-label" id="ph-update-notifications-label">Avisar sobre atualizações</span>
                 <button type="button" class="ph-toggle" id="ph-update-notifications" role="switch" aria-checked="false" aria-labelledby="ph-update-notifications-label"></button>
@@ -261,6 +267,7 @@ function buildSettingsPanel(shell) {
             if (!ui) return ui;
             if ('startView' in ui && !START_VIEW_VALUES.includes(ui.startView)) delete ui.startView;
             if ('startCollapsed' in ui && !START_COLLAPSED_VALUES.includes(ui.startCollapsed)) delete ui.startCollapsed;
+            if ('panelZoom' in ui) ui.panelZoom = PokemonHelperZoom.snap(ui.panelZoom);
             if (ui.shortcuts) {
                 const seenCombos = new Set();
                 const cleanShortcuts = {};
@@ -454,6 +461,30 @@ function buildSettingsPanel(shell) {
             const settings = container && container.__phSettings;
             if (settings) widthValue.textContent = `${shell.dockedWidth(settings)}px`;
         });
+
+        const zoomRow = panel.querySelector('#ph-zoom-row');
+        const zoomValue = panel.querySelector('#ph-zoom-value');
+        const zoomMinus = panel.querySelector('#ph-zoom-minus');
+        const zoomPlus = panel.querySelector('#ph-zoom-plus');
+        if (!PokemonHelperZoom.supported) {
+            // Firefox < 126 não tem a propriedade zoom; some com o controle em
+            // vez de deixar um botão que não faz nada
+            zoomRow.hidden = true;
+        } else {
+            const levels = PokemonHelperZoom.LEVELS;
+            // pintado por subscribe (não pelo retorno do clique) pra acompanhar
+            // também mudanças vindas de importar config e de "Restaurar tudo"
+            PokemonHelperZoom.subscribe((factor) => {
+                zoomValue.textContent = `${Math.round(factor * 100)}%`;
+                zoomMinus.disabled = factor === levels[0];
+                zoomPlus.disabled = factor === levels[levels.length - 1];
+            });
+            const stepZoom = (delta) => PokemonHelperZoom.step(delta).catch((error) => {
+                console.warn('[Pokemon Helper] Não foi possível salvar o zoom:', error);
+            });
+            zoomMinus.addEventListener('click', () => stepZoom(-1));
+            zoomPlus.addEventListener('click', () => stepZoom(1));
+        }
 
         const tooltipsToggle = panel.querySelector('#ph-tooltips');
         PokemonHelperStorage.getUiPreferences()
