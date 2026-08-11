@@ -473,8 +473,27 @@ function buildSettingsPanel(shell) {
         } else {
             const levels = PokemonHelperZoom.LEVELS;
             // pintado por subscribe (não pelo retorno do clique) pra acompanhar
-            // também mudanças vindas de importar config e de "Restaurar tudo"
-            PokemonHelperZoom.subscribe((factor) => {
+            // também mudanças vindas de importar config e de "Restaurar tudo".
+            //
+            // O overlay é REINJETADO (não recriado do zero) a cada toggle de
+            // fechar/abrir — background.js roda buildSettingsPanel() de novo,
+            // mas PokemonHelperZoom é um singleton cacheado em globalThis, cujo
+            // Set de listeners sobrevive à reinjeção. Sem essa auto-limpeza,
+            // cada ciclo fechar/reabrir deixaria mais uma closure presa nesse
+            // Set, apontando pra nós de DOM já removidos do painel anterior —
+            // crescimento sem limite e escrita em nós mortos a cada step/set.
+            // unsubscribeZoom só existe depois que subscribe() retorna;
+            // subscribe() chama o callback de forma síncrona durante o próprio
+            // registro, então a checagem abaixo precisa exigir unsubscribeZoom
+            // definido antes de tratar o painel como desconectado — senão essa
+            // primeira chamada (painel ainda nem anexado ao documento) tentaria
+            // invocar uma função que ainda não existe.
+            let unsubscribeZoom;
+            unsubscribeZoom = PokemonHelperZoom.subscribe((factor) => {
+                if (unsubscribeZoom && !zoomRow.isConnected) {
+                    unsubscribeZoom();
+                    return;
+                }
                 zoomValue.textContent = `${Math.round(factor * 100)}%`;
                 zoomMinus.disabled = factor === levels[0];
                 zoomPlus.disabled = factor === levels[levels.length - 1];
