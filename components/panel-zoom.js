@@ -50,11 +50,25 @@ var PokemonHelperZoom = globalThis.PokemonHelperZoom || (() => {
     }
 
     function step(delta) {
-        const index = LEVELS.indexOf(current);
-        const next = LEVELS[Math.min(LEVELS.length - 1, Math.max(0, index + delta))];
-        if (next === current) return Promise.resolve(current);
-        set(next); // pinta já; o storage confirma logo em seguida
-        return PokemonHelperStorage.setUiPreferences({ panelZoom: next }).then(() => next);
+        // Lê o valor persistido em vez de confiar no placeholder inicial (`current`).
+        // Se `step()` rodar antes de `getUiPreferences()` resolver, a janela de
+        // corrida desapareceria — o código derivaria a mudança do valor real do
+        // usuário. Se outro contexto mudar o zoom concorrentemente, também pegamos
+        // o valor correto. Sem essa leitura, um clique rápido antes da hidratação
+        // inicial gravaria um incremento sobre DEFAULT (1) em vez de sobre a pref
+        // real do usuário, silenciosamente sobrescrevendo a preferência no storage.
+        return PokemonHelperStorage.getUiPreferences()
+            .then((preferences) => {
+                const from = snap(preferences.panelZoom);
+                const index = LEVELS.indexOf(from);
+                const nextIndex = Math.min(LEVELS.length - 1, Math.max(0, index + delta));
+                const next = LEVELS[nextIndex];
+
+                if (next === from) return from;
+
+                set(next); // pinta já; o storage confirma logo em seguida
+                return PokemonHelperStorage.setUiPreferences({ panelZoom: next }).then(() => next);
+            });
     }
 
     if (isExtensionPage && supported) {
