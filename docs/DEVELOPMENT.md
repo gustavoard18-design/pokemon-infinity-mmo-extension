@@ -53,13 +53,27 @@ CDP, um Chrome já logado no jogo — o mesmo Chrome com porta de debug descrito
 extensão com `--load-extension`. Com o overlay marcando "CONECTADO":
 
 ```bash
-npm install playwright   # fora do repo: não é dependência do projeto
-node scripts/screenshots.js docs/images
+# fora do repo: Playwright é utilitário de dev, não dependência do projeto
+mkdir -p ~/tools/playwright && cd ~/tools/playwright && npm install playwright
+
+cd <raiz do repositório>
+NODE_PATH=~/tools/playwright/node_modules node scripts/screenshots.js docs/images
 ```
+
+O script faz um pré-voo antes de fotografar: aborta se o personagem não
+sincronizou, se os iframes não carregaram e — comparando ids e scripts de cada
+tela com o DOM vivo — se o Chrome não está renderizando o checkout atual. Esse
+último caso é a armadilha do processo: um perfil de debug que já tenha a
+extensão instalada de outro diretório ignora o `--load-extension`, e os prints
+sairiam de outro código sem nenhum aviso.
 
 O script gera seis das sete imagens. `aba-encontro.png` exige uma batalha em
 andamento e continua sendo capturada à mão. A capa recorta o painel de chat do
-jogo, para não publicar nomes e mensagens de outros jogadores.
+jogo e **falha** se não localizar o recorte, em vez de publicar nomes e
+mensagens de outros jogadores.
+
+O passo a passo completo, com a conferência visual de cada imagem, está na skill
+`.claude/skills/atualizar-prints-do-readme/`.
 
 ## Arquitetura
 
