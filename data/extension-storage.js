@@ -69,7 +69,8 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
                 showFoeMoves: true,
                 showPokeballs: true,
                 showIvs: true,
-                showMyMoves: true
+                showMyMoves: true,
+                showSmogonLink: true
             })
         })
     });

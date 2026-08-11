@@ -161,6 +161,15 @@ Mostrada assim que há um oponente capturado numa batalha.
 - Seção **Seus golpes** (ocultável) — golpes disponíveis para usar no turno,
   com PP restante; some quando o Pokémon é capturado.
 - Badge **GOTCHA** — substitui a seção de golpes quando a captura dá certo.
+- Botão **↗** ao lado do nome do oponente — abre a página dele no
+  [Smogon](https://www.smogon.com/dex/sm/) em outra aba, na dex da geração
+  SM. Serve para checar rapidamente, no meio do encontro, o que aquele
+  Pokémon costuma carregar: builds usadas, distribuição de EVs, natures
+  recomendadas e o papel competitivo dele. Útil principalmente contra
+  espécies que você ainda não conhece, para decidir se vale a pena capturar
+  e como treinar depois. Pode ser desligado em Configurações → TELAS →
+  BATALHA. O mesmo botão aparece nos cards de
+  [Meus Pokémon](#meus-pokémon).
 
 ![Aba Encontro mostrando dados do oponente](docs/images/aba-encontro.png)
 
@@ -209,13 +218,14 @@ Mostrada assim que há um oponente capturado numa batalha.
 - Botões **EXPORTAR** e **IMPORTAR** — veja
   [Exportar e importar a lista](#exportar-e-importar-a-lista).
 - Card de Pokémon (colapsável): sprite, nome, gênero, indicador de shiny
-  (✨), selo **S** do Smogon, chips de tipo, nível e barra de IV total.
+  (✨), botão **↗** do Smogon, chips de tipo, nível e barra de IV total.
   Expandido, mostra natureza, habilidade (com tooltip), item, posição,
   avaliação, atq principal, grade de IVs por stat (com barra colorida por
   atributo) e a lista de golpes conhecidos.
-- Selo **S** — abre o Pokémon no
-  [Smogon](https://www.smogon.com/dex/sm/) em outra aba, para consultar
-  build, stats e estratégias. Pode ser desligado em Configurações → TELAS.
+- Botão **↗** — abre aquele Pokémon no
+  [Smogon](https://www.smogon.com/dex/sm/) em outra aba. O mesmo botão existe
+  na aba Encontro; veja [Encontro](#encontro) para o que ele serve. Pode ser
+  desligado em Configurações → TELAS.
 - Contador por grupo: "visíveis/total" com filtro ativo, ou
   "ocupados/capacidade" sem filtro.
 - Painel de filtros avançados (botões **Limpar** e **Aplicar**):
@@ -325,7 +335,7 @@ Cinco blocos, nesta ordem na tela.
 - **Pokémon já expandidos** (padrão desligado) — cards nascem com os
   detalhes abertos na primeira carga da tela (toggles manuais depois têm
   prioridade).
-- **Link do Smogon** (padrão ligado) — mostra o selo **S** no card, que abre
+- **Link do Smogon** (padrão ligado) — mostra o botão **↗** no card, que abre
   o Pokémon no Smogon em outra aba. A mudança vale na hora, sem recarregar.
 
 *Batalha* (todos ligados por padrão) — mostram/ocultam seções da aba
@@ -336,6 +346,7 @@ Encontro:
 - **Pokébolas**
 - **Atributos alterados**
 - **Seus golpes**
+- **Link do Smogon** — o botão **↗** ao lado do nome do oponente
 
 **ATALHOS**
 - Um botão por ação, mostrando a combinação atual. Clicar entra em modo de

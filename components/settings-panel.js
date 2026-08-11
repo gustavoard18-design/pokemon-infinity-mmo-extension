@@ -52,7 +52,7 @@ function buildSettingsPanel(shell) {
                 <span class="ph-setting-label" id="ph-mp-pokemon-label">Pokémon já expandidos</span>
                 <button type="button" class="ph-toggle" id="ph-mp-pokemon" role="switch" aria-checked="false" aria-labelledby="ph-mp-pokemon-label"></button>
             </div>
-            <div class="ph-setting-row" data-tip="Selo S no cartão, abre o Pokémon no Smogon em outra aba.">
+            <div class="ph-setting-row" data-tip="Botão ↗ no cartão, abre o Pokémon no Smogon em outra aba.">
                 <span class="ph-setting-label" id="ph-mp-smogon-label">Link do Smogon</span>
                 <button type="button" class="ph-toggle" id="ph-mp-smogon" role="switch" aria-checked="true" aria-labelledby="ph-mp-smogon-label"></button>
             </div>
@@ -80,6 +80,10 @@ function buildSettingsPanel(shell) {
             <div class="ph-setting-row">
                 <span class="ph-setting-label" id="ph-bt-mymoves-label">Seus golpes</span>
                 <button type="button" class="ph-toggle" id="ph-bt-mymoves" role="switch" aria-checked="true" aria-labelledby="ph-bt-mymoves-label"></button>
+            </div>
+            <div class="ph-setting-row" data-tip="Botão ↗ ao lado do nome do oponente, abre a página dele no Smogon.">
+                <span class="ph-setting-label" id="ph-bt-smogon-label">Link do Smogon</span>
+                <button type="button" class="ph-toggle" id="ph-bt-smogon" role="switch" aria-checked="true" aria-labelledby="ph-bt-smogon-label"></button>
             </div>
             <div class="ph-set-head">ATALHOS</div>
             <div class="ph-shortcut-grid" id="ph-shortcut-grid"></div>
@@ -491,7 +495,8 @@ function buildSettingsPanel(shell) {
             const battleToggles = [
                 ['ph-bt-stats', 'showIvs'], ['ph-bt-weak', 'showWeaknesses'],
                 ['ph-bt-moves', 'showFoeMoves'], ['ph-bt-balls', 'showPokeballs'],
-                ['ph-bt-stages', 'showStatChanges'], ['ph-bt-mymoves', 'showMyMoves']
+                ['ph-bt-stages', 'showStatChanges'], ['ph-bt-mymoves', 'showMyMoves'],
+                ['ph-bt-smogon', 'showSmogonLink']
             ];
             battleToggles.forEach(([id, field]) => {
                 bindPrefToggle(id, prefs.screens.battle[field],

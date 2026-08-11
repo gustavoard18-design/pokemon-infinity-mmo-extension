@@ -152,6 +152,23 @@ var PokemonTransfer = globalThis.PokemonTransfer || (() => {
         return slug ? `${SMOGON_BASE}${slug}/` : null;
     }
 
+    // Markup do selo, compartilhado por Meus Pokémon e Encontro para as duas
+    // telas não divergirem em ícone, tooltip ou comportamento. O href entra no
+    // data-* e não precisa de escape: o slug só tem [a-z0-9-].
+    // Não é <a> de propósito — nos dois lugares ele vive dentro de um <button>,
+    // e âncora aninhada é HTML inválido; quem abre é o delegador de clique.
+    const escapeHtml = (valor) => String(valor ?? '').replace(/[&<>'"]/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    }[c]));
+
+    function smogonLinkHTML(name) {
+        const url = smogonUrl(name);
+        if (!url) return '';
+        // o nome vem do payload do jogo e entra num atributo — precisa de escape
+        const dica = `Abrir ${escapeHtml(name)} no Smogon — builds, distribuição de EVs, natures e papéis competitivos recomendados. Abre em outra aba.`;
+        return `<span class="px-extlink" role="link" tabindex="0" data-smogon="${url}" data-tip="${dica}" aria-label="${dica}">↗</span>`;
+    }
+
     return Object.freeze({
         FORMAT,
         VERSION,
@@ -160,6 +177,7 @@ var PokemonTransfer = globalThis.PokemonTransfer || (() => {
         filename,
         smogonSlug,
         smogonUrl,
+        smogonLinkHTML,
         countPokemon
     });
 })();

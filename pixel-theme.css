@@ -71,6 +71,18 @@
     cursor: pointer;
 }
 .px-btn.active { background: var(--px-accent); border-color: var(--px-accent); color: var(--px-on-dark); }
+
+/* Link externo compacto (hoje: Smogon), usado no cartão de Meus Pokémon e no
+   cabeçalho do Encontro. Vive dentro de um <button> nos dois casos, então é um
+   <span role="link"> tratado por delegação — âncora aninhada seria inválida.
+   Fica aqui, e não no CSS de um componente, porque as duas telas o usam. */
+.px-extlink {
+    flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--px-font-mono); font-size: 9px; line-height: 1;
+    padding: 1px 3px; border: 1px solid var(--px-accent);
+    background: transparent; color: var(--px-accent); cursor: pointer;
+}
+.px-extlink:hover, .px-extlink:focus-visible { background: var(--px-accent); color: var(--px-on-dark); }
 .px-btn.px-btn-accent { color: var(--px-accent); }
 .px-btn:disabled, .px-btn[aria-disabled="true"] { opacity: .4; cursor: not-allowed; }
 

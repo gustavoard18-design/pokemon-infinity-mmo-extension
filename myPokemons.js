@@ -365,13 +365,11 @@ function renderIvDetails(viewModel) {
     return PokemonCard.ivGrid(viewModel);
 }
 
-// selo discreto ao lado do nome. Vive dentro do <button> do cartão, então não
-// pode ser uma âncora: o clique é tratado pelo delegador de #content.
+// selo ao lado do nome; markup e tooltip vêm de PokemonTransfer para não
+// divergir do mesmo selo na tela de Encontro
 function renderSmogonLink(viewModel) {
     if (!SCREEN_PREFS.showSmogonLink) return '';
-    const url = PokemonTransfer.smogonUrl(viewModel.name);
-    if (!url) return '';
-    return `<span class="smogon-link" role="link" tabindex="0" data-smogon="${escapeHtml(url)}" data-tip="Abrir no Smogon — build, stats e estratégias">S</span>`;
+    return PokemonTransfer.smogonLinkHTML(viewModel.name);
 }
 
 function renderMoveDetails(viewModel) {
@@ -695,7 +693,7 @@ function bindControls() {
     content.addEventListener('click', (event) => {
         // antes do cartão: o selo fica dentro do <button>, e sem parar aqui o
         // clique também expandiria/recolheria os detalhes
-        const smogon = event.target.closest('.smogon-link');
+        const smogon = event.target.closest('.px-extlink');
         if (smogon) {
             event.preventDefault();
             event.stopPropagation();
@@ -724,7 +722,7 @@ function bindControls() {
 
     content.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
-        const smogon = event.target.closest?.('.smogon-link');
+        const smogon = event.target.closest?.('.px-extlink');
         if (!smogon) return;
         event.preventDefault();
         event.stopPropagation();

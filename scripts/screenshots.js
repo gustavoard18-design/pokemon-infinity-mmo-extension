@@ -311,25 +311,34 @@ leilão ainda tem essa linha antes de seguir.`);
     });
     await wait(game, 700);
     await semTooltip(game);
-    // recorta o painel de chat: são nomes e mensagens de outros jogadores,
-    // que não têm por que ir para um README público
-    const clip = await game.evaluate(() => {
+    // O chat traz nomes e mensagens de outros jogadores e não pode ir para um
+    // README público. Três situações, e só uma delas permite seguir em silêncio:
+    // painel achado (recorta), chat fechado (nada a recortar), e nenhum dos dois
+    // (a heurística quebrou — aí falhar é melhor que publicar).
+    const capa = await game.evaluate(() => {
         const chat = [...document.querySelectorAll('div')].find((el) => {
             const r = el.getBoundingClientRect();
             return r.width > 200 && r.width < 500 && r.height > 500 && r.left > innerWidth * 0.7;
         });
-        return chat
-            ? { x: 0, y: 0, width: Math.round(chat.getBoundingClientRect().left), height: innerHeight }
-            : null;
+        if (chat) {
+            return { modo: 'recortado', clip: { x: 0, y: 0, width: Math.round(chat.getBoundingClientRect().left), height: innerHeight } };
+        }
+        // marcadores do chat do jogo: cabeçalho e abas de canal
+        const aberto = /\bCHAT\b|GLOBAL\s+LOCAL|SUSSURRO/i.test(document.body.innerText);
+        return { modo: aberto ? 'incerto' : 'chat-fechado', clip: null };
     });
-    // sem recorte confiável, é melhor falhar do que publicar o chat: a
-    // heurística depende do layout do jogo e não pode degradar em silêncio
-    if (!clip) {
-        throw new Error(`não localizei o painel de chat para recortar da capa.
+    if (capa.modo === 'incerto') {
+        throw new Error(`o chat do jogo está aberto, mas não localizei o painel para recortar.
 Publicar a tela inteira exporia nomes e mensagens de outros jogadores.
-Ajuste a heurística de recorte ou capture a capa à mão com o chat fechado.`);
+Feche o chat no jogo e rode de novo, ou ajuste a heurística de recorte.`);
     }
-    await game.screenshot({ path: path.join(OUT, 'capa-overlay.png'), clip });
+    if (capa.modo === 'chat-fechado') {
+        log.push('capa-overlay.png: chat fechado no jogo, capturada sem recorte');
+    }
+    await game.screenshot({
+        path: path.join(OUT, 'capa-overlay.png'),
+        ...(capa.clip ? { clip: capa.clip } : {})
+    });
     feitos.push('capa-overlay.png');
 
     // ---- Configurações --------------------------------------------------

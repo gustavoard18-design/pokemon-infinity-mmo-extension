@@ -8,11 +8,6 @@
 .pokemon-gender-f { color: var(--px-female); }
 .pokemon-gender-m { color: var(--px-male); }
 .pokemon-chips { display: flex; gap: 3px; }
-/* selo do Smogon: vive dentro do <button> do cartão, então é um span com
-   role="link" tratado pelo delegador de clique — âncora aninhada seria HTML
-   inválido */
-.smogon-link { flex: 0 0 auto; font-family: var(--px-font-mono); font-size: 8px; line-height: 1; padding: 2px 4px; background: var(--px-bg-btn2); color: var(--px-text-dim); cursor: pointer; }
-.smogon-link:hover, .smogon-link:focus-visible { color: var(--px-accent); }
 .pokemon-right { text-align: right; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
 .pokemon-level { font-size: 12px; color: var(--px-text-val); }
 .pokemon-ivbar { display: flex; align-items: center; gap: 4px; }
