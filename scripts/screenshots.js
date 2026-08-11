@@ -119,6 +119,16 @@ async function semTooltip(game) {
     await wait(game, 400);
 }
 
+// O bloqueio de tooltip é injetado na sessão real do usuário; deixá-lo para
+// trás desliga os tooltips do overlay dele até o próximo reload. Restaurar é
+// obrigatório, inclusive quando o script morre no meio.
+async function restauraTooltip(game) {
+    if (!game) return;
+    for (const f of game.frames()) {
+        await f.evaluate(() => document.getElementById('px-sem-tooltip')?.remove()).catch(() => {});
+    }
+}
+
 async function frames(game) {
     const map = {};
     for (const f of game.frames()) {
@@ -128,10 +138,13 @@ async function frames(game) {
     return map;
 }
 
+let jogoAberto = null;
+
 (async () => {
     const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
     const game = browser.contexts().flatMap((c) => c.pages())
         .find((p) => p.url().startsWith('https://infinitymmo.net'));
+    jogoAberto = game;
     if (!game) throw new Error('nenhuma aba em infinitymmo.net — abra o jogo no Chrome de debug');
 
     // pré-voo: build certo e personagem sincronizado. Sem isso o script
@@ -211,6 +224,7 @@ Entre numa batalha selvagem com um oponente novo.`);
         }
         await semTooltipEPrint('aba-encontro.png');
         console.log(JSON.stringify({ feitos, avisos: log }, null, 1));
+        await restauraTooltip(game);
         await browser.close();
         return;
     }
@@ -377,5 +391,10 @@ Feche o chat no jogo e rode de novo, ou ajuste a heurística de recorte.`);
     await view('battle');
 
     console.log(JSON.stringify({ feitos, avisos: log }, null, 1));
+    await restauraTooltip(game);
     await browser.close();
-})();
+})().catch(async (erro) => {
+    // falhar no meio não pode deixar o overlay do usuário sem tooltip
+    await restauraTooltip(jogoAberto);
+    throw erro;
+});
