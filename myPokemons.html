@@ -41,8 +41,8 @@
 
         /* habilidade injeta o ⓘ padrão (components/tooltip.js) —
            sem isso o ícone fica cortado pelo ellipsis da linha */
-        /* regras .iv-rating[data-rating] moradas em pixel-theme.css — battle.js
-           também renderiza PokemonIvEvaluation.html(foe) e precisa delas. */
+        /* regras .iv-rating[data-rating] moradas em pixel-theme.css — os três
+           consumidores renderizam PokemonEvaluation.ratingHTML(). */
         .moves-head { display: flex; align-items: center; gap: 7px; margin-top: 2px; }
         .moves-head::after { content: ''; flex: 1; height: 1px; background: var(--px-line); }
         .pokemon-move { display: flex; align-items: center; gap: 7px; background: var(--px-bg-btn2); padding: 4px 6px; }

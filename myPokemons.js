@@ -235,7 +235,7 @@ function rebuildDataState() {
 function hasAdvancedFilter(values) {
     return values.shinyOnly
         || values.itemOnly
-        || values.ratingLabels.length > 0
+        || (EVALUATION_PREFS.enabled && values.ratingLabels.length > 0)
         || values.types.length > 0
         || (values.natureMode === 'name' && values.natures.length > 0)
         || (values.natureMode === 'effect' && (
@@ -249,7 +249,7 @@ function pokemonPassesFilters(viewModel, nameQuery, values, advancedEnabled, com
     if (!advancedEnabled) return true;
     if (values.shinyOnly && !viewModel.shiny) return false;
     if (values.itemOnly && !viewModel.hasItem) return false;
-    if (values.ratingLabels.length && !values.ratingLabels.includes(viewModel.evaluation?.rating?.label)) return false;
+    if (EVALUATION_PREFS.enabled && values.ratingLabels.length && !values.ratingLabels.includes(viewModel.evaluation?.rating?.label)) return false;
 
     if (values.types.length) {
         const matchesType = values.typeMode === 'all'
@@ -321,7 +321,8 @@ function createComparator(values) {
 
 function applyFilters() {
     const advancedEnabled = FILTER_STATE.advancedEnabled;
-    const values = advancedEnabled ? FILTER_STATE.applied : PokemonFilters.defaultValues();
+    const values = advancedEnabled ? { ...FILTER_STATE.applied } : PokemonFilters.defaultValues();
+    if (!EVALUATION_PREFS.enabled && values.sortBy === 'evaluationScore') values.sortBy = 'position';
     const nameQuery = advancedEnabled ? FILTER_STATE.appliedName : FILTER_STATE.liveName;
     FILTER_STATE.isFiltering = Boolean(nameQuery) || (advancedEnabled && hasAdvancedFilter(values));
 
@@ -381,8 +382,8 @@ function syncUiState() {
 }
 
 function renderDetailRows(viewModel) {
-    // avaliação de IVs/natureza/stats (grade Ruim..Excelente) + papel ofensivo
-    // principal — mesma fonte (PokemonIvEvaluation) usada no encontro (battle.js)
+    // avaliação e função já foram calculadas no view model e são reutilizadas
+    // por renderização, filtros e ordenação.
     return PokemonCard.detailRows(viewModel, { afterRows: `
         <div class="detail-row"><span class="detail-key">Posição</span><span class="detail-val">${escapeHtml(viewModel.slotLabel)}</span></div>
         ${PokemonCard.evaluationRows(viewModel, EVALUATION_PREFS)}

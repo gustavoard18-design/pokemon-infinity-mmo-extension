@@ -57,7 +57,7 @@ const speciesFixtures = {
     gengar: [60,65,60,130,75,110], golurk: [89,124,80,55,80,55],
     solosis: [45,30,40,105,50,20], reuniclus: [110,65,75,125,85,30],
     bulbasaur: [45,49,49,65,65,45], venusaur: [80,82,83,100,100,80],
-    mew: [100,100,100,100,100,100], ditto: [48,48,48,48,48,48],
+    mew: [100,100,100,100,100,100], mamoswine: [110,130,80,70,60,80], ditto: [48,48,48,48,48,48],
     shedinja: [1,90,45,30,30,40]
 };
 const species = (slug) => {
@@ -73,6 +73,7 @@ test('perfilador distingue arquétipos ofensivos e resistentes', () => {
     assert.equal(primary('golurk'), 'physical_slow_attacker');
     assert.equal(primary('solosis'), 'special_slow_attacker');
     assert.equal(primary('reuniclus'), 'special_bulky_attacker');
+    assert.equal(primary('mamoswine'), 'physical_bulky_attacker');
 });
 
 test('perfilador reconhece versatilidade, suporte e casos especiais', () => {
@@ -80,7 +81,7 @@ test('perfilador reconhece versatilidade, suporte e casos especiais', () => {
     assert.equal(profile('mew').candidates[0].id, 'versatile');
     assert.equal(profile('ditto').candidates[0].id, 'special_case');
     assert.equal(profile('shedinja').candidates[0].id, 'special_case');
-    assert.ok(profile('bulbasaur').candidates.some(({ id }) => id === 'defensive_support'));
+    assert.equal(profile('bulbasaur').candidates[0].id, 'defensive_support');
     assert.ok(profile('venusaur').candidates.some(({ id }) => id === 'special_bulky_attacker'));
 });
 

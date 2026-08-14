@@ -32,14 +32,17 @@ var PokemonSpeciesProfiler = globalThis.PokemonSpeciesProfiler || (() => {
         const specialBulk = Math.sqrt(base.hp * base.spd);
         const candidates = [];
 
-        if (statRange <= 15 && balancedOffense) {
+        const developingSupport = base.hp <= 60 && offenseMax <= 70 && avgDefense >= offenseMax * 0.85 && base.spe <= 60;
+        if (developingSupport) {
+            candidates.push(candidate('defensive_support', 0.92, 'medium', ['low_offense', 'supporting_bulk']));
+        } else if (statRange <= 15 && balancedOffense) {
             candidates.push(candidate('versatile', 0.96, 'low', ['balanced_stats', 'balanced_offense']));
         } else if (balancedOffense && offenseMax >= 95 && base.spe >= 80) {
             candidates.push(candidate('mixed_fast_attacker', 0.94, 'high', ['balanced_offense', 'high_speed']));
         } else {
             const physical = base.atk > base.spa;
             const prefix = physical ? 'physical' : 'special';
-            const highBulk = base.hp >= 80 && avgDefense >= 75;
+            const highBulk = base.hp >= 80 && (avgDefense >= 75 || (base.hp >= 100 && avgDefense >= 65));
             const roleId = base.spe >= 90
                 ? `${prefix}_fast_attacker`
                 : highBulk && base.hp >= 100

@@ -135,10 +135,13 @@ Mostrada assim que há um oponente capturado numa batalha.
   20% e 50%, vermelho abaixo de 20%).
 - Grade de metadados: **Habilidade** (com tooltip de descrição), **Natureza**
   (mostra os atributos que aumenta/diminui, ou "Neutra"), **Item** segurado,
-  **Atq principal** (papel ofensivo estimado), **Avaliação** (Ruim / Médio /
-  Bom / Muito bom / Excelente) e **IVs total** (percentual dos IVs).
+  **Função** (papel funcional estimado, com os atributos prioritários no
+  hover), **Avaliação** (Ruim / Regular / Bom / Muito bom / Excelente,
+  ponderada conforme a função) e **IVs total** (percentual dos IVs).
 - Seção **IVs/Stats** (ocultável) — os 6 stats com barra de 0 a 31 e valor
   numérico do IV.
+- Nos filtros avançados, **Avaliação** pode ser filtrada por faixa e usada na
+  ordenação crescente ou decrescente.
 - Caixa **MELHOR JOGADA** — aparece só se o Pokémon ainda não foi capturado;
   recomenda a melhor combinação Pokémon + golpe do seu time contra o
   oponente atual, com nome do Pokémon, slot, golpe, badge de multiplicador
