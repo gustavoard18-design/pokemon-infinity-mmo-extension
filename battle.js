@@ -18,13 +18,14 @@ const autoExpandedMoves = new Set();
 
 // seções visíveis da tela (Configurações → TELAS → BATALHA)
 let SCREEN_PREFS = Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES.screens.battle);
+let EVALUATION_PREFS = Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES.evaluation);
 PokemonHelperStorage.getUiPreferences()
-    .then((prefs) => { SCREEN_PREFS = prefs.screens.battle; render(); })
+    .then((prefs) => { SCREEN_PREFS = prefs.screens.battle; EVALUATION_PREFS = prefs.evaluation; render(); })
     .catch(() => {});
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !changes[PokemonHelperStorage.KEYS.uiPreferences]) return;
     PokemonHelperStorage.getUiPreferences()
-        .then((prefs) => { SCREEN_PREFS = prefs.screens.battle; render(); })
+        .then((prefs) => { SCREEN_PREFS = prefs.screens.battle; EVALUATION_PREFS = prefs.evaluation; render(); })
         .catch(() => {});
 });
 
@@ -421,7 +422,11 @@ function foeSpriteId(foe) {
 function render() {
     const content = document.getElementById('content'), foe = state.foe;
     if (!foe) { content.innerHTML = '<p class="empty">Nenhum encontro capturado ainda. Entre em uma batalha selvagem.</p>'; return; }
-    const stats = foe.stats || {}, ivs = foe.ivs || {}, evaluation = PokemonIvEvaluation.evaluate(foe);
+    const stats = foe.stats || {}, ivs = foe.ivs || {};
+    const pokedexEntry = pokedexBySlug.get(normalizeSpecies(foe.species || foe.name));
+    const inferredMoves = Array.isArray(foe.moves) && foe.moves.length ? foe.moves : probableMoves(foe).map((move) => ({ ...move, ...(MOVE_DETAILS[move.slug] || {}) }));
+    const evaluation = EVALUATION_PREFS.enabled ? PokemonEvaluation.evaluate({ ...foe, moves:inferredMoves }, pokedexEntry?.evaluationProfile) : null;
+    const ivPercent = evaluation?.ivPercent ?? Math.round(STAT_KEYS.reduce((sum, key) => sum + Math.min(31, Math.max(0, Number(ivs[key]) || 0)), 0) / (31 * STAT_KEYS.length) * 100);
     const foeTypes = typeNames(foe.types);
     const hpPct = foe.maxHp > 0 ? Math.max(0, Math.min(100, foe.hp / foe.maxHp * 100)) : 0;
     const hpLevel = hpPct <= 20 ? 'low' : hpPct <= 50 ? 'mid' : 'high';
@@ -459,13 +464,17 @@ function render() {
         ${metaCell('HABILIDADE', `<span data-ability="${escapeHtml(foe.ability)}">${escapeHtml(PokemonAbilityInfo.label(foe.ability))}</span>`, 'Habilidade do oponente.')}
         ${metaCell('NATUREZA', natureEffectHTML(foe.nature), 'Natureza e atributos afetados.')}
         ${metaCell('ITEM', escapeHtml(foe.heldItem || '—'), foe.heldItem ? 'Item segurado.' : 'Nenhum item detectado neste encontro.', foe.heldItem ? null : 'var(--px-text-dim)')}
-        ${metaCell('ATQ PRINCIPAL', evaluation.role, 'Estimado pelo maior stat ofensivo.')}
-        ${metaCell('AVALIAÇÃO', PokemonIvEvaluation.html(foe), 'Avaliação combinando IVs, natureza e stats base.')}
-        ${metaCell('IVS TOTAL', `${evaluation.percent}%`, 'Percentual dos IVs em relação ao máximo.', ivColor(evaluation.percent * 31 / 100))}
+        ${evaluation && EVALUATION_PREFS.showCoreFields ? metaCell('FUNÇÃO', escapeHtml(evaluation.role.label), evaluation.role.tooltip) : ''}
+        ${evaluation && EVALUATION_PREFS.showCoreFields ? metaCell('AVALIAÇÃO', PokemonEvaluation.ratingHTML(evaluation), 'Avaliação dos IVs conforme a função.') : ''}
+        ${evaluation && EVALUATION_PREFS.showConfidence ? metaCell('CONFIANÇA', escapeHtml(evaluation.role.confidence), 'Confiança da função estimada.') : ''}
+        ${evaluation && EVALUATION_PREFS.showNatureFit ? metaCell('NATURE', escapeHtml(evaluation.nature.fit), 'Adequação da Nature à função.') : ''}
+        ${evaluation && EVALUATION_PREFS.showMovesetFit ? metaCell('GOLPES', escapeHtml(evaluation.moveset.fit), 'Adequação dos golpes à função.') : ''}
+        ${evaluation && EVALUATION_PREFS.showAlternativeRole && evaluation.role.secondaryLabel ? metaCell('ALTERNATIVA', escapeHtml(evaluation.role.secondaryLabel), 'Outra função compatível.') : ''}
+        ${metaCell('IVS TOTAL', `${ivPercent}%`, 'Percentual dos IVs em relação ao máximo.', ivColor(ivPercent * 31 / 100))}
     </div>`;
 
     const ivsSection = `<div class="section">
-        <div class="section-head"><span class="px-label">IVS / STATS</span><span class="head-extra" style="color:${ivColor(evaluation.percent * 31 / 100)}">${evaluation.percent}%</span></div>
+        <div class="section-head"><span class="px-label">IVS / STATS</span><span class="head-extra" style="color:${ivColor(ivPercent * 31 / 100)}">${ivPercent}%</span></div>
         <div class="ivs-grid6">${STAT_KEYS.filter((key) => ivs[key] !== undefined).map((key) => `
             <div class="iv-cell" data-tip="${key.toUpperCase()} — IV ${ivs[key]}/31${stats[key] !== undefined ? ` · stat atual ${stats[key]}` : ''}">
                 <span class="iv-key">${key.toUpperCase()}</span>
