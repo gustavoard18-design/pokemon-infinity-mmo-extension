@@ -67,11 +67,26 @@ var PokemonSpeciesProfiler = globalThis.PokemonSpeciesProfiler || (() => {
         return (Array.isArray(items) ? items : []).filter((item) => item?.slug || item?.name).map((item) => ({ ...item, evaluationProfile:profileSpecies(item, generatedAt) }));
     }
 
+    function preparePokedexItems(items, generatedAt = new Date().toISOString()) {
+        const sanitized = (Array.isArray(items) ? items : []).filter((item) => item?.slug).map((item) => ({
+            slug: item.slug,
+            name: item.name,
+            catchRate: Number(item.catchRate) || 0,
+            types: Array.isArray(item.types) ? [...item.types] : [],
+            abilities: Array.isArray(item.abilities) ? [...item.abilities] : [],
+            base: item.base && typeof item.base === 'object' ? { ...item.base } : null,
+            levelMoves: Array.isArray(item.levelMoves)
+                ? item.levelMoves.filter((move) => move?.slug && Number.isFinite(Number(move.lv))).map((move) => ({ lv:Number(move.lv), slug:move.slug }))
+                : []
+        }));
+        return profileAll(sanitized, generatedAt);
+    }
+
     function needsReprofile(cached) {
         const items = Array.isArray(cached?.items) ? cached.items : [];
         return items.length > 0 && items.some((item) => item?.evaluationProfile?.schemaVersion !== PokemonRoleRules.SCHEMA_VERSION || item?.evaluationProfile?.rulesVersion !== PokemonRoleRules.ROLE_RULES_VERSION);
     }
 
-    return Object.freeze({ profileSpecies, profileAll, needsReprofile });
+    return Object.freeze({ profileSpecies, profileAll, preparePokedexItems, needsReprofile });
 })();
 globalThis.PokemonSpeciesProfiler = PokemonSpeciesProfiler;

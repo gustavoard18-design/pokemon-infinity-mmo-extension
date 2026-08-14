@@ -90,6 +90,21 @@ test('perfilador é determinístico e isola entrada inválida', () => {
     assert.ok(first.candidates.every(({ score }) => score >= 0 && score <= 1));
 });
 
+test('enriquecimento preserva dados-fonte e injeta perfil versionado', () => {
+    const source = { ...species('gengar'), catchRate:45, levelMoves:[{ lv:1, slug:'hypnosis' }] };
+    const [result] = PokemonSpeciesProfiler.preparePokedexItems([source], '2026-08-13T12:00:00.000Z');
+    assert.deepEqual(result.types, []);
+    assert.deepEqual(result.abilities, []);
+    assert.deepEqual(result.levelMoves, [{ lv:1, slug:'hypnosis' }]);
+    assert.equal(result.evaluationProfile.rulesVersion, PokemonRoleRules.ROLE_RULES_VERSION);
+});
+
+test('cache só precisa de reprocessamento quando possui perfil desatualizado', () => {
+    assert.equal(PokemonSpeciesProfiler.needsReprofile({ items:[] }), false);
+    assert.equal(PokemonSpeciesProfiler.needsReprofile({ items:[{ evaluationProfile:{ schemaVersion:1, rulesVersion:0 } }] }), true);
+    assert.equal(PokemonSpeciesProfiler.needsReprofile({ items:[{ evaluationProfile:{ schemaVersion:1, rulesVersion:1 } }] }), false);
+});
+
 process.on('exit', () => {
     if (!process.exitCode) process.stdout.write('Avaliação Pokémon: todos os testes passaram.\n');
 });
