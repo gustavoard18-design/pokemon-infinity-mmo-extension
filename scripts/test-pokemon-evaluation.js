@@ -23,6 +23,7 @@ load('data/pokemon-role-rules.js');
 if (fs.existsSync(path.join(ROOT, 'data/pokemon-species-profiler.js'))) load('data/pokemon-species-profiler.js');
 load('components/nature-effect.js');
 if (fs.existsSync(path.join(ROOT, 'components/pokemon-evaluation.js'))) load('components/pokemon-evaluation.js');
+if (fs.existsSync(path.join(ROOT, 'data/extension-storage.js'))) load('data/extension-storage.js');
 
 test('pesos do atacante especial rápido priorizam SPA e SPE', () => {
     const role = PokemonRoleRules.role('special_fast_attacker');
@@ -147,6 +148,18 @@ test('falta de perfil produz fallback renderizável de baixa confiança', () => 
     assert.equal(result.role.confidence, 'low');
     assert.ok(result.role.label);
     assert.ok(result.rating.label);
+});
+
+test('preferências antigas recebem defaults completos de avaliação', () => {
+    const prefs = PokemonHelperStorage.mergeUiPreferences({ tooltipsEnabled:false });
+    assert.equal(prefs.tooltipsEnabled, false);
+    assert.deepEqual(prefs.evaluation, {
+        enabled:true, showCoreFields:true, showConfidence:false,
+        showNatureFit:false, showMovesetFit:false, showAlternativeRole:false
+    });
+    const disabled = PokemonHelperStorage.mergeUiPreferences({ evaluation:{ enabled:false } });
+    assert.equal(disabled.evaluation.enabled, false);
+    assert.equal(disabled.evaluation.showCoreFields, true);
 });
 
 process.on('exit', () => {

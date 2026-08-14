@@ -35,6 +35,13 @@ function buildSettingsPanel(shell) {
                 <span class="ph-setting-label" id="ph-tooltips-label">Tooltips ao passar o mouse</span>
                 <button type="button" class="ph-toggle" id="ph-tooltips" role="switch" aria-checked="true" aria-labelledby="ph-tooltips-label"></button>
             </div>
+            <div class="ph-set-head">AVALIAÇÃO DE POKÉMON</div>
+            <div class="ph-setting-row"><span class="ph-setting-label" id="ph-eval-enabled-label">Ativar avaliação</span><button type="button" class="ph-toggle" id="ph-eval-enabled" role="switch" aria-checked="true" aria-labelledby="ph-eval-enabled-label"></button></div>
+            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-core-label">Avaliação e Função</span><button type="button" class="ph-toggle" id="ph-eval-core" role="switch" aria-checked="true" aria-labelledby="ph-eval-core-label"></button></div>
+            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-confidence-label">Confiança</span><button type="button" class="ph-toggle" id="ph-eval-confidence" role="switch" aria-checked="false" aria-labelledby="ph-eval-confidence-label"></button></div>
+            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-nature-label">Adequação da Nature</span><button type="button" class="ph-toggle" id="ph-eval-nature" role="switch" aria-checked="false" aria-labelledby="ph-eval-nature-label"></button></div>
+            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-moves-label">Adequação dos golpes</span><button type="button" class="ph-toggle" id="ph-eval-moves" role="switch" aria-checked="false" aria-labelledby="ph-eval-moves-label"></button></div>
+            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-alternative-label">Função alternativa</span><button type="button" class="ph-toggle" id="ph-eval-alternative" role="switch" aria-checked="false" aria-labelledby="ph-eval-alternative-label"></button></div>
             <div class="ph-set-head">COMPORTAMENTO</div>
             <div class="ph-setting-row" data-tip="Qual aba o painel mostra ao carregar a página.">
                 <span class="ph-setting-label">View inicial</span>
@@ -535,6 +542,23 @@ function buildSettingsPanel(shell) {
 
             bindPrefToggle('ph-auto-battle', prefs.autoSwitchToBattle,
                 (autoSwitchToBattle) => PokemonHelperStorage.setUiPreferences({ autoSwitchToBattle }));
+
+            const evaluationToggles = [
+                ['ph-eval-enabled', 'enabled'], ['ph-eval-core', 'showCoreFields'],
+                ['ph-eval-confidence', 'showConfidence'], ['ph-eval-nature', 'showNatureFit'],
+                ['ph-eval-moves', 'showMovesetFit'], ['ph-eval-alternative', 'showAlternativeRole']
+            ];
+            const syncEvaluationDisabled = () => {
+                const enabled = panel.querySelector('#ph-eval-enabled').getAttribute('aria-checked') === 'true';
+                panel.querySelectorAll('.ph-eval-option .ph-toggle').forEach((toggle) => { toggle.disabled = !enabled; });
+            };
+            evaluationToggles.forEach(([id, field]) => {
+                bindPrefToggle(id, prefs.evaluation[field], (value) =>
+                    PokemonHelperStorage.setUiPreferences({ evaluation: { [field]:value } }).then(() => {
+                        if (field === 'enabled') syncEvaluationDisabled();
+                    }));
+            });
+            syncEvaluationDisabled();
 
             bindPrefToggle('ph-mp-groups', prefs.screens.myPokemons.expandGroupsByDefault,
                 (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { expandGroupsByDefault: v } } }));
