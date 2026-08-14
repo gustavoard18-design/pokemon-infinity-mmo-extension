@@ -21,6 +21,8 @@ function test(name, run) {
 
 load('data/pokemon-role-rules.js');
 if (fs.existsSync(path.join(ROOT, 'data/pokemon-species-profiler.js'))) load('data/pokemon-species-profiler.js');
+load('components/nature-effect.js');
+if (fs.existsSync(path.join(ROOT, 'components/pokemon-evaluation.js'))) load('components/pokemon-evaluation.js');
 
 test('pesos do atacante especial rápido priorizam SPA e SPE', () => {
     const role = PokemonRoleRules.role('special_fast_attacker');
@@ -103,6 +105,48 @@ test('cache só precisa de reprocessamento quando possui perfil desatualizado', 
     assert.equal(PokemonSpeciesProfiler.needsReprofile({ items:[] }), false);
     assert.equal(PokemonSpeciesProfiler.needsReprofile({ items:[{ evaluationProfile:{ schemaVersion:1, rulesVersion:0 } }] }), true);
     assert.equal(PokemonSpeciesProfiler.needsReprofile({ items:[{ evaluationProfile:{ schemaVersion:1, rulesVersion:1 } }] }), false);
+});
+
+test('avaliação ignora IV irrelevante e pondera os essenciais da função', () => {
+    const profile = PokemonSpeciesProfiler.profileSpecies(species('gengar'), '2026-08-13T12:00:00.000Z');
+    const perfect = { species:'gengar', nature:'Hardy', ivs:{ hp:31, atk:31, def:31, spa:31, spd:31, spe:31 }, moves:[] };
+    const irrelevantLow = { ...perfect, ivs:{ ...perfect.ivs, atk:0 } };
+    assert.equal(PokemonEvaluation.evaluate(perfect, profile).rating.score, 100);
+    assert.equal(PokemonEvaluation.evaluate(irrelevantLow, profile).rating.score, 100);
+    const weakSpeed = { ...perfect, ivs:{ ...perfect.ivs, spe:12 } };
+    assert.equal(PokemonEvaluation.evaluate(weakSpeed, profile).rating.label, 'Bom');
+});
+
+test('Nature favorável e conflitante ajustam a nota de forma limitada', () => {
+    const profile = PokemonSpeciesProfiler.profileSpecies(species('gengar'), '2026-08-13T12:00:00.000Z');
+    const base = { species:'gengar', ivs:{ hp:25, atk:0, def:25, spa:25, spd:25, spe:25 }, moves:[] };
+    assert.equal(PokemonEvaluation.evaluate({ ...base, nature:'Timid' }, profile).nature.adjustment, 5);
+    assert.equal(PokemonEvaluation.evaluate({ ...base, nature:'Adamant' }, profile).nature.adjustment, -8);
+});
+
+test('moveset refina uma espécie mista sem usar IV para escolher função', () => {
+    const profile = PokemonSpeciesProfiler.profileSpecies(species('lucario'), '2026-08-13T12:00:00.000Z');
+    const base = { species:'lucario', nature:'Hardy', ivs:{ hp:20, atk:20, def:20, spa:20, spd:20, spe:20 } };
+    assert.equal(PokemonEvaluation.evaluate({ ...base, moves:[{ slug:'close-combat', category:'physical', power:120 }] }, profile).role.id, 'physical_fast_attacker');
+    assert.equal(PokemonEvaluation.evaluate({ ...base, moves:[{ slug:'aura-sphere', category:'special', power:80 }] }, profile).role.id, 'special_fast_attacker');
+});
+
+test('fingerprint e cache ignoram HP/status e invalidam dados de build', () => {
+    const profile = PokemonSpeciesProfiler.profileSpecies(species('gengar'), '2026-08-13T12:00:00.000Z');
+    const mon = { id:7, species:'gengar', hp:100, status:null, nature:'Timid', ivs:{ hp:20, atk:0, def:20, spa:31, spd:20, spe:31 }, moves:[] };
+    assert.equal(PokemonEvaluation.fingerprint(mon), PokemonEvaluation.fingerprint({ ...mon, hp:1, status:'burn' }));
+    assert.notEqual(PokemonEvaluation.fingerprint(mon), PokemonEvaluation.fingerprint({ ...mon, nature:'Modest' }));
+    const cache = PokemonEvaluation.createCache();
+    assert.strictEqual(cache.evaluate(mon, profile), cache.evaluate({ ...mon, hp:1 }, profile));
+    cache.retain([]);
+    assert.equal(cache.size, 0);
+});
+
+test('falta de perfil produz fallback renderizável de baixa confiança', () => {
+    const result = PokemonEvaluation.evaluate({ name:'DESCONHECIDO', ivs:{} }, null);
+    assert.equal(result.role.confidence, 'low');
+    assert.ok(result.role.label);
+    assert.ok(result.rating.label);
 });
 
 process.on('exit', () => {
