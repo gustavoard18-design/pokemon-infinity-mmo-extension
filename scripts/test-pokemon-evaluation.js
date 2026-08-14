@@ -20,6 +20,7 @@ function test(name, run) {
 }
 
 load('data/pokemon-role-rules.js');
+if (fs.existsSync(path.join(ROOT, 'data/pokemon-species-profiler.js'))) load('data/pokemon-species-profiler.js');
 
 test('pesos do atacante especial rápido priorizam SPA e SPE', () => {
     const role = PokemonRoleRules.role('special_fast_attacker');
@@ -46,6 +47,47 @@ test('faixas de nota respeitam os limites definidos', () => {
 test('habilidades conhecidas retornam tags e desconhecidas são seguras', () => {
     assert.deepEqual(PokemonRoleRules.abilityTags('magic-guard'), ['indirect_damage_immunity']);
     assert.deepEqual(PokemonRoleRules.abilityTags('unknown-ability'), []);
+});
+
+const speciesFixtures = {
+    lucario: [70,110,70,115,70,90], swampert: [100,110,90,85,90,60],
+    gengar: [60,65,60,130,75,110], golurk: [89,124,80,55,80,55],
+    solosis: [45,30,40,105,50,20], reuniclus: [110,65,75,125,85,30],
+    bulbasaur: [45,49,49,65,65,45], venusaur: [80,82,83,100,100,80],
+    mew: [100,100,100,100,100,100], ditto: [48,48,48,48,48,48],
+    shedinja: [1,90,45,30,30,40]
+};
+const species = (slug) => {
+    const [hp,atk,def,spa,spd,spe] = speciesFixtures[slug];
+    return { slug, name:slug.toUpperCase(), base:{ hp,atk,def,spa,spd,spe }, abilities:[], types:[], levelMoves:[] };
+};
+
+test('perfilador distingue arquétipos ofensivos e resistentes', () => {
+    const primary = (slug) => PokemonSpeciesProfiler.profileSpecies(species(slug), '2026-08-13T12:00:00.000Z').candidates[0].id;
+    assert.equal(primary('lucario'), 'mixed_fast_attacker');
+    assert.equal(primary('swampert'), 'physical_bulky_attacker');
+    assert.equal(primary('gengar'), 'special_fast_attacker');
+    assert.equal(primary('golurk'), 'physical_slow_attacker');
+    assert.equal(primary('solosis'), 'special_slow_attacker');
+    assert.equal(primary('reuniclus'), 'special_bulky_attacker');
+});
+
+test('perfilador reconhece versatilidade, suporte e casos especiais', () => {
+    const profile = (slug) => PokemonSpeciesProfiler.profileSpecies(species(slug), '2026-08-13T12:00:00.000Z');
+    assert.equal(profile('mew').candidates[0].id, 'versatile');
+    assert.equal(profile('ditto').candidates[0].id, 'special_case');
+    assert.equal(profile('shedinja').candidates[0].id, 'special_case');
+    assert.ok(profile('bulbasaur').candidates.some(({ id }) => id === 'defensive_support'));
+    assert.ok(profile('venusaur').candidates.some(({ id }) => id === 'special_bulky_attacker'));
+});
+
+test('perfilador é determinístico e isola entrada inválida', () => {
+    const input = species('reuniclus');
+    const first = PokemonSpeciesProfiler.profileSpecies(input, '2026-08-13T12:00:00.000Z');
+    assert.deepEqual(first, PokemonSpeciesProfiler.profileSpecies(input, '2026-08-13T12:00:00.000Z'));
+    assert.equal(first.candidates[0].confidence, 'high');
+    assert.equal(PokemonSpeciesProfiler.profileSpecies({ slug:'broken' }, '2026-08-13T12:00:00.000Z').candidates[0].confidence, 'low');
+    assert.ok(first.candidates.every(({ score }) => score >= 0 && score <= 1));
 });
 
 process.on('exit', () => {
