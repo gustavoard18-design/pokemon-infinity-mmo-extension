@@ -40,6 +40,20 @@ var PokemonCard = globalThis.PokemonCard || (() => {
         }).join('')}</div>`;
     }
 
+    function evaluationRows(viewModel, preferences = {}) {
+        const result = viewModel.evaluation;
+        if (!result || preferences.enabled === false) return '';
+        let rows = '';
+        if (preferences.showCoreFields !== false) rows += `
+            <div class="detail-row"><span class="detail-key">Avaliação</span><span class="detail-val">${PokemonEvaluation.ratingHTML(result)}</span></div>
+            <div class="detail-row"><span class="detail-key">Função</span><span class="detail-val">${PokemonEvaluation.roleHTML(result)}</span></div>`;
+        if (preferences.showConfidence) rows += `<div class="detail-row"><span class="detail-key">Confiança</span><span class="detail-val">${escapeHtml(result.role.confidence)}</span></div>`;
+        if (preferences.showNatureFit) rows += `<div class="detail-row"><span class="detail-key">Nature</span><span class="detail-val">${escapeHtml(result.nature.fit)}</span></div>`;
+        if (preferences.showMovesetFit) rows += `<div class="detail-row"><span class="detail-key">Golpes</span><span class="detail-val">${escapeHtml(result.moveset.fit === 'unknown' ? 'Não determinada' : result.moveset.fit)}</span></div>`;
+        if (preferences.showAlternativeRole && result.role.secondaryLabel) rows += `<div class="detail-row"><span class="detail-key">Alternativa</span><span class="detail-val">${escapeHtml(result.role.secondaryLabel)}</span></div>`;
+        return rows;
+    }
+
     function render(viewModel, options = {}) {
         const expanded = options.expanded === true;
         const detailsId = options.detailsId || `pokemon-details-${String(viewModel.key).replace(/[^a-z0-9_-]/gi, '-')}`;
@@ -64,5 +78,5 @@ var PokemonCard = globalThis.PokemonCard || (() => {
         </article>`;
     }
 
-    return { render, detailRows, ivGrid };
+    return { render, detailRows, ivGrid, evaluationRows };
 })();

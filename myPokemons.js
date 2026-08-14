@@ -51,17 +51,36 @@ const UI_STATE = {
 // defaults síncronos: se o primeiro payload chegar antes da leitura do
 // storage resolver, o comportamento é o padrão — aceitável e raro.
 let SCREEN_PREFS = Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES.screens.myPokemons);
+let EVALUATION_PREFS = Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES.evaluation);
+let pokedexProfiles = new Map();
+const evaluationCache = PokemonEvaluation.createCache();
 PokemonHelperStorage.getUiPreferences()
-    .then((prefs) => { SCREEN_PREFS = prefs.screens.myPokemons; renderIfLoaded(); })
+    .then((prefs) => { SCREEN_PREFS = prefs.screens.myPokemons; EVALUATION_PREFS = prefs.evaluation; renderIfLoaded(); })
     .catch(() => {});
 chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local' || !changes[PokemonHelperStorage.KEYS.uiPreferences]) return;
+    if (area !== 'local') return;
+    if (changes[PokemonHelperStorage.KEYS.pokedex]) {
+        const items = changes[PokemonHelperStorage.KEYS.pokedex].newValue?.items || [];
+        pokedexProfiles = new Map(items.map((item) => [normalizeSearch(item.slug || item.name), item.evaluationProfile]));
+        evaluationCache.clear();
+        rebuildDataState(); applyFilters(); renderIfLoaded();
+    }
+    if (!changes[PokemonHelperStorage.KEYS.uiPreferences]) return;
     // re-render para o link do Smogon aparecer/sumir assim que a configuração
     // muda, sem precisar fechar e reabrir a aba
     PokemonHelperStorage.getUiPreferences()
-        .then((prefs) => { SCREEN_PREFS = prefs.screens.myPokemons; renderIfLoaded(); })
+        .then((prefs) => {
+            SCREEN_PREFS = prefs.screens.myPokemons;
+            EVALUATION_PREFS = prefs.evaluation;
+            if (!EVALUATION_PREFS.enabled) evaluationCache.clear();
+            rebuildDataState(); applyFilters(); renderIfLoaded();
+        })
         .catch(() => {});
 });
+PokemonHelperStorage.getPokedex().then((cached) => {
+    pokedexProfiles = new Map((cached.items || []).map((item) => [normalizeSearch(item.slug || item.name), item.evaluationProfile]));
+    rebuildDataState(); applyFilters(); renderIfLoaded();
+}).catch(() => {});
 
 let filterController = null;
 
@@ -130,6 +149,8 @@ function createPokemonViewModel(pokemon, location) {
     const natureName = pokemon.nature || '—';
     const pokemonId = getPokemonId(name);
 
+    const profile = pokedexProfiles.get(normalizeSearch(pokemon.species || name));
+    const evaluation = EVALUATION_PREFS.enabled ? evaluationCache.evaluate(pokemon, profile) : null;
     return {
         pokemon,
         key: location.key,
@@ -158,7 +179,8 @@ function createPokemonViewModel(pokemon, location) {
         ivPercent: calculateIvPercent(pokemon.ivs),
         typeKeys,
         typeOrder: typeKeys.map((type) => TYPES.indexOf(type)),
-        moves: normalizeMoves(pokemon.moves)
+        moves: normalizeMoves(pokemon.moves),
+        evaluation
     };
 }
 
@@ -207,11 +229,13 @@ function rebuildDataState() {
 
     DATA_STATE.sourcePokemon = pokemon;
     DATA_STATE.groups = groups;
+    evaluationCache.retain(pokemon.map((viewModel) => viewModel.pokemon?.id ?? `${viewModel.pokemon?.species || viewModel.name}:${viewModel.level}`));
 }
 
 function hasAdvancedFilter(values) {
     return values.shinyOnly
         || values.itemOnly
+        || values.ratingLabels.length > 0
         || values.types.length > 0
         || (values.natureMode === 'name' && values.natures.length > 0)
         || (values.natureMode === 'effect' && (
@@ -225,6 +249,7 @@ function pokemonPassesFilters(viewModel, nameQuery, values, advancedEnabled, com
     if (!advancedEnabled) return true;
     if (values.shinyOnly && !viewModel.shiny) return false;
     if (values.itemOnly && !viewModel.hasItem) return false;
+    if (values.ratingLabels.length && !values.ratingLabels.includes(viewModel.evaluation?.rating?.label)) return false;
 
     if (values.types.length) {
         const matchesType = values.typeMode === 'all'
@@ -281,6 +306,11 @@ function createComparator(values) {
                 break;
             case 'ivPercent':
                 result = (left.ivPercent - right.ivPercent) * direction;
+                break;
+            case 'evaluationScore':
+                result = ((left.evaluation?.rating?.sortValue ?? -1) - (right.evaluation?.rating?.sortValue ?? -1)) * direction;
+                if (!result) result = (left.ivPercent - right.ivPercent) * direction;
+                if (!result) result = left.normalizedName.localeCompare(right.normalizedName, 'pt-BR');
                 break;
             default:
                 result = left.sourceOrder - right.sourceOrder;
@@ -353,11 +383,9 @@ function syncUiState() {
 function renderDetailRows(viewModel) {
     // avaliação de IVs/natureza/stats (grade Ruim..Excelente) + papel ofensivo
     // principal — mesma fonte (PokemonIvEvaluation) usada no encontro (battle.js)
-    const evaluation = PokemonIvEvaluation.evaluate(viewModel.pokemon);
     return PokemonCard.detailRows(viewModel, { afterRows: `
         <div class="detail-row"><span class="detail-key">Posição</span><span class="detail-val">${escapeHtml(viewModel.slotLabel)}</span></div>
-        <div class="detail-row"><span class="detail-key">Avaliação</span><span class="detail-val">${PokemonIvEvaluation.html(viewModel.pokemon)} ${PokemonHelperTooltip.iconHTML('Avalia IVs, natureza e stats base pra classificar o Pokémon.')}</span></div>
-        <div class="detail-row"><span class="detail-key">Atq Principal</span><span class="detail-val">${escapeHtml(evaluation.role)}</span></div>
+        ${PokemonCard.evaluationRows(viewModel, EVALUATION_PREFS)}
     ` });
 }
 
@@ -484,6 +512,10 @@ function syncGlobalControls() {
 function render() {
     const content = document.getElementById('content');
     if (!content) return;
+    const evaluationSection = document.getElementById('filter-evaluation-section');
+    if (evaluationSection) evaluationSection.hidden = !EVALUATION_PREFS.enabled;
+    const evaluationSort = document.querySelector('#filter-sort-by option[value="evaluationScore"]');
+    if (evaluationSort) evaluationSort.hidden = !EVALUATION_PREFS.enabled;
     syncUiState();
     const removeGroups = FILTER_STATE.advancedEnabled && FILTER_STATE.applied.removeGroups;
     content.innerHTML = removeGroups ? renderFlat() : renderGrouped();
