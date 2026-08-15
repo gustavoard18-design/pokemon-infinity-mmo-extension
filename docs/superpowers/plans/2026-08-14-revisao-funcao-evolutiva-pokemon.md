@@ -18,6 +18,8 @@
   abaixo de Natureza e apresenta rótulo localizado com tom semântico.
 - Tendência evolutiva usa o título `Tendência Evol.`, encerra o bloco de
   metadados e ocupa duas colunas quando fica sozinha na última linha.
+- O valor exibido no campo Função abrevia palavras completas: `Atacante` vira
+  `Atac.` e `Suporte` vira `Sup.`, sem modificar o `role.label` canônico.
 - Cálculos globais e relações evolutivas são preparados no refresh/versionamento da Pokédex, não durante renderizações.
 - Não adicionar dependências, alterar versões dos manifests, `state.over`, bridge do Leilão ou identificadores históricos.
 - Chrome e Firefox devem permanecer em sincronia.
@@ -260,6 +262,8 @@ git commit -m "fix: separa função da qualidade do exemplar"
 - Produces preferência `evaluation.showEvolutionPotential`, default `false`.
 - Produces `PokemonEvaluation.natureFitPresentation(fit) -> { label, color }`,
   responsável pela tradução e pelo token semântico compartilhado.
+- Produces `PokemonEvaluation.roleDisplayLabel(label) -> string`, usado somente
+  no valor visível do campo Função e sem mutar o resultado da avaliação.
 - Produces tooltip/linha compartilhada sem recalcular perfis, com
   `Tendência Evol.` sempre por último e modificador visual de largura total.
 
@@ -275,23 +279,39 @@ Adicionar casos para `very_favorable`, `favorable`, `compatible`, `neutral`,
 também que um valor desconhecido recebe `Não determinada` com `--px-mid` e não
 quebra o card.
 
-- [ ] **Step 3: Implementar a apresentação compartilhada de Nature**
+- [ ] **Step 3: Escrever testes do rótulo compacto de Função**
 
-Criar `natureFitPresentation(fit)` em `components/pokemon-evaluation.js` e
-consumi-la nas três telas. Quando `showNatureFit=true`, renderizar o campo
+Verificar exatamente estas transformações de `roleDisplayLabel(label)`:
+
+```js
+assert.equal(roleDisplayLabel('Atacante físico ágil'), 'Atac. físico ágil');
+assert.equal(roleDisplayLabel('Suporte defensivo'), 'Sup. defensivo');
+assert.equal(roleDisplayLabel('Atacante misto / Suporte'), 'Atac. misto / Sup.');
+assert.equal(roleDisplayLabel('Tank especial'), 'Tank especial');
+```
+
+Confirmar também que `result.role.label` conserva o valor original depois da
+formatação.
+
+- [ ] **Step 4: Implementar as apresentações compartilhadas de Função e Nature**
+
+Criar `roleDisplayLabel(label)` e `natureFitPresentation(fit)` em
+`components/pokemon-evaluation.js` e consumi-las nas três telas. Usar a primeira
+somente no valor do campo **Função**; tooltips, tendência evolutiva e dados
+internos permanecem por extenso. Quando `showNatureFit=true`, renderizar o campo
 **Compat. Natureza** na linha imediatamente seguinte a **Natureza** em listas.
 Nas grades de duas colunas, compor a linha seguinte como campo esquerdo atual +
 **Compat. Natureza** à direita, para que o diagnóstico fique na mesma coluna
 visual de **Natureza**. Nunca acrescentá-lo ao fim do bloco. Aplicar a cor no
 valor, mantendo o texto visível para que significado não dependa apenas da cor.
 
-- [ ] **Step 4: Renderizar evolução somente quando solicitado**
+- [ ] **Step 5: Renderizar evolução somente quando solicitado**
 
 Linha única mostra `Tendência Evol.: Crobat — Atacante físico rápido/pivô`.
 Ramificações mostram resumo ordenado e tooltip com todos os destinos e notas de
 compatibilidade. Não substituir a linha **Função**.
 
-- [ ] **Step 5: Fixar Tendência Evol. como último campo e tratar a largura**
+- [ ] **Step 6: Fixar Tendência Evol. como último campo e tratar a largura**
 
 Compor primeiro a lista final de metadados visíveis e acrescentar a tendência
 por último. Se ela for o único item da última linha na grade de duas colunas,
@@ -301,27 +321,30 @@ resumo truncável e o conteúdo integral no tooltip. Nos cards baseados em linha
 preservar a tendência no fim e liberar o texto completo quando houver largura
 disponível.
 
-- [ ] **Step 6: Preservar desempenho**
+- [ ] **Step 7: Preservar desempenho**
 
 Incluir a versão do perfil evolutivo na assinatura do cache; não incluir HP atual, status ou posição. Cards consomem o resultado pronto do view model.
 
-- [ ] **Step 7: Executar os testes automatizados**
+- [ ] **Step 8: Executar os testes automatizados**
 
 Run: `node scripts/test-pokemon-evaluation.js`
 
-Expected: os seis estados de Nature retornam texto e cor corretos; estado
-desconhecido usa fallback neutro; testes existentes continuam passando.
+Expected: as abreviações de Função e os seis estados de Nature retornam texto e
+cor corretos; os objetos avaliados não são mutados; estado desconhecido de
+Nature usa fallback neutro; testes existentes continuam passando.
 
-- [ ] **Step 8: Verificar manualmente as três telas**
+- [ ] **Step 9: Verificar manualmente as três telas**
 
 Com opções desligadas, UI permanece como hoje. Com `showNatureFit` ligado,
 **Compat. Natureza** aparece logo abaixo de **Natureza** com cor coerente nas
-três telas. Com evolução ligada, Zubat e Eevee mostram **Tendência Evol.** por
+três telas. Em todas elas, o campo **Função** mostra `Atac.` ou `Sup.` quando
+aplicável, enquanto tooltips e tendência preservam o texto completo. Com
+evolução ligada, Zubat e Eevee mostram **Tendência Evol.** por
 último; alternar outros diagnósticos confirma uma e duas colunas, texto completo
 quando expandido e tooltip quando compacto. Paginação do Leilão e payloads
 repetidos de Meus Pokémon não provocam recálculo.
 
-- [ ] **Step 9: Versionar**
+- [ ] **Step 10: Versionar**
 
 ```bash
 git add data/extension-storage.js components/settings-panel.js components/pokemon-evaluation.js components/pokemon-card.js components/pokemon-card.css myPokemons.js battle.js battle.html auction.js scripts/test-pokemon-evaluation.js
@@ -384,5 +407,6 @@ git commit -m "docs: explica função relativa e potencial evolutivo"
 - Pré-cálculo diário e desempenho: Tasks 2–5.
 - Configuração inicialmente desativada: Task 5.
 - Compatibilidade da Nature localizada, colorida e abaixo de Natureza: Task 5.
+- Rótulo compacto de Função sem alterar dados canônicos: Task 5.
 - Tendência Evol. por último, com ocupação responsiva de duas colunas: Task 5.
 - Três telas, Chrome e Firefox: Tasks 5–6.

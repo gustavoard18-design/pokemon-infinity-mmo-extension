@@ -134,6 +134,23 @@ Toda função contém:
 O hover de **Função** mostra obrigatoriamente os principais atributos, por
 exemplo: `Prioriza ATK e SPE; HP é complementar.`
 
+### Rótulo compacto de Função
+
+Para melhorar a leitura nos cards estreitos, somente o valor visível do campo
+**Função** aplica estas substituições:
+
+- a palavra completa `Atacante` é exibida como `Atac.`;
+- a palavra completa `Suporte` é exibida como `Sup.`.
+
+Exemplos: `Atacante físico ágil` é apresentado como `Atac. físico ágil` e
+`Suporte defensivo` como `Sup. defensivo`. A substituição respeita palavras
+completas e não altera outros trechos do texto.
+
+`role.label` permanece canônico e por extenso nos perfis, caches, regras,
+explicações, tooltips e diagnósticos evolutivos. A abreviação pertence apenas à
+camada de apresentação do campo **Função**, é compartilhada pelas três telas e
+não interfere em classificação, filtros, ordenação ou serialização.
+
 ## Alternativas consideradas
 
 ### A. Avaliar tudo durante cada renderização
@@ -738,6 +755,8 @@ O conjunto mínimo de regressão deve cobrir:
 - Nature favorável e conflitante produzem ajustes limitados.
 - Compatibilidade da Nature usa os seis rótulos localizados, o tom semântico
   correspondente e aparece imediatamente abaixo de Natureza.
+- O valor visível de Função abrevia palavras completas: `Atacante` para
+  `Atac.` e `Suporte` para `Sup.`, preservando o rótulo canônico nos dados.
 - Moveset físico/especial desempata candidatas estruturalmente equivalentes de
   uma espécie versátil, sem usar IVs para escolher a função.
 - Nenhum IV muda a função atual definida pelo perfil da espécie.
@@ -795,6 +814,8 @@ O conjunto mínimo de regressão deve cobrir:
     Avaliação sem depender somente da cor.
 17. **Tendência Evol.** é o último campo do bloco e, quando fica sem par na
     última linha, ocupa duas colunas e mostra seu texto completo.
+18. O campo **Função** exibe `Atac.` e `Sup.` no lugar de `Atacante` e
+    `Suporte` nas três telas, sem modificar `role.label` nem outros campos.
 
 ## Decisões futuras explicitamente adiadas
 
