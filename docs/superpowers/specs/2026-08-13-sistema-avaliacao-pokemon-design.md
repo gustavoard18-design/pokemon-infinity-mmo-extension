@@ -54,6 +54,23 @@ Essa heurística possui quatro problemas:
 
 ## Princípios do novo modelo
 
+### Separação obrigatória de responsabilidades
+
+O sistema responde a três perguntas diferentes e não pode misturá-las:
+
+1. **Função atual da espécie:** qual papel é sugerido pela distribuição dos
+   base stats, tipos, habilidades possíveis e learnset da espécie atual.
+2. **Qualidade do exemplar:** quão adequados são IVs, Nature, EVs, habilidade
+   efetiva e moveset para a função atual.
+3. **Potencial evolutivo:** quais funções podem surgir nas evoluções seguintes
+   e quão compatível o exemplar é com cada caminho.
+
+Base stats são o sinal dominante da função. IVs não escolhem nem trocam a
+função atual; eles pontuam a qualidade do exemplar para uma função previamente
+identificada. Nature, EVs, habilidade efetiva e moveset produzem adequação e
+podem desempatar candidatas estruturalmente próximas, mas não devem contrariar
+uma identidade estatística clara.
+
 ### Perfil fixo da espécie
 
 Representa o potencial natural da espécie e é calculado quando a Pokédex remota
@@ -81,7 +98,28 @@ funções candidatas e os pesos iniciais de cada uma.
 - nível apenas quando necessário para avaliar moveset incompleto.
 
 Esse cálculo deve ser puro, determinístico e barato. Trocar um golpe ou receber
-novos EVs pode mudar a função atual sem exigir nova atualização da Pokédex.
+novos EVs muda a adequação do exemplar e só desempata funções candidatas quando
+o perfil fixo da espécie não tiver uma identidade estatística clara.
+
+### Função atual e evolução
+
+A função exibida sempre descreve a espécie atual. Uma evolução nunca substitui
+retroativamente esse papel. A linha evolutiva é registrada em campos separados:
+
+- `evolutionTrend`: função esperada quando existe um único caminho relevante;
+- `evolutionPotential`: alternativas quando há ramificações, cada uma com
+  espécie de destino, função e compatibilidade do exemplar.
+
+Em uma linha simples, Zubat pode ser **Atacante físico ágil** atualmente e ter
+tendência para **Atacante físico rápido/pivô** ao chegar a Crobat. Em uma linha
+ramificada, Eevee permanece **Versátil** e expõe separadamente potenciais como
+Jolteon/Espeon (atacante especial rápido), Umbreon (tank especial), Flareon
+(atacante físico resistente) e as demais evoluções disponíveis no jogo.
+
+Potencial evolutivo é diagnóstico opcional e começa oculto. Ele não altera a
+nota nem a função atual e não exige cálculo repetido nas telas: a estrutura da
+linha e os perfis das espécies são pré-calculados junto da Pokédex; somente a
+compatibilidade dos IVs do exemplar é calculada localmente.
 
 ### Explicabilidade
 
@@ -251,6 +289,31 @@ Para viabilizar reprocessamento offline, o cache da Pokédex deve preservar os
 campos remotos necessários ao perfil: `types`, `abilities`, base stats e os
 metadados de learnset efetivamente utilizados.
 
+### Contrato evolutivo
+
+A request e os dados rastreados atualmente não fornecem relações evolutivas.
+Elas ficam em `data/pokemon-evolution-lines.js`, uma tabela estática versionada
+carregada somente no enriquecimento da Pokédex. A tabela usa slugs já adotados
+pelo cache e deve ser atualizada quando espécies ou evoluções mudarem no jogo.
+
+O perfil enriquecido acrescenta:
+
+```js
+{
+  evolutionTrend: {
+    species: 'crobat',
+    roleId: 'physical_fast_attacker',
+    confidence: 'high',
+    path: ['golbat', 'crobat']
+  },
+  evolutionPotential: []
+}
+```
+
+Para ramificações, `evolutionTrend` é `null` e `evolutionPotential` contém todos
+os destinos finais. Relações ausentes ou inválidas resultam em campos vazios e
+baixa confiança, nunca em erro de renderização.
+
 ### Resultado dinâmico
 
 `PokemonEvaluation.evaluate(pokemon, speciesProfile)` retorna:
@@ -305,9 +368,15 @@ Se a espécie não existir no cache ou o perfil for inválido:
 
 ### Funções ofensivas
 
+- `physical_attacker` — Atacante físico;
+- `special_attacker` — Atacante especial;
+- `mixed_attacker` — Atacante misto;
 - `physical_fast_attacker` — Atacante físico rápido;
 - `special_fast_attacker` — Atacante especial rápido;
 - `mixed_fast_attacker` — Atacante misto rápido;
+- `physical_agile_attacker` — Atacante físico ágil;
+- `special_agile_attacker` — Atacante especial ágil;
+- `mixed_agile_attacker` — Atacante misto ágil;
 - `physical_bulky_attacker` — Atacante físico resistente;
 - `special_bulky_attacker` — Atacante especial resistente;
 - `physical_slow_attacker` — Atacante físico lento;
@@ -331,12 +400,25 @@ A taxonomia inicial deve permanecer pequena. Combinações são apresentadas com
 função principal mais secundária, sem criar um identificador para cada frase
 possível.
 
+**Rápido** indica velocidade alta no conjunto global da Pokédex. **Ágil** indica
+que Spe é estruturalmente relevante dentro da própria espécie, mesmo sem estar
+na faixa global dos mais rápidos. **Lento** só pode ser usado quando Spe for
+baixa globalmente e também pouco relevante na distribuição interna; um único
+limite absoluto nunca é suficiente para aplicar esse rótulo.
+
 ## Identificação da função
 
 ### Indicadores fixos
 
-Os base stats são normalizados em relação à distribuição da própria espécie e
-às faixas globais da Pokédex:
+Os base stats são normalizados em dois eixos independentes:
+
+- **relevância interna:** posição, razão para a média e distância do maior stat
+  dentro da própria espécie;
+- **posição global:** percentil do stat entre todas as espécies válidas
+  disponíveis na Pokédex. Segmentação por estágio evolutivo fica fora desta
+  revisão; a relevância interna evita penalizar espécies em desenvolvimento.
+
+Os indicadores derivados são:
 
 - `physicalOffense` deriva de Atk;
 - `specialOffense` deriva de SpA;
@@ -346,8 +428,15 @@ Os base stats são normalizados em relação à distribuição da própria espé
 - `balance` mede ausência de especialização dominante.
 
 Bulk deve considerar a combinação de HP com a defesa correspondente, e não a
-defesa isoladamente. A fórmula exata e os limiares ficam centralizados nas
-regras e são validados contra um conjunto de espécies de referência.
+defesa isoladamente. Velocidade não usa cortes rígidos como `Spe <= 55`: combina
+relevância interna e percentil global. A fórmula, percentis e limiares ficam
+centralizados nas regras, são versionados e validados contra espécies de
+referência e casos próximos das fronteiras.
+
+Zubat é uma regressão obrigatória: como Spe 55 é seu maior base stat e cerca de
+135% da média dos seus seis stats, sua velocidade é relevante. Ele não pode ser
+classificado como atacante lento, ainda que seu percentil global não justifique
+o rótulo rápido; o resultado esperado é **Atacante físico ágil**.
 
 Habilidades e learnset ajustam pontuações, mas não devem superar sozinhos um
 perfil estatístico muito claro. Habilidades recebem tags manuais versionadas;
@@ -355,11 +444,12 @@ descrições textuais não serão interpretadas em runtime.
 
 ### Ajustes do exemplar
 
-- Moveset físico/especial/status refina a função atual.
+- Moveset físico/especial/status mede adequação e só desempata candidatas
+  estruturalmente próximas.
 - Nature pode desempatar candidatas, mas não redefine a espécie sozinha.
-- EVs podem alterar a função quando mostram investimento inequívoco.
+- EVs medem especialização do exemplar e não substituem a função da espécie.
 - IVs determinam potencial para a função; não devem ser o principal sinal para
-  escolher a função e criar uma avaliação circular.
+  escolher ou trocar a função, evitando uma avaliação circular.
 - Habilidade efetiva seleciona somente as tags daquela habilidade, não de toda
   a lista possível da espécie.
 
@@ -377,6 +467,9 @@ descrições textuais não serão interpretadas em runtime.
 
 | Função | HP | Atk | Def | SpA | SpD | Spe |
 |---|---:|---:|---:|---:|---:|---:|
+| Atacante físico | 15 | 50 | 10 | 0 | 10 | 15 |
+| Atacante especial | 15 | 0 | 10 | 50 | 10 | 15 |
+| Atacante misto | 10 | 30 | 10 | 30 | 10 | 10 |
 | Atacante físico rápido | 10 | 40 | 5 | 0 | 5 | 40 |
 | Atacante especial rápido | 10 | 0 | 5 | 40 | 5 | 40 |
 | Atacante misto rápido | 5 | 30 | 5 | 30 | 5 | 25 |
@@ -513,7 +606,8 @@ evaluation: {
   showConfidence: false,
   showNatureFit: false,
   showMovesetFit: false,
-  showAlternativeRole: false
+  showAlternativeRole: false,
+  showEvolutionPotential: false
 }
 ```
 
@@ -521,7 +615,9 @@ Semântica:
 
 - `enabled`: ativa o cálculo e todos os recursos do novo avaliador;
 - `showCoreFields`: exibe os campos existentes **Avaliação** e **Função**;
-- demais opções exibem diagnósticos adicionais e começam desativadas.
+- demais opções exibem diagnósticos adicionais e começam desativadas;
+- `showEvolutionPotential` mostra tendência ou caminhos evolutivos sem trocar a
+  Função atual.
 
 Quando `enabled` for `false`, não calcular avaliação dinâmica, não mostrar
 campos, não oferecer filtro/ordenação por avaliação e não manter cache de
@@ -583,13 +679,25 @@ O conjunto mínimo de regressão deve cobrir:
 - Venusaur — atacante especial resistente/suporte;
 - Umbreon, Blissey, Skarmory e Ferrothorn — funções defensivas;
 - Ditto e Shedinja — funções especiais.
+- Zubat — atacante físico ágil; Spe é o maior base stat e nunca resulta em
+  `physical_slow_attacker`.
+- Eevee — função atual versátil e múltiplos potenciais evolutivos independentes,
+  sem eleger uma evolução única por IV.
 
 ### Casos funcionais
 
 - IV irrelevante baixo não derruba a nota.
 - IV essencial baixo aplica a penalidade definida.
 - Nature favorável e conflitante produzem ajustes limitados.
-- Moveset físico/especial muda a função atual de uma espécie versátil.
+- Moveset físico/especial desempata candidatas estruturalmente equivalentes de
+  uma espécie versátil, sem usar IVs para escolher a função.
+- Nenhum IV muda a função atual definida pelo perfil da espécie.
+- Um stat dominante internamente não é descartado por ficar abaixo de um corte
+  absoluto global.
+- Zubat com qualquer combinação de IVs mantém função atual física ágil; seus IVs
+  alteram somente a avaliação e a compatibilidade evolutiva.
+- Eevee retorna todas as ramificações disponíveis, ordenadas por compatibilidade,
+  sem incorporar a melhor evolução à função atual.
 - Payload repetido com mesmo fingerprint reutiliza o objeto avaliado.
 - Mudança somente de HP/status não invalida o cache.
 - Mudança de IV, EV, Nature, habilidade ou golpe invalida o cache.
@@ -625,6 +733,12 @@ O conjunto mínimo de regressão deve cobrir:
 10. Leilão não amplia dados sensíveis nem o contrato de autenticação do bridge.
 11. Ausência ou falha do perfil não impede a renderização.
 12. Chrome e Firefox recebem os mesmos arquivos e preferências aplicáveis.
+13. A função atual é derivada principalmente dos base stats; IVs nunca escolhem
+    ou trocam essa função.
+14. Rótulos de velocidade combinam relevância interna e percentil global; Zubat
+    é classificado como atacante físico ágil, não lento.
+15. Evoluções são expostas separadamente como tendência ou potencial e não
+    alteram função nem nota da espécie atual.
 
 ## Decisões futuras explicitamente adiadas
 

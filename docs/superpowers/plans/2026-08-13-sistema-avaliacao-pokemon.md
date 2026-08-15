@@ -1,5 +1,11 @@
 # Sistema de Avaliação Funcional de Pokémon — Plano de Implementação
 
+> **Revisão conceitual:** a primeira implementação deste plano revelou que
+> limites absolutos de velocidade classificam incorretamente espécies como
+> Zubat. A correção, incluindo relevância relativa e potencial evolutivo, está
+> detalhada no plano incremental
+> `docs/superpowers/plans/2026-08-14-revisao-funcao-evolutiva-pokemon.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Substituir “Atq Principal” por uma Função explicável e recalcular a Avaliação conforme essa função, compartilhando perfis diários entre Meus Pokémon, Encontro Atual e Leilão.
