@@ -21,6 +21,7 @@ var PokemonCard = globalThis.PokemonCard || (() => {
         const abilityLabel = typeof PokemonAbilityInfo !== 'undefined' ? PokemonAbilityInfo.label(ability) : ability;
         return `${options.beforeRows || ''}
             <div class="detail-row"><span class="detail-key">Natureza</span><span class="detail-val">${escapeHtml(viewModel.natureName || '—')} ${natureModsHTML(viewModel.natureName)}</span></div>
+            ${options.afterNatureRows || ''}
             <div class="detail-row"><span class="detail-key">Habilidade</span><span class="detail-val" data-ability="${escapeHtml(ability)}">${escapeHtml(abilityLabel || '—')}</span></div>
             <div class="detail-row"><span class="detail-key">Item</span><span class="detail-val">${escapeHtml(viewModel.heldItem || '—')}</span></div>
             ${options.afterRows || ''}`;
@@ -48,14 +49,20 @@ var PokemonCard = globalThis.PokemonCard || (() => {
             <div class="detail-row"><span class="detail-key">Avaliação</span><span class="detail-val">${PokemonEvaluation.ratingHTML(result)}</span></div>
             <div class="detail-row"><span class="detail-key">Função</span><span class="detail-val">${PokemonEvaluation.roleHTML(result)}</span></div>`;
         if (preferences.showConfidence) rows += `<div class="detail-row"><span class="detail-key">Confiança</span><span class="detail-val">${escapeHtml(result.role.confidence)}</span></div>`;
-        if (preferences.showNatureFit) rows += `<div class="detail-row"><span class="detail-key">Nature</span><span class="detail-val">${escapeHtml(result.nature.fit)}</span></div>`;
         if (preferences.showMovesetFit) rows += `<div class="detail-row"><span class="detail-key">Golpes</span><span class="detail-val">${escapeHtml(result.moveset.fit === 'unknown' ? 'Não determinada' : result.moveset.fit)}</span></div>`;
         if (preferences.showAlternativeRole && result.role.secondaryLabel) rows += `<div class="detail-row"><span class="detail-key">Alternativa</span><span class="detail-val">${escapeHtml(result.role.secondaryLabel)}</span></div>`;
         if (preferences.showEvolutionPotential) {
             const evolution = PokemonEvaluation.evolutionPresentation(result);
-            if (evolution) rows += `<div class="detail-row"><span class="detail-key">${escapeHtml(evolution.key)}</span><span class="detail-val" data-tip="${escapeHtml(evolution.tooltip)}">${escapeHtml(evolution.value)}</span></div>`;
+            if (evolution) rows += `<div class="detail-row detail-row--evolution"><span class="detail-key">${escapeHtml(evolution.key)}</span><span class="detail-val" data-tip="${escapeHtml(evolution.tooltip)}">${escapeHtml(evolution.value)}</span></div>`;
         }
         return rows;
+    }
+
+    function natureFitRow(viewModel, preferences = {}) {
+        const result = viewModel.evaluation;
+        if (!result || preferences.enabled === false || !preferences.showNatureFit) return '';
+        const presentation = PokemonEvaluation.natureFitPresentation(result.nature?.fit);
+        return `<div class="detail-row"><span class="detail-key">Compat. Natureza</span><span class="detail-val" style="color:${presentation.color}">${escapeHtml(presentation.label)}</span></div>`;
     }
 
     function render(viewModel, options = {}) {
@@ -82,5 +89,5 @@ var PokemonCard = globalThis.PokemonCard || (() => {
         </article>`;
     }
 
-    return { render, detailRows, ivGrid, evaluationRows };
+    return { render, detailRows, ivGrid, evaluationRows, natureFitRow };
 })();

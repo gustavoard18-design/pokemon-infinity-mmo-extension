@@ -24,6 +24,7 @@ if (fs.existsSync(path.join(ROOT, 'data/pokemon-species-profiler.js'))) load('da
 load('components/nature-effect.js');
 if (fs.existsSync(path.join(ROOT, 'components/pokemon-evaluation.js'))) load('components/pokemon-evaluation.js');
 if (fs.existsSync(path.join(ROOT, 'data/extension-storage.js'))) load('data/extension-storage.js');
+if (fs.existsSync(path.join(ROOT, 'components/pokemon-card.js'))) load('components/pokemon-card.js');
 
 test('pesos do atacante especial rápido priorizam SPA e SPE', () => {
     const role = PokemonRoleRules.role('special_fast_attacker');
@@ -231,6 +232,69 @@ test('preferências antigas recebem defaults completos de avaliação', () => {
     const disabled = PokemonHelperStorage.mergeUiPreferences({ evaluation:{ enabled:false } });
     assert.equal(disabled.evaluation.enabled, false);
     assert.equal(disabled.evaluation.showCoreFields, true);
+});
+
+test('apresentação da compatibilidade da Nature localiza texto e cor', () => {
+    const cases = [
+        ['very_favorable', 'Muito favorável', 'var(--px-good)'],
+        ['favorable', 'Favorável', 'var(--px-good)'],
+        ['compatible', 'Compatível', 'var(--px-mid)'],
+        ['neutral', 'Neutra', 'var(--px-mid)'],
+        ['unfavorable', 'Desfavorável', 'var(--px-accent)'],
+        ['conflicting', 'Conflitante', 'var(--px-bad)'],
+        ['unexpected', 'Não determinada', 'var(--px-mid)']
+    ];
+    for (const [fit, label, color] of cases) {
+        assert.deepEqual(PokemonEvaluation.natureFitPresentation(fit), { label, color });
+    }
+});
+
+test('rótulo compacto de Função abrevia palavras completas sem mutar avaliação', () => {
+    const result = { role:{ label:'Atacante misto / Suporte' } };
+    assert.equal(PokemonEvaluation.roleDisplayLabel('Atacante físico ágil'), 'Atac. físico ágil');
+    assert.equal(PokemonEvaluation.roleDisplayLabel('Suporte defensivo'), 'Sup. defensivo');
+    assert.equal(PokemonEvaluation.roleDisplayLabel(result.role.label), 'Atac. misto / Sup.');
+    assert.equal(PokemonEvaluation.roleDisplayLabel('Tank especial'), 'Tank especial');
+    assert.equal(result.role.label, 'Atacante misto / Suporte');
+});
+
+test('card posiciona Compat. Natureza após Natureza e Tendência Evol. por último', () => {
+    const viewModel = {
+        natureName:'Adamant', ability:'inner-focus', heldItem:'—',
+        evaluation:{
+            role:{ label:'Atacante físico ágil', tooltip:'Prioriza ATK e SPE.', confidence:'high', secondaryLabel:null },
+            rating:{ label:'Bom', slug:'bom', score:70 },
+            nature:{ fit:'favorable' }, moveset:{ fit:'unknown' },
+            evolutionTrend:{ species:'crobat', role:{ label:'Atacante físico rápido' }, rating:{ label:'Bom', score:70 }, path:['crobat'] }
+        }
+    };
+    const preferences = { enabled:true, showCoreFields:true, showNatureFit:true, showConfidence:true, showEvolutionPotential:true };
+    const html = PokemonCard.detailRows(viewModel, {
+        afterNatureRows:PokemonCard.natureFitRow(viewModel, preferences),
+        afterRows:PokemonCard.evaluationRows(viewModel, preferences)
+    });
+    assert.ok(html.indexOf('Natureza') < html.indexOf('Compat. Natureza'));
+    assert.ok(html.indexOf('Compat. Natureza') < html.indexOf('Habilidade'));
+    assert.match(html, /Função<\/span><span class="detail-val"><span[^>]*>Atac\. físico ágil<\/span>/);
+    assert.equal(html.includes('Atacante físico ágil</span></div>'), false);
+    assert.ok(html.lastIndexOf('Tendência Evol.') > html.lastIndexOf('Confiança'));
+    assert.match(html, /detail-row detail-row--evolution/);
+});
+
+test('grade do Encontro expande Tendência Evol. somente quando fica isolada', () => {
+    const result = {
+        evolutionTrend:{ species:'crobat', role:{ label:'Atacante físico rápido' }, rating:{ label:'Bom', score:70 }, path:['crobat'] }
+    };
+    const render = (presentation, wide) => `${presentation.key}:${wide ? 'wide' : 'normal'}`;
+    assert.deepEqual(
+        PokemonEvaluation.appendEvolutionGridCell(['habilidade', 'natureza'], result, render),
+        ['habilidade', 'natureza', 'Tendência Evol.:wide']
+    );
+    assert.deepEqual(
+        PokemonEvaluation.appendEvolutionGridCell(['habilidade'], result, render),
+        ['habilidade', 'Tendência Evol.:normal']
+    );
+    assert.deepEqual(PokemonEvaluation.appendEvolutionGridCell(['habilidade'], {}, render), ['habilidade']);
 });
 
 test('integração carrega o profiler e oferece diagnóstico opcional compartilhado', () => {

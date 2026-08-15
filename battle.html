@@ -40,6 +40,8 @@
         .enc-hp-label { font-family: var(--px-font-mono); font-size: 10px; color: var(--px-text-dim); }
         .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--px-line); border: 1px solid var(--px-line); }
         .meta-cell { background: var(--px-bg-card); padding: 5px 7px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+        .meta-cell--wide { grid-column: 1 / -1; }
+        .meta-cell--wide .meta-val { overflow: visible; text-overflow: clip; white-space: normal; }
         .meta-key { font-family: var(--px-font-mono); font-size: 8px; color: var(--px-text-dim); letter-spacing: .5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .meta-val { font-size: 12px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--px-text-val); }
         .section { display: flex; flex-direction: column; gap: 5px; }

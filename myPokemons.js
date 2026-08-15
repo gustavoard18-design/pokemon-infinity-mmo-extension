@@ -384,7 +384,7 @@ function syncUiState() {
 function renderDetailRows(viewModel) {
     // avaliação e função já foram calculadas no view model e são reutilizadas
     // por renderização, filtros e ordenação.
-    return PokemonCard.detailRows(viewModel, { afterRows: `
+    return PokemonCard.detailRows(viewModel, { afterNatureRows:PokemonCard.natureFitRow(viewModel, EVALUATION_PREFS), afterRows: `
         <div class="detail-row"><span class="detail-key">Posição</span><span class="detail-val">${escapeHtml(viewModel.slotLabel)}</span></div>
         ${PokemonCard.evaluationRows(viewModel, EVALUATION_PREFS)}
     ` });

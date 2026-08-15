@@ -243,7 +243,7 @@
     function detailRows(listing, viewModel) {
         const auctionRows = `<div class="detail-row"><span class="detail-key">Vendedor</span><span class="detail-val">${escapeHtml(listing.seller_name || 'Desconhecido')}</span></div>
             <div class="detail-row"><span class="detail-key">Expira em</span><span class="detail-val">${remaining(listing.expires_at)}</span></div>`;
-        return PokemonCard.detailRows(viewModel, { beforeRows: auctionRows, afterRows:PokemonCard.evaluationRows(viewModel, evaluationPreferences) }) + PokemonCard.ivGrid(viewModel);
+        return PokemonCard.detailRows(viewModel, { beforeRows: auctionRows, afterNatureRows:PokemonCard.natureFitRow(viewModel, evaluationPreferences), afterRows:PokemonCard.evaluationRows(viewModel, evaluationPreferences) }) + PokemonCard.ivGrid(viewModel);
     }
 
     function card(listing) {
@@ -314,7 +314,7 @@
             className: selected ? 'sell-selected' : '',
             badgesHtml: badges,
             metaHtml: meta,
-            detailsHtml: PokemonCard.detailRows(viewModel, { afterRows:PokemonCard.evaluationRows(viewModel, evaluationPreferences) }) + PokemonCard.ivGrid(viewModel)
+            detailsHtml: PokemonCard.detailRows(viewModel, { afterNatureRows:PokemonCard.natureFitRow(viewModel, evaluationPreferences), afterRows:PokemonCard.evaluationRows(viewModel, evaluationPreferences) }) + PokemonCard.ivGrid(viewModel)
         });
     }
 
@@ -330,7 +330,7 @@
             className: 'sell-review-card',
             badgesHtml: badges,
             rightTopHtml: `<span class="auction-price">● ${money(price)}</span><span class="pokemon-level">Lv. ${viewModel.level || '—'}</span>`,
-            detailsHtml: PokemonCard.detailRows(viewModel, { afterRows:PokemonCard.evaluationRows(viewModel, evaluationPreferences) }) + PokemonCard.ivGrid(viewModel)
+            detailsHtml: PokemonCard.detailRows(viewModel, { afterNatureRows:PokemonCard.natureFitRow(viewModel, evaluationPreferences), afterRows:PokemonCard.evaluationRows(viewModel, evaluationPreferences) }) + PokemonCard.ivGrid(viewModel)
         });
     }
 

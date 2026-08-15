@@ -458,21 +458,30 @@ function render() {
         </div>
     </div>`;
 
-    const metaCell = (key, value, tip, color) =>
-        `<div class="meta-cell" data-tip="${escapeHtml(tip)}"><span class="meta-key">${key}</span><span class="meta-val"${color ? ` style="color:${color}"` : ''}>${value}</span></div>`;
-    const meta = `<div class="meta-grid">
-        ${metaCell('HABILIDADE', `<span data-ability="${escapeHtml(foe.ability)}">${escapeHtml(PokemonAbilityInfo.label(foe.ability))}</span>`, 'Habilidade do oponente.')}
-        ${metaCell('NATUREZA', natureEffectHTML(foe.nature), 'Natureza e atributos afetados.')}
-        ${metaCell('ITEM', escapeHtml(foe.heldItem || '—'), foe.heldItem ? 'Item segurado.' : 'Nenhum item detectado neste encontro.', foe.heldItem ? null : 'var(--px-text-dim)')}
-        ${evaluation && EVALUATION_PREFS.showCoreFields ? metaCell('FUNÇÃO', escapeHtml(evaluation.role.label), evaluation.role.tooltip) : ''}
-        ${evaluation && EVALUATION_PREFS.showCoreFields ? metaCell('AVALIAÇÃO', PokemonEvaluation.ratingHTML(evaluation), 'Avaliação dos IVs conforme a função.') : ''}
-        ${evaluation && EVALUATION_PREFS.showConfidence ? metaCell('CONFIANÇA', escapeHtml(evaluation.role.confidence), 'Confiança da função estimada.') : ''}
-        ${evaluation && EVALUATION_PREFS.showNatureFit ? metaCell('NATURE', escapeHtml(evaluation.nature.fit), 'Adequação da Nature à função.') : ''}
-        ${evaluation && EVALUATION_PREFS.showMovesetFit ? metaCell('GOLPES', escapeHtml(evaluation.moveset.fit), 'Adequação dos golpes à função.') : ''}
-        ${evaluation && EVALUATION_PREFS.showAlternativeRole && evaluation.role.secondaryLabel ? metaCell('ALTERNATIVA', escapeHtml(evaluation.role.secondaryLabel), 'Outra função compatível.') : ''}
-        ${evaluation && EVALUATION_PREFS.showEvolutionPotential && PokemonEvaluation.evolutionPresentation(evaluation) ? (() => { const evolution = PokemonEvaluation.evolutionPresentation(evaluation); return metaCell(evolution.key.toUpperCase(), escapeHtml(evolution.value), evolution.tooltip); })() : ''}
-        ${metaCell('IVS TOTAL', `${ivPercent}%`, 'Percentual dos IVs em relação ao máximo.', ivColor(ivPercent * 31 / 100))}
-    </div>`;
+    const metaCell = (key, value, tip, color, className = '') =>
+        `<div class="meta-cell${className ? ` ${className}` : ''}" data-tip="${escapeHtml(tip)}"><span class="meta-key">${key}</span><span class="meta-val"${color ? ` style="color:${color}"` : ''}>${value}</span></div>`;
+    const metaCells = [
+        metaCell('HABILIDADE', `<span data-ability="${escapeHtml(foe.ability)}">${escapeHtml(PokemonAbilityInfo.label(foe.ability))}</span>`, 'Habilidade do oponente.'),
+        metaCell('NATUREZA', natureEffectHTML(foe.nature), 'Natureza e atributos afetados.'),
+        metaCell('ITEM', escapeHtml(foe.heldItem || '—'), foe.heldItem ? 'Item segurado.' : 'Nenhum item detectado neste encontro.', foe.heldItem ? null : 'var(--px-text-dim)')
+    ];
+    if (evaluation && EVALUATION_PREFS.showNatureFit) {
+        const natureFit = PokemonEvaluation.natureFitPresentation(evaluation.nature?.fit);
+        metaCells.push(metaCell('COMPAT. NATUREZA', escapeHtml(natureFit.label), 'Adequação da Nature à função.', natureFit.color));
+    }
+    if (evaluation && EVALUATION_PREFS.showCoreFields) {
+        metaCells.push(metaCell('FUNÇÃO', escapeHtml(PokemonEvaluation.roleDisplayLabel(evaluation.role.label)), evaluation.role.tooltip));
+        metaCells.push(metaCell('AVALIAÇÃO', PokemonEvaluation.ratingHTML(evaluation), 'Avaliação dos IVs conforme a função.'));
+    }
+    if (evaluation && EVALUATION_PREFS.showConfidence) metaCells.push(metaCell('CONFIANÇA', escapeHtml(evaluation.role.confidence), 'Confiança da função estimada.'));
+    if (evaluation && EVALUATION_PREFS.showMovesetFit) metaCells.push(metaCell('GOLPES', escapeHtml(evaluation.moveset.fit), 'Adequação dos golpes à função.'));
+    if (evaluation && EVALUATION_PREFS.showAlternativeRole && evaluation.role.secondaryLabel) metaCells.push(metaCell('ALTERNATIVA', escapeHtml(evaluation.role.secondaryLabel), 'Outra função compatível.'));
+    metaCells.push(metaCell('IVS TOTAL', `${ivPercent}%`, 'Percentual dos IVs em relação ao máximo.', ivColor(ivPercent * 31 / 100)));
+    const completedMetaCells = evaluation && EVALUATION_PREFS.showEvolutionPotential
+        ? PokemonEvaluation.appendEvolutionGridCell(metaCells, evaluation, (evolution, wide) =>
+            metaCell(evolution.key.toUpperCase(), escapeHtml(evolution.value), evolution.tooltip, null, wide ? 'meta-cell--wide' : ''))
+        : metaCells;
+    const meta = `<div class="meta-grid">${completedMetaCells.join('')}</div>`;
 
     const ivsSection = `<div class="section">
         <div class="section-head"><span class="px-label">IVS / STATS</span><span class="head-extra" style="color:${ivColor(ivPercent * 31 / 100)}">${ivPercent}%</span></div>

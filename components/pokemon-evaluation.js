@@ -116,17 +116,40 @@ var PokemonEvaluation = globalThis.PokemonEvaluation || (() => {
     function ratingHTML(result) {
         return `<span class="iv-rating" data-rating="${escapeHtml(result?.rating?.slug || 'ruim')}">${escapeHtml(result?.rating?.label || 'Ruim')}</span>`;
     }
+    function roleDisplayLabel(label) {
+        return String(label || 'Versátil')
+            .replace(/\bAtacante\b/g, 'Atac.')
+            .replace(/\bSuporte\b/g, 'Sup.');
+    }
+    function natureFitPresentation(fit) {
+        return ({
+            very_favorable:{ label:'Muito favorável', color:'var(--px-good)' },
+            favorable:{ label:'Favorável', color:'var(--px-good)' },
+            compatible:{ label:'Compatível', color:'var(--px-mid)' },
+            neutral:{ label:'Neutra', color:'var(--px-mid)' },
+            unfavorable:{ label:'Desfavorável', color:'var(--px-accent)' },
+            conflicting:{ label:'Conflitante', color:'var(--px-bad)' }
+        })[fit] || { label:'Não determinada', color:'var(--px-mid)' };
+    }
     function roleHTML(result) {
-        return `<span data-tip="${escapeHtml(result?.role?.tooltip || '')}">${escapeHtml(result?.role?.label || 'Versátil')}</span>`;
+        return `<span data-tip="${escapeHtml(result?.role?.tooltip || '')}">${escapeHtml(roleDisplayLabel(result?.role?.label))}</span>`;
     }
     function evolutionPresentation(result) {
         if (result?.evolutionTrend) {
             const item = result.evolutionTrend;
-            return { key:'Tendência', value:`${item.species.toUpperCase()} — ${item.role.label}`, tooltip:`Compatibilidade ${item.rating.label} (${item.rating.score}/100). Caminho: ${item.path.join(' → ') || item.species}.` };
+            return { key:'Tendência Evol.', value:`${item.species.toUpperCase()} — ${item.role.label}`, tooltip:`Compatibilidade ${item.rating.label} (${item.rating.score}/100). Caminho: ${item.path.join(' → ') || item.species}.` };
         }
         const items = result?.evolutionPotential || [];
         if (!items.length) return null;
-        return { key:'Potencial evolutivo', value:`${items.length} possibilidades`, tooltip:items.map((item) => `${item.species.toUpperCase()}: ${item.role.label} — ${item.rating.label} (${item.rating.score}/100)`).join(' · ') };
+        return { key:'Tendência Evol.', value:`${items.length} possibilidades`, tooltip:items.map((item) => `${item.species.toUpperCase()}: ${item.role.label} — ${item.rating.label} (${item.rating.score}/100)`).join(' · ') };
+    }
+    function appendEvolutionGridCell(cells, result, renderCell) {
+        const output = Array.isArray(cells) ? [...cells] : [];
+        const presentation = evolutionPresentation(result);
+        if (presentation && typeof renderCell === 'function') {
+            output.push(renderCell(presentation, output.length % 2 === 0));
+        }
+        return output;
     }
     function createCache() {
         const entries = new Map();
@@ -146,6 +169,6 @@ var PokemonEvaluation = globalThis.PokemonEvaluation || (() => {
         };
     }
 
-    return Object.freeze({ evaluate, fingerprint, scoreForRole, ratingHTML, roleHTML, evolutionPresentation, createCache });
+    return Object.freeze({ evaluate, fingerprint, scoreForRole, ratingHTML, roleHTML, roleDisplayLabel, natureFitPresentation, evolutionPresentation, appendEvolutionGridCell, createCache });
 })();
 globalThis.PokemonEvaluation = PokemonEvaluation;
