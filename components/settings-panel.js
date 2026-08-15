@@ -42,6 +42,7 @@ function buildSettingsPanel(shell) {
             <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-nature-label">Adequação da Nature</span><button type="button" class="ph-toggle" id="ph-eval-nature" role="switch" aria-checked="false" aria-labelledby="ph-eval-nature-label"></button></div>
             <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-moves-label">Adequação dos golpes</span><button type="button" class="ph-toggle" id="ph-eval-moves" role="switch" aria-checked="false" aria-labelledby="ph-eval-moves-label"></button></div>
             <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-alternative-label">Função alternativa</span><button type="button" class="ph-toggle" id="ph-eval-alternative" role="switch" aria-checked="false" aria-labelledby="ph-eval-alternative-label"></button></div>
+            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-evolution-label">Potencial evolutivo</span><button type="button" class="ph-toggle" id="ph-eval-evolution" role="switch" aria-checked="false" aria-labelledby="ph-eval-evolution-label"></button></div>
             <div class="ph-set-head">COMPORTAMENTO</div>
             <div class="ph-setting-row" data-tip="Qual aba o painel mostra ao carregar a página.">
                 <span class="ph-setting-label">View inicial</span>
@@ -546,7 +547,8 @@ function buildSettingsPanel(shell) {
             const evaluationToggles = [
                 ['ph-eval-enabled', 'enabled'], ['ph-eval-core', 'showCoreFields'],
                 ['ph-eval-confidence', 'showConfidence'], ['ph-eval-nature', 'showNatureFit'],
-                ['ph-eval-moves', 'showMovesetFit'], ['ph-eval-alternative', 'showAlternativeRole']
+                ['ph-eval-moves', 'showMovesetFit'], ['ph-eval-alternative', 'showAlternativeRole'],
+                ['ph-eval-evolution', 'showEvolutionPotential']
             ];
             const syncEvaluationDisabled = () => {
                 const enabled = panel.querySelector('#ph-eval-enabled').getAttribute('aria-checked') === 'true';

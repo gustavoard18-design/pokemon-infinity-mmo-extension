@@ -51,6 +51,10 @@ var PokemonCard = globalThis.PokemonCard || (() => {
         if (preferences.showNatureFit) rows += `<div class="detail-row"><span class="detail-key">Nature</span><span class="detail-val">${escapeHtml(result.nature.fit)}</span></div>`;
         if (preferences.showMovesetFit) rows += `<div class="detail-row"><span class="detail-key">Golpes</span><span class="detail-val">${escapeHtml(result.moveset.fit === 'unknown' ? 'Não determinada' : result.moveset.fit)}</span></div>`;
         if (preferences.showAlternativeRole && result.role.secondaryLabel) rows += `<div class="detail-row"><span class="detail-key">Alternativa</span><span class="detail-val">${escapeHtml(result.role.secondaryLabel)}</span></div>`;
+        if (preferences.showEvolutionPotential) {
+            const evolution = PokemonEvaluation.evolutionPresentation(result);
+            if (evolution) rows += `<div class="detail-row"><span class="detail-key">${escapeHtml(evolution.key)}</span><span class="detail-val" data-tip="${escapeHtml(evolution.tooltip)}">${escapeHtml(evolution.value)}</span></div>`;
+        }
         return rows;
     }
 

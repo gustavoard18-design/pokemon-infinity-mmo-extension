@@ -470,6 +470,7 @@ function render() {
         ${evaluation && EVALUATION_PREFS.showNatureFit ? metaCell('NATURE', escapeHtml(evaluation.nature.fit), 'Adequação da Nature à função.') : ''}
         ${evaluation && EVALUATION_PREFS.showMovesetFit ? metaCell('GOLPES', escapeHtml(evaluation.moveset.fit), 'Adequação dos golpes à função.') : ''}
         ${evaluation && EVALUATION_PREFS.showAlternativeRole && evaluation.role.secondaryLabel ? metaCell('ALTERNATIVA', escapeHtml(evaluation.role.secondaryLabel), 'Outra função compatível.') : ''}
+        ${evaluation && EVALUATION_PREFS.showEvolutionPotential && PokemonEvaluation.evolutionPresentation(evaluation) ? (() => { const evolution = PokemonEvaluation.evolutionPresentation(evaluation); return metaCell(evolution.key.toUpperCase(), escapeHtml(evolution.value), evolution.tooltip); })() : ''}
         ${metaCell('IVS TOTAL', `${ivPercent}%`, 'Percentual dos IVs em relação ao máximo.', ivColor(ivPercent * 31 / 100))}
     </div>`;
 

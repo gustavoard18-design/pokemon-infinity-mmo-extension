@@ -291,10 +291,15 @@ metadados de learnset efetivamente utilizados.
 
 ### Contrato evolutivo
 
-A request e os dados rastreados atualmente não fornecem relações evolutivas.
-Elas ficam em `data/pokemon-evolution-lines.js`, uma tabela estática versionada
-carregada somente no enriquecimento da Pokédex. A tabela usa slugs já adotados
-pelo cache e deve ser atualizada quando espécies ou evoluções mudarem no jogo.
+A request diária da Pokédex fornece `prevo` e `evo`. Esses campos são
+preservados no cache sanitizado e resolvidos em duas passagens pelo profiler:
+primeiro todos os perfis atuais são calculados; depois cada linha encontra seus
+destinos finais e reutiliza as funções já calculadas. Não existe tabela paralela
+nem request adicional durante a avaliação.
+
+Caches anteriores que não possuem a propriedade `evo` não podem ser
+reprocessados offline: devem provocar um refresh remoto imediato. Depois dessa
+migração, mudanças de `rulesVersion` podem voltar a usar os dados locais.
 
 O perfil enriquecido acrescenta:
 
@@ -379,8 +384,10 @@ Se a espécie não existir no cache ou o perfil for inválido:
 - `mixed_agile_attacker` — Atacante misto ágil;
 - `physical_bulky_attacker` — Atacante físico resistente;
 - `special_bulky_attacker` — Atacante especial resistente;
+- `mixed_bulky_attacker` — Atacante misto resistente;
 - `physical_slow_attacker` — Atacante físico lento;
-- `special_slow_attacker` — Atacante especial lento.
+- `special_slow_attacker` — Atacante especial lento;
+- `mixed_slow_attacker` — Atacante misto lento.
 
 ### Funções defensivas e utilitárias
 
@@ -475,8 +482,10 @@ descrições textuais não serão interpretadas em runtime.
 | Atacante misto rápido | 5 | 30 | 5 | 30 | 5 | 25 |
 | Atacante físico resistente | 25 | 35 | 15 | 0 | 15 | 10 |
 | Atacante especial resistente | 25 | 0 | 15 | 35 | 15 | 10 |
+| Atacante misto resistente | 25 | 25 | 10 | 25 | 10 | 5 |
 | Atacante físico lento | 25 | 45 | 15 | 0 | 15 | 0 |
 | Atacante especial lento | 25 | 0 | 15 | 45 | 15 | 0 |
+| Atacante misto lento | 25 | 30 | 7,5 | 30 | 7,5 | 0 |
 | Tank físico | 35 | 5 | 40 | 0 | 15 | 5 |
 | Tank especial | 35 | 0 | 15 | 5 | 40 | 5 |
 | Tank misto | 35 | 0 | 27,5 | 0 | 27,5 | 10 |

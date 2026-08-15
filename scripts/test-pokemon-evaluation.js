@@ -58,12 +58,79 @@ const speciesFixtures = {
     solosis: [45,30,40,105,50,20], reuniclus: [110,65,75,125,85,30],
     bulbasaur: [45,49,49,65,65,45], venusaur: [80,82,83,100,100,80],
     mew: [100,100,100,100,100,100], mamoswine: [110,130,80,70,60,80], ditto: [48,48,48,48,48,48],
-    shedinja: [1,90,45,30,30,40]
+    shedinja: [1,90,45,30,30,40],
+    zubat: [40,45,35,30,40,55], golbat: [75,80,70,65,75,90], crobat: [85,90,80,70,80,130],
+    eevee: [55,55,50,45,65,55], vaporeon: [130,65,60,110,95,65], jolteon: [65,65,60,110,95,130],
+    flareon: [65,130,60,95,110,65], espeon: [65,65,60,130,95,110], umbreon: [95,65,110,60,130,65],
+    leafeon: [65,110,130,60,65,95], glaceon: [65,60,110,130,95,65], sylveon: [95,65,65,110,130,60],
+    slowpoke: [90,65,65,40,40,15], slowbro:[95,75,110,100,80,30], slowking:[95,75,80,100,110,30]
 };
-const species = (slug) => {
+const evolutionFixtures = {
+    zubat:['golbat'], golbat:['crobat'],
+    eevee:['vaporeon','jolteon','flareon','espeon','umbreon','leafeon','glaceon'],
+    slowpoke:['slowbro','slowking']
+};
+const species = (slug, extra = {}) => {
     const [hp,atk,def,spa,spd,spe] = speciesFixtures[slug];
-    return { slug, name:slug.toUpperCase(), base:{ hp,atk,def,spa,spd,spe }, abilities:[], types:[], levelMoves:[] };
+    const evo = evolutionFixtures[slug]?.map((target) => ({ slug:target, name:target.toUpperCase() })) || null;
+    return { slug, name:slug.toUpperCase(), base:{ hp,atk,def,spa,spd,spe }, abilities:[], types:[], evo, levelMoves:[], ...extra };
 };
+
+test('Zubat usa velocidade relativa e Eevee preserva todos os caminhos evolutivos', () => {
+    const slugs = ['zubat','golbat','crobat','eevee','vaporeon','jolteon','flareon','espeon','umbreon','leafeon','glaceon','sylveon'];
+    const profiled = new Map(PokemonSpeciesProfiler.profileAll(slugs.map((slug) => species(slug)), '2026-08-14T12:00:00.000Z')
+        .map((item) => [item.slug, item.evaluationProfile]));
+    assert.equal(profiled.get('zubat').candidates[0].id, 'physical_agile_attacker');
+    assert.notEqual(profiled.get('zubat').candidates[0].id, 'physical_slow_attacker');
+    assert.equal(profiled.get('eevee').evolutionPotential.length, 7);
+    assert.equal(profiled.get('zubat').evolutionTrend.species, 'crobat');
+});
+
+test('todo candidato produzido pelo perfilador possui regra registrada', () => {
+    const profiled = PokemonSpeciesProfiler.profileAll(Object.keys(speciesFixtures).map((slug) => species(slug)), '2026-08-14T12:00:00.000Z');
+    for (const item of profiled) for (const candidate of item.evaluationProfile.candidates) {
+        assert.ok(Object.prototype.hasOwnProperty.call(PokemonRoleRules.ROLES, candidate.id), `${item.slug}: ${candidate.id}`);
+    }
+});
+
+test('IVs alteram a nota do Zubat sem alterar sua função atual', () => {
+    const [profiled] = PokemonSpeciesProfiler.profileAll([species('zubat')], '2026-08-14T12:00:00.000Z');
+    const base = { id:42, species:'zubat', nature:'Hardy', moves:[] };
+    const weak = PokemonEvaluation.evaluate({ ...base, ivs:{ hp:0, atk:0, def:0, spa:0, spd:0, spe:0 } }, profiled.evaluationProfile);
+    const strong = PokemonEvaluation.evaluate({ ...base, ivs:{ hp:31, atk:31, def:31, spa:31, spd:31, spe:31 } }, profiled.evaluationProfile);
+    assert.equal(weak.role.id, strong.role.id);
+    assert.equal(strong.role.id, 'physical_agile_attacker');
+    assert.notEqual(weak.rating.score, strong.rating.score);
+});
+
+test('avaliação mantém função atual e pontua caminhos evolutivos separadamente', () => {
+    const slugs = ['eevee','vaporeon','jolteon','flareon','espeon','umbreon','leafeon','glaceon','sylveon'];
+    const profiled = new Map(PokemonSpeciesProfiler.profileAll(slugs.map((slug) => species(slug)), '2026-08-14T12:00:00.000Z')
+        .map((item) => [item.slug, item.evaluationProfile]));
+    const result = PokemonEvaluation.evaluate({ species:'eevee', nature:'Timid', moves:[], ivs:{ hp:20, atk:5, def:20, spa:31, spd:20, spe:31 } }, profiled.get('eevee'));
+    assert.equal(result.role.id, 'versatile');
+    assert.equal(result.evolutionPotential.length, 7);
+    assert.equal(result.evolutionPotential[0].rating.score >= result.evolutionPotential[1].rating.score, true);
+    assert.equal(result.evolutionPotential.some((item) => item.species === 'jolteon' && item.role.id === 'special_fast_attacker'), true);
+    const physicalMove = PokemonEvaluation.evaluate({ species:'eevee', nature:'Adamant', moves:[{ category:'physical', power:80 }], ivs:{ hp:20, atk:31, def:20, spa:5, spd:20, spe:20 } }, profiled.get('eevee'));
+    assert.equal(physicalMove.role.id, 'versatile');
+});
+
+test('ramificação evolutiva indireta preserva todos os destinos finais', () => {
+    const make = (slug, evo) => ({ ...species('zubat'), slug, name:slug.toUpperCase(), evo:evo?.map((target) => ({ slug:target })) || null });
+    const profiled = PokemonSpeciesProfiler.profileAll([
+        make('root', ['middle']), make('middle', ['final-a', 'final-b']), make('final-a'), make('final-b')
+    ], '2026-08-14T12:00:00.000Z');
+    const root = profiled.find((item) => item.slug === 'root').evaluationProfile;
+    assert.equal(root.evolutionTrend, null);
+    assert.deepEqual(root.evolutionPotential.map((item) => item.species), ['final-a', 'final-b']);
+});
+
+test('ramificação evolutiva não substitui a função atual da espécie', () => {
+    const [slowpoke] = PokemonSpeciesProfiler.profileAll(['slowpoke','slowbro','slowking'].map((slug) => species(slug)), '2026-08-14T12:00:00.000Z');
+    assert.notEqual(slowpoke.evaluationProfile.candidates[0].id, 'versatile');
+    assert.equal(slowpoke.evaluationProfile.evolutionPotential.length, 2);
+});
 
 test('perfilador distingue arquétipos ofensivos e resistentes', () => {
     const primary = (slug) => PokemonSpeciesProfiler.profileSpecies(species(slug), '2026-08-13T12:00:00.000Z').candidates[0].id;
@@ -106,7 +173,9 @@ test('enriquecimento preserva dados-fonte e injeta perfil versionado', () => {
 test('cache só precisa de reprocessamento quando possui perfil desatualizado', () => {
     assert.equal(PokemonSpeciesProfiler.needsReprofile({ items:[] }), false);
     assert.equal(PokemonSpeciesProfiler.needsReprofile({ items:[{ evaluationProfile:{ schemaVersion:1, rulesVersion:0 } }] }), true);
-    assert.equal(PokemonSpeciesProfiler.needsReprofile({ items:[{ evaluationProfile:{ schemaVersion:1, rulesVersion:1 } }] }), false);
+    assert.equal(PokemonSpeciesProfiler.needsReprofile({ items:[{ evaluationProfile:{ schemaVersion:PokemonRoleRules.SCHEMA_VERSION, rulesVersion:PokemonRoleRules.ROLE_RULES_VERSION, evolutionVersion:PokemonSpeciesProfiler.EVOLUTION_PROFILE_VERSION } }] }), false);
+    assert.equal(PokemonSpeciesProfiler.canReprofile([{ slug:'zubat', base:species('zubat').base }]), false);
+    assert.equal(PokemonSpeciesProfiler.canReprofile([{ slug:'crobat', base:species('crobat').base, evo:null }]), true);
 });
 
 test('avaliação ignora IV irrelevante e pondera os essenciais da função', () => {
@@ -156,11 +225,25 @@ test('preferências antigas recebem defaults completos de avaliação', () => {
     assert.equal(prefs.tooltipsEnabled, false);
     assert.deepEqual(prefs.evaluation, {
         enabled:true, showCoreFields:true, showConfidence:false,
-        showNatureFit:false, showMovesetFit:false, showAlternativeRole:false
+        showNatureFit:false, showMovesetFit:false, showAlternativeRole:false,
+        showEvolutionPotential:false
     });
     const disabled = PokemonHelperStorage.mergeUiPreferences({ evaluation:{ enabled:false } });
     assert.equal(disabled.evaluation.enabled, false);
     assert.equal(disabled.evaluation.showCoreFields, true);
+});
+
+test('integração carrega o profiler e oferece diagnóstico opcional compartilhado', () => {
+    const background = fs.readFileSync(path.join(ROOT, 'background.js'), 'utf8');
+    assert.match(background, /data\/pokemon-species-profiler\.js/);
+    const firefox = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.firefox.json'), 'utf8'));
+    assert.ok(firefox.background.scripts.includes('data/pokemon-species-profiler.js'));
+    const settings = fs.readFileSync(path.join(ROOT, 'components/settings-panel.js'), 'utf8');
+    assert.match(settings, /ph-eval-evolution/);
+    assert.match(settings, /showEvolutionPotential/);
+    const card = fs.readFileSync(path.join(ROOT, 'components/pokemon-card.js'), 'utf8');
+    assert.match(card, /showEvolutionPotential/);
+    assert.match(card, /PokemonEvaluation\.evolutionPresentation/);
 });
 
 process.on('exit', () => {

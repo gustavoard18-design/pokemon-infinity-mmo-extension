@@ -51,8 +51,10 @@ async function refreshPokedex(force = false) {
         const age = Date.now() - new Date(cached.checkedAt || 0).getTime();
         if (!force && cached.items.length && age < POKEDEX_MAX_AGE) {
             if (!PokemonSpeciesProfiler.needsReprofile(cached)) return cached;
-            const items = PokemonSpeciesProfiler.preparePokedexItems(cached.items, new Date().toISOString());
-            return PokemonHelperStorage.setPokedex({ ...cached, items, error:null });
+            if (PokemonSpeciesProfiler.canReprofile(cached.items)) {
+                const items = PokemonSpeciesProfiler.preparePokedexItems(cached.items, new Date().toISOString());
+                return PokemonHelperStorage.setPokedex({ ...cached, items, error:null });
+            }
         }
         try {
             const response = await fetch(POKEDEX_URL, { cache: 'no-store' });

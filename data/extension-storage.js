@@ -52,7 +52,8 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
             showConfidence: false,
             showNatureFit: false,
             showMovesetFit: false,
-            showAlternativeRole: false
+            showAlternativeRole: false,
+            showEvolutionPotential: false
         }),
         panelZoom: 1,                 // fator de zoom do conteúdo do painel (ver components/panel-zoom.js)
         // ação → combinação normalizada (ver PokemonHelperShortcutUtils)

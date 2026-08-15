@@ -138,6 +138,12 @@ Mostrada assim que há um oponente capturado numa batalha.
   **Função** (papel funcional estimado, com os atributos prioritários no
   hover), **Avaliação** (Ruim / Regular / Bom / Muito bom / Excelente,
   ponderada conforme a função) e **IVs total** (percentual dos IVs).
+- A Função nasce dos atributos-base da espécie. A velocidade combina relevância
+  dentro da própria espécie e posição global, distinguindo atacantes rápidos,
+  ágeis e realmente lentos; IVs alteram a Avaliação, não a Função.
+- Em Configurações, **Potencial evolutivo** pode ser ativado para mostrar a
+  tendência de linhas simples ou todas as possibilidades de linhas ramificadas,
+  como Eevee. A opção começa desativada.
 - Seção **IVs/Stats** (ocultável) — os 6 stats com barra de 0 a 31 e valor
   numérico do IV.
 - Nos filtros avançados, **Avaliação** pode ser filtrada por faixa e usada na
@@ -223,7 +229,7 @@ Mostrada assim que há um oponente capturado numa batalha.
 - Card de Pokémon (colapsável): sprite, nome, gênero, indicador de shiny
   (✨), botão **↗** do Smogon, chips de tipo, nível e barra de IV total.
   Expandido, mostra natureza, habilidade (com tooltip), item, posição,
-  avaliação, atq principal, grade de IVs por stat (com barra colorida por
+  avaliação, função, grade de IVs por stat (com barra colorida por
   atributo) e a lista de golpes conhecidos.
 - Botão **↗** — abre aquele Pokémon no
   [Smogon](https://www.smogon.com/dex/sm/) em outra aba. O mesmo botão existe

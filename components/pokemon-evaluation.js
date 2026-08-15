@@ -17,8 +17,12 @@ var PokemonEvaluation = globalThis.PokemonEvaluation || (() => {
         const base = candidates[0];
         const summary = movesetSummary(pokemon?.moves);
         let id = base.id;
-        if (['mixed_fast_attacker', 'versatile'].includes(id) && summary.known && summary.physical !== summary.special) {
-            id = summary.physical > summary.special ? 'physical_fast_attacker' : 'special_fast_attacker';
+        const openPotential = base.reasons?.includes('open_potential');
+        if (!openPotential && base.id.startsWith('mixed_') && summary.known && summary.physical !== summary.special) {
+            const suffix = base.id.slice('mixed_'.length);
+            const desired = `${summary.physical > summary.special ? 'physical' : 'special'}_${suffix}`;
+            const alternative = candidates.find((item) => item.id === desired && base.score - item.score <= PokemonRoleRules.ROLE_TIE_MARGIN);
+            if (alternative) id = alternative.id;
         }
         const definition = PokemonRoleRules.role(id);
         const confidence = !profile ? 'low' : summary.known && base.confidence === 'high' ? 'high' : base.confidence || 'medium';
@@ -64,28 +68,46 @@ var PokemonEvaluation = globalThis.PokemonEvaluation || (() => {
         });
     }
 
+    function scoreForRole(ivs, role, natureAdjustment = 0) {
+        let score = PokemonRoleRules.STATS.reduce((sum, stat) => sum + (ivs[stat] / 31) * role.weights[stat], 0) + natureAdjustment;
+        const essential = role.primaryStats.map((stat) => ivs[stat]);
+        const minimum = Math.min(...essential);
+        if (minimum <= 5) score = Math.min(score - 20, 39);
+        else if (minimum <= 15) score = Math.min(score, 74);
+        return clampScore(score);
+    }
+
+    function evaluatedEvolution(target, ivs) {
+        const role = PokemonRoleRules.role(target?.roleId);
+        const score = scoreForRole(ivs, role);
+        const band = PokemonRoleRules.ratingFor(score);
+        return Object.freeze({
+            species:String(target?.species || ''), path:Object.freeze([...(target?.path || [])]), confidence:target?.confidence || 'low',
+            role:Object.freeze({ id:role.id, label:role.label, primaryStats:[...role.primaryStats] }),
+            rating:Object.freeze({ score, label:band.label, slug:band.slug, sortValue:score })
+        });
+    }
+
     function evaluate(pokemon, profile) {
         const selected = selectRole(pokemon, profile);
         const role = selected.definition;
         const ivs = Object.fromEntries(PokemonRoleRules.STATS.map((stat) => [stat, clampIv(pokemon?.ivs?.[stat])]));
         const nature = natureFor(pokemon, role);
-        let score = PokemonRoleRules.STATS.reduce((sum, stat) => sum + (ivs[stat] / 31) * role.weights[stat], 0) + nature.adjustment;
-        const essential = role.primaryStats.map((stat) => ivs[stat]);
-        const minimum = Math.min(...essential);
-        if (minimum <= 5) score = Math.min(score - 20, 39);
-        else if (minimum <= 15) score = Math.min(score, 74);
-        score = clampScore(score);
+        const score = scoreForRole(ivs, role, nature.adjustment);
         const band = PokemonRoleRules.ratingFor(score);
         const secondary = selected.candidates.find((item) => item.id !== role.id);
         const secondaryLabel = secondary ? PokemonRoleRules.role(secondary.id).label : null;
         const primaryText = role.primaryStats.map(statLabel).join(' e ');
         const secondaryText = role.secondaryStats.map(statLabel).join(', ');
+        const evolutionTrend = profile?.evolutionTrend ? evaluatedEvolution(profile.evolutionTrend, ivs) : null;
+        const evolutionPotential = (profile?.evolutionPotential || []).map((target) => evaluatedEvolution(target, ivs)).sort((a, b) => b.rating.score - a.rating.score || a.species.localeCompare(b.species));
         return Object.freeze({
             schemaVersion:PokemonRoleRules.SCHEMA_VERSION,
             role:Object.freeze({ id:role.id, label:role.label, secondaryLabel, confidence:selected.confidence, primaryStats:[...role.primaryStats], secondaryStats:[...role.secondaryStats], tooltip:`Prioriza ${primaryText}${secondaryText ? `; ${secondaryText} é complementar.` : '.'}` }),
             rating:Object.freeze({ score, label:band.label, slug:band.slug, sortValue:score }),
             nature:Object.freeze(nature), moveset:Object.freeze(movesetFit(role.id, selected.summary)),
             alternatives:selected.candidates.filter((item) => item.id !== role.id).map((item) => ({ roleId:item.id, score:Math.round(item.score * 100) })),
+            evolutionTrend, evolutionPotential:Object.freeze(evolutionPotential),
             ivPercent:Math.round(PokemonRoleRules.STATS.reduce((sum, stat) => sum + ivs[stat], 0) / (31 * PokemonRoleRules.STATS.length) * 100),
             fingerprint:fingerprint(pokemon), ivs:Object.freeze(ivs)
         });
@@ -97,12 +119,21 @@ var PokemonEvaluation = globalThis.PokemonEvaluation || (() => {
     function roleHTML(result) {
         return `<span data-tip="${escapeHtml(result?.role?.tooltip || '')}">${escapeHtml(result?.role?.label || 'Versátil')}</span>`;
     }
+    function evolutionPresentation(result) {
+        if (result?.evolutionTrend) {
+            const item = result.evolutionTrend;
+            return { key:'Tendência', value:`${item.species.toUpperCase()} — ${item.role.label}`, tooltip:`Compatibilidade ${item.rating.label} (${item.rating.score}/100). Caminho: ${item.path.join(' → ') || item.species}.` };
+        }
+        const items = result?.evolutionPotential || [];
+        if (!items.length) return null;
+        return { key:'Potencial evolutivo', value:`${items.length} possibilidades`, tooltip:items.map((item) => `${item.species.toUpperCase()}: ${item.role.label} — ${item.rating.label} (${item.rating.score}/100)`).join(' · ') };
+    }
     function createCache() {
         const entries = new Map();
         return {
             evaluate(pokemon, profile) {
                 const id = String(pokemon?.id ?? `${pokemon?.species || pokemon?.name || 'unknown'}:${pokemon?.level || 0}`);
-                const signature = `${fingerprint(pokemon)}|${profile?.rulesVersion || 0}|${profile?.candidates?.[0]?.id || ''}`;
+                const signature = `${fingerprint(pokemon)}|${profile?.rulesVersion || 0}|${profile?.evolutionVersion || 0}|${profile?.candidates?.[0]?.id || ''}`;
                 const existing = entries.get(id);
                 if (existing?.signature === signature) return existing.result;
                 const result = evaluate(pokemon, profile);
@@ -115,6 +146,6 @@ var PokemonEvaluation = globalThis.PokemonEvaluation || (() => {
         };
     }
 
-    return Object.freeze({ evaluate, fingerprint, ratingHTML, roleHTML, createCache });
+    return Object.freeze({ evaluate, fingerprint, scoreForRole, ratingHTML, roleHTML, evolutionPresentation, createCache });
 })();
 globalThis.PokemonEvaluation = PokemonEvaluation;

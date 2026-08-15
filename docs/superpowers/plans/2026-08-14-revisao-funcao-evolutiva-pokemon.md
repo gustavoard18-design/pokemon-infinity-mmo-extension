@@ -24,7 +24,6 @@
 
 - Modify: `data/pokemon-role-rules.js` — taxonomia, pesos e versão das regras.
 - Modify: `data/pokemon-species-profiler.js` — estatísticas globais, relevância interna e perfis evolutivos.
-- Create: `data/pokemon-evolution-lines.js` — relações evolutivas estáticas e versionadas.
 - Modify: `components/pokemon-evaluation.js` — nota do exemplar e compatibilidade evolutiva, sem reclassificação por IV.
 - Modify: `background.js` — enriquecimento diário em duas passagens.
 - Modify: `data/extension-storage.js` — preferência opcional de potencial evolutivo.
@@ -59,7 +58,7 @@ const eevee = species('eevee', [55, 55, 50, 45, 65, 55], {
 const profiled = indexProfiles(PokemonSpeciesProfiler.profileAll(evolutionFixtures, NOW));
 assert.equal(profiled.zubat.candidates[0].id, 'physical_agile_attacker');
 assert.notEqual(profiled.zubat.candidates[0].id, 'physical_slow_attacker');
-assert.equal(profiled.eevee.evolutionPotential.length, 8);
+assert.equal(profiled.eevee.evolutionPotential.length, availableEeveeEvolutions.length);
 
 const weak = PokemonEvaluation.evaluate(zubatWithIvs(0, 0), profiled.zubat);
 const strong = PokemonEvaluation.evaluate(zubatWithIvs(31, 31), profiled.zubat);
@@ -153,39 +152,34 @@ git commit -m "fix: classifica função pela relevância dos base stats"
 ### Task 3: Enriquecer relações e potenciais evolutivos
 
 **Files:**
-- Create: `data/pokemon-evolution-lines.js`
 - Modify: `data/pokemon-species-profiler.js`
 - Modify: `background.js`
-- Modify: `manifest.firefox.json`
 - Modify: `scripts/test-pokemon-evaluation.js`
 
 **Interfaces:**
 - Produces no perfil: `evolutionTrend: EvolutionTarget|null` e `evolutionPotential: EvolutionTarget[]`.
 - `EvolutionTarget` é `{ species, roleId, confidence, path }`.
 
-- [ ] **Step 1: Criar tabela evolutiva versionada**
+- [ ] **Step 1: Preservar o contrato evolutivo da request**
 
-A request atual não contém relações evolutivas. Criar
-`PokemonEvolutionLines` com `VERSION`, `targetsFor(slug)` e mapa congelado de
-destinos imediatos. Cobrir todas as espécies presentes na Pokédex, começando
-pelas linhas usadas nos testes. Ausência de slug retorna `[]`; nenhuma tela ou
-avaliação realiza request adicional.
+A request atual contém `prevo` e `evo`. Preservar esses campos em
+`preparePokedexItems()` e usar os slugs de `evo` como destinos imediatos.
+Ausência ou `null` representa espécie final; nenhuma tela ou avaliação realiza
+request adicional.
 
 ```js
-const LINES = Object.freeze({
-  zubat: Object.freeze(['golbat']),
-  golbat: Object.freeze(['crobat']),
-  eevee: Object.freeze(['vaporeon','jolteon','flareon','espeon','umbreon','leafeon','glaceon','sylveon'])
-});
+{
+  prevo: { slug:'zubat', name:'ZUBAT' },
+  evo: [{ slug:'crobat', name:'CROBAT', level:0, via:'Felicidade' }]
+}
 ```
 
 - [ ] **Step 2: Transformar o enriquecimento em duas passagens**
 
 Primeira passagem: calcular `populationStats` e o perfil atual de todas as espécies. Segunda: resolver os destinos usando `speciesBySlug` e anexar funções já calculadas, sem perfilar novamente.
 
-Carregar `data/pokemon-evolution-lines.js` antes do profiler via `importScripts`
-no Chrome e antes de `background.js` em `manifest.firefox.json`. Não alterar a
-versão dos manifests.
+Se um cache antigo não tiver a propriedade `evo`, não marcá-lo como migrado por
+reprocessamento local: `refreshPokedex()` deve buscar a request atual imediatamente.
 
 - [ ] **Step 3: Representar linha única e ramificações**
 
@@ -196,14 +190,15 @@ versão dos manifests.
 
 - [ ] **Step 4: Testar Zubat e Eevee**
 
-Zubat aponta para Crobat sem mudar a própria função. Eevee retorna oito destinos distintos e não escolhe um vencedor no perfil fixo.
+Zubat aponta para Crobat sem mudar a própria função. Eevee retorna todos os
+destinos presentes na Pokédex do jogo e não escolhe um vencedor no perfil fixo.
 
 - [ ] **Step 5: Executar e versionar**
 
 Run: `node scripts/test-pokemon-evaluation.js`
 
 ```bash
-git add data/pokemon-evolution-lines.js data/pokemon-species-profiler.js background.js manifest.firefox.json scripts/test-pokemon-evaluation.js
+git add data/pokemon-species-profiler.js background.js scripts/test-pokemon-evaluation.js
 git commit -m "feat: adiciona perfis de potencial evolutivo"
 ```
 
@@ -233,7 +228,8 @@ Ordenar cópia para apresentação por score decrescente e slug estável. Manter
 
 Run: `node scripts/test-pokemon-evaluation.js`
 
-Expected: trocar todos os IVs do Zubat muda notas, nunca `role.id`; Eevee mantém `versatile` com oito compatibilidades.
+Expected: trocar todos os IVs do Zubat muda notas, nunca `role.id`; Eevee mantém
+`versatile` com uma compatibilidade para cada evolução disponível no jogo.
 
 - [ ] **Step 5: Versionar**
 
@@ -312,7 +308,7 @@ Expected: todos os testes e checks passam; versões dos manifests permanecem ina
 
 - Zubat com IVs ruins e excelentes: mesma função, notas diferentes.
 - Crobat: função rápida.
-- Eevee: função versátil e oito potenciais quando o toggle estiver ligado.
+- Eevee: função versátil e todos os potenciais disponíveis quando o toggle estiver ligado.
 - Meus Pokémon: payload repetido não recalcula.
 - Encontro e Leilão: ausência de evolução ou perfil incompleto não quebra cards.
 - Chrome e Firefox: mesmos rótulos, preferências e tooltips.
