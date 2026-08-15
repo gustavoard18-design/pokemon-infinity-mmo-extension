@@ -14,6 +14,10 @@
 - A função sempre descreve a espécie atual; evoluções são diagnósticos separados.
 - Não usar corte absoluto isolado para decidir `fast`, `agile` ou `slow`.
 - Potencial evolutivo começa oculto e não altera a nota atual.
+- Compatibilidade da Nature usa o título `Compat. Natureza`, fica imediatamente
+  abaixo de Natureza e apresenta rótulo localizado com tom semântico.
+- Tendência evolutiva usa o título `Tendência Evol.`, encerra o bloco de
+  metadados e ocupa duas colunas quando fica sozinha na última linha.
 - Cálculos globais e relações evolutivas são preparados no refresh/versionamento da Pokédex, não durante renderizações.
 - Não adicionar dependências, alterar versões dos manifests, `state.over`, bridge do Leilão ou identificadores históricos.
 - Chrome e Firefox devem permanecer em sincronia.
@@ -28,7 +32,7 @@
 - Modify: `background.js` — enriquecimento diário em duas passagens.
 - Modify: `data/extension-storage.js` — preferência opcional de potencial evolutivo.
 - Modify: `components/settings-panel.js` — toggle inicialmente desligado.
-- Modify: `components/pokemon-card.js`, `myPokemons.js`, `battle.js`, `auction.js` — apresentação opcional compartilhada.
+- Modify: `components/pokemon-card.js`, `components/pokemon-card.css`, `myPokemons.js`, `battle.js`, `battle.html`, `auction.js` — apresentação opcional compartilhada, ordem e ocupação dos campos.
 - Modify: `scripts/test-pokemon-evaluation.js` — regressões de Zubat, Eevee, fronteiras e invariantes.
 - Modify: `README.md`, `docs/DEVELOPMENT.md` — semântica de função e evolução.
 
@@ -238,41 +242,90 @@ git add components/pokemon-evaluation.js scripts/test-pokemon-evaluation.js
 git commit -m "fix: separa função da qualidade do exemplar"
 ```
 
-### Task 5: Expor evolução como diagnóstico opcional
+### Task 5: Apresentar diagnósticos opcionais com ordem e semântica consistentes
 
 **Files:**
 - Modify: `data/extension-storage.js`
 - Modify: `components/settings-panel.js`
+- Modify: `components/pokemon-evaluation.js`
 - Modify: `components/pokemon-card.js`
+- Modify: `components/pokemon-card.css`
 - Modify: `myPokemons.js`
 - Modify: `battle.js`
+- Modify: `battle.html`
 - Modify: `auction.js`
+- Modify: `scripts/test-pokemon-evaluation.js`
 
 **Interfaces:**
 - Produces preferência `evaluation.showEvolutionPotential`, default `false`.
-- Produces tooltip/linha compartilhada sem recalcular perfis.
+- Produces `PokemonEvaluation.natureFitPresentation(fit) -> { label, color }`,
+  responsável pela tradução e pelo token semântico compartilhado.
+- Produces tooltip/linha compartilhada sem recalcular perfis, com
+  `Tendência Evol.` sempre por último e modificador visual de largura total.
 
 - [ ] **Step 1: Adicionar default e toggle**
 
 Adicionar `showEvolutionPotential:false` ao merge profundo existente e o controle “Potencial evolutivo” na seção de avaliação. Ele fica desabilitado quando `evaluation.enabled=false`.
 
-- [ ] **Step 2: Renderizar somente quando solicitado**
+- [ ] **Step 2: Escrever testes de apresentação dos estados de Nature**
 
-Linha única mostra `Tendência: Crobat — Atacante físico rápido/pivô`. Ramificações mostram resumo ordenado e tooltip com todos os destinos e notas de compatibilidade. Não substituir a linha **Função**.
+Adicionar casos para `very_favorable`, `favorable`, `compatible`, `neutral`,
+`unfavorable` e `conflicting`. Cada caso deve verificar o rótulo PT-BR e o token
+`--px-good`, `--px-mid`, `--px-accent` ou `--px-bad` definido na spec. Verificar
+também que um valor desconhecido recebe `Não determinada` com `--px-mid` e não
+quebra o card.
 
-- [ ] **Step 3: Preservar desempenho**
+- [ ] **Step 3: Implementar a apresentação compartilhada de Nature**
+
+Criar `natureFitPresentation(fit)` em `components/pokemon-evaluation.js` e
+consumi-la nas três telas. Quando `showNatureFit=true`, renderizar o campo
+**Compat. Natureza** na linha imediatamente seguinte a **Natureza** em listas.
+Nas grades de duas colunas, compor a linha seguinte como campo esquerdo atual +
+**Compat. Natureza** à direita, para que o diagnóstico fique na mesma coluna
+visual de **Natureza**. Nunca acrescentá-lo ao fim do bloco. Aplicar a cor no
+valor, mantendo o texto visível para que significado não dependa apenas da cor.
+
+- [ ] **Step 4: Renderizar evolução somente quando solicitado**
+
+Linha única mostra `Tendência Evol.: Crobat — Atacante físico rápido/pivô`.
+Ramificações mostram resumo ordenado e tooltip com todos os destinos e notas de
+compatibilidade. Não substituir a linha **Função**.
+
+- [ ] **Step 5: Fixar Tendência Evol. como último campo e tratar a largura**
+
+Compor primeiro a lista final de metadados visíveis e acrescentar a tendência
+por último. Se ela for o único item da última linha na grade de duas colunas,
+aplicar uma classe modificadora com `grid-column: 1 / -1` e permitir texto
+completo sem `text-overflow: ellipsis`. Se houver um par, manter uma coluna, o
+resumo truncável e o conteúdo integral no tooltip. Nos cards baseados em linhas,
+preservar a tendência no fim e liberar o texto completo quando houver largura
+disponível.
+
+- [ ] **Step 6: Preservar desempenho**
 
 Incluir a versão do perfil evolutivo na assinatura do cache; não incluir HP atual, status ou posição. Cards consomem o resultado pronto do view model.
 
-- [ ] **Step 4: Verificar manualmente as três telas**
+- [ ] **Step 7: Executar os testes automatizados**
 
-Com opção desligada, UI permanece como hoje. Ligada, Zubat e Eevee mostram evolução separada; paginação do Leilão e payloads repetidos de Meus Pokémon não provocam recálculo.
+Run: `node scripts/test-pokemon-evaluation.js`
 
-- [ ] **Step 5: Versionar**
+Expected: os seis estados de Nature retornam texto e cor corretos; estado
+desconhecido usa fallback neutro; testes existentes continuam passando.
+
+- [ ] **Step 8: Verificar manualmente as três telas**
+
+Com opções desligadas, UI permanece como hoje. Com `showNatureFit` ligado,
+**Compat. Natureza** aparece logo abaixo de **Natureza** com cor coerente nas
+três telas. Com evolução ligada, Zubat e Eevee mostram **Tendência Evol.** por
+último; alternar outros diagnósticos confirma uma e duas colunas, texto completo
+quando expandido e tooltip quando compacto. Paginação do Leilão e payloads
+repetidos de Meus Pokémon não provocam recálculo.
+
+- [ ] **Step 9: Versionar**
 
 ```bash
-git add data/extension-storage.js components/settings-panel.js components/pokemon-card.js myPokemons.js battle.js auction.js
-git commit -m "feat: exibe potencial evolutivo opcional"
+git add data/extension-storage.js components/settings-panel.js components/pokemon-evaluation.js components/pokemon-card.js components/pokemon-card.css myPokemons.js battle.js battle.html auction.js scripts/test-pokemon-evaluation.js
+git commit -m "feat: apresenta diagnósticos opcionais"
 ```
 
 ### Task 6: Documentar e verificar a revisão
@@ -330,4 +383,6 @@ git commit -m "docs: explica função relativa e potencial evolutivo"
 - Eevee e ramificações sem evolução automática: Tasks 1, 3–6.
 - Pré-cálculo diário e desempenho: Tasks 2–5.
 - Configuração inicialmente desativada: Task 5.
+- Compatibilidade da Nature localizada, colorida e abaixo de Natureza: Task 5.
+- Tendência Evol. por último, com ocupação responsiva de duas colunas: Task 5.
 - Três telas, Chrome e Firefox: Tasks 5–6.

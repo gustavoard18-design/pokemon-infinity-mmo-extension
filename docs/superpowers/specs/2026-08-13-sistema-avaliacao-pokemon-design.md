@@ -542,6 +542,24 @@ que um ponto isolado destrua artificialmente o conjunto.
 Nature é apresentada separadamente e possui influência limitada. Não converte
 IVs ruins em excelentes nem invalida sozinha um exemplar de IVs altos.
 
+Quando `showNatureFit` estiver habilitado, a compatibilidade deve ser apresentada
+imediatamente abaixo de **Natureza**, com o título **Compat. Natureza**. Os IDs
+internos permanecem estáveis e em inglês; somente o rótulo e o tom visual são
+localizados:
+
+| `nature.fit` | Texto exibido | Tom semântico |
+|---|---|---|
+| `very_favorable` | Muito favorável | positivo (`--px-good`) |
+| `favorable` | Favorável | positivo (`--px-good`) |
+| `compatible` | Compatível | intermediário (`--px-mid`) |
+| `neutral` | Neutra | intermediário (`--px-mid`) |
+| `unfavorable` | Desfavorável | alerta (`--px-accent`) |
+| `conflicting` | Conflitante | negativo (`--px-bad`) |
+
+O texto é a informação principal; a cor é um reforço e não pode ser o único
+meio de comunicar compatibilidade. A apresentação deve usar os mesmos tokens
+semânticos já aplicados a IVs e Avaliação, sem cores literais por tela.
+
 ## Desempenho em Meus Pokémon
 
 Meus Pokémon recebe payloads passivamente e pode renderizar com frequência. O
@@ -600,6 +618,26 @@ mas a primeira UI usa rótulos para ser consistente com os cards.
 - nenhum token, URL ou dado fora da allowlist atravessa o bridge;
 - não é necessário injetar o perfil completo no snapshot: o iframe faz lookup
   no cache local pelo `species` sanitizado.
+
+### Ordem e ocupação dos diagnósticos opcionais
+
+As três telas seguem o mesmo contrato de apresentação:
+
+- **Compat. Natureza** aparece imediatamente abaixo de **Natureza**, na mesma
+  coluna da próxima linha em grades de duas colunas; em listas lineares, aparece
+  na linha imediatamente seguinte. Nunca vai para o fim dos diagnósticos;
+- **Tendência Evol.** é sempre o último campo do bloco de metadados;
+- quando **Tendência Evol.** fica sozinha na última linha de uma grade de duas
+  colunas, ocupa as duas colunas e mostra o texto completo, sem reticências;
+- quando há outro campo na mesma linha, ocupa uma coluna, pode truncar o resumo
+  e preserva o texto completo no tooltip;
+- o campo de tendência não substitui **Função** e continua condicionado a
+  `showEvolutionPotential`.
+
+A decisão de ocupar duas colunas é tomada pela composição final dos campos
+visíveis, depois de aplicadas as preferências. Assim, ativar ou desativar outro
+diagnóstico não deixa um espaço vazio artificial nem exige regras específicas
+por combinação de toggles.
 
 ## Configurações
 
@@ -698,6 +736,8 @@ O conjunto mínimo de regressão deve cobrir:
 - IV irrelevante baixo não derruba a nota.
 - IV essencial baixo aplica a penalidade definida.
 - Nature favorável e conflitante produzem ajustes limitados.
+- Compatibilidade da Nature usa os seis rótulos localizados, o tom semântico
+  correspondente e aparece imediatamente abaixo de Natureza.
 - Moveset físico/especial desempata candidatas estruturalmente equivalentes de
   uma espécie versátil, sem usar IVs para escolher a função.
 - Nenhum IV muda a função atual definida pelo perfil da espécie.
@@ -713,6 +753,8 @@ O conjunto mínimo de regressão deve cobrir:
 - Falta de perfil usa fallback de baixa confiança.
 - Refresh com nova `rulesVersion` reprocessa sem request quando possível.
 - Leilão avalia snapshot sem moveset sem atravessar dados adicionais no bridge.
+- Tendência evolutiva é o último campo; quando isolada na última linha, ocupa
+  duas colunas e exibe o resumo completo.
 
 ### Verificação manual
 
@@ -748,6 +790,11 @@ O conjunto mínimo de regressão deve cobrir:
     é classificado como atacante físico ágil, não lento.
 15. Evoluções são expostas separadamente como tendência ou potencial e não
     alteram função nem nota da espécie atual.
+16. **Compat. Natureza** aparece imediatamente abaixo de **Natureza**, traduz os
+    seis estados de `nature.fit` e usa a escala semântica de cores de IVs e
+    Avaliação sem depender somente da cor.
+17. **Tendência Evol.** é o último campo do bloco e, quando fica sem par na
+    última linha, ocupa duas colunas e mostra seu texto completo.
 
 ## Decisões futuras explicitamente adiadas
 
