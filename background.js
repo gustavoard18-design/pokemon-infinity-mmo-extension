@@ -1,6 +1,9 @@
 if (typeof PokemonHelperStorage === 'undefined') {
     importScripts('data/extension-storage.js');
 }
+if (typeof PokemonRoleRules === 'undefined') {
+    importScripts('data/pokemon-role-rules.js', 'data/pokemon-species-profiler.js');
+}
 
 const HOST_RE = /^https?:\/\/([^/]*\.)?infinitymmo\.net(\/|$)/;
 const UPDATE_ALARM = 'pkmn-helper-check-updates';
@@ -46,7 +49,13 @@ async function refreshPokedex(force = false) {
     pokedexCheckPromise = (async () => {
         const cached = await PokemonHelperStorage.getPokedex();
         const age = Date.now() - new Date(cached.checkedAt || 0).getTime();
-        if (!force && cached.items.length && age < POKEDEX_MAX_AGE) return cached;
+        if (!force && cached.items.length && age < POKEDEX_MAX_AGE) {
+            if (!PokemonSpeciesProfiler.needsReprofile(cached)) return cached;
+            if (PokemonSpeciesProfiler.canReprofile(cached.items)) {
+                const items = PokemonSpeciesProfiler.preparePokedexItems(cached.items, new Date().toISOString());
+                return PokemonHelperStorage.setPokedex({ ...cached, items, error:null });
+            }
+        }
         try {
             const response = await fetch(POKEDEX_URL, { cache: 'no-store' });
             if (!response.ok) throw new Error(`InfinityMMO respondeu com status ${response.status}`);
@@ -55,15 +64,10 @@ async function refreshPokedex(force = false) {
             if (!Array.isArray(remoteItems)) {
                 throw new Error('Pokédex remota inválida');
             }
-            const items = remoteItems.filter((item) => item?.slug && Number.isFinite(Number(item.catchRate))).map((item) => ({
-                slug: item.slug,
-                name: item.name,
-                catchRate: Number(item.catchRate),
-                base: item.base || null,
-                levelMoves: Array.isArray(item.levelMoves)
-                    ? item.levelMoves.filter((move) => move?.slug && Number.isFinite(Number(move.lv))).map((move) => ({ lv: Number(move.lv), slug: move.slug }))
-                    : []
-            }));
+            const items = PokemonSpeciesProfiler.preparePokedexItems(
+                remoteItems.filter((item) => item?.slug && Number.isFinite(Number(item.catchRate))),
+                new Date().toISOString()
+            );
             if (!items.length) throw new Error('Pokédex remota sem catch rates válidos');
             return PokemonHelperStorage.setPokedex({ items, checkedAt: new Date().toISOString(), error: null });
         } catch (error) {

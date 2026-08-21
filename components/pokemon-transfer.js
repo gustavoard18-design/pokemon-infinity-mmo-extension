@@ -21,7 +21,7 @@ var PokemonTransfer = globalThis.PokemonTransfer || (() => {
         return Object.fromEntries(STAT_KEYS.map((stat) => [stat, clampIv(source?.[stat])]));
     }
 
-    // stats é opcional no payload do jogo, mas PokemonIvEvaluation usa quando
+    // stats é opcional no payload do jogo, mas PokemonEvaluation usa quando
     // existe — só vai para o arquivo se houver pelo menos um valor numérico
     function sanitizeStats(source) {
         if (!source || typeof source !== 'object') return null;

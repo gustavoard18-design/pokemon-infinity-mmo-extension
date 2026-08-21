@@ -46,6 +46,15 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         startView: 'last',            // 'last' | 'battle' | 'calc' | 'myPokemons'
         startCollapsed: 'remember',   // 'remember' | 'collapsed' | 'open'
         autoSwitchToBattle: true,
+        evaluation: Object.freeze({
+            enabled: true,
+            showCoreFields: true,
+            showConfidence: false,
+            showNatureFit: false,
+            showMovesetFit: false,
+            showAlternativeRole: false,
+            showEvolutionPotential: false
+        }),
         panelZoom: 1,                 // fator de zoom do conteúdo do painel (ver components/panel-zoom.js)
         // ação → combinação normalizada (ver PokemonHelperShortcutUtils)
         // 1..5 seguem a ordem dos ícones no cabeçalho; quem já customizou não é
@@ -115,6 +124,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
     function mergeUiPreferences(stored) {
         const prefs = Object.assign({}, DEFAULT_UI_PREFERENCES, stored);
         prefs.shortcuts = Object.assign({}, DEFAULT_UI_PREFERENCES.shortcuts, stored && stored.shortcuts);
+        prefs.evaluation = Object.assign({}, DEFAULT_UI_PREFERENCES.evaluation, stored && stored.evaluation);
         prefs.screens = {};
         Object.keys(DEFAULT_UI_PREFERENCES.screens).forEach((screen) => {
             prefs.screens[screen] = Object.assign({},
@@ -132,6 +142,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         const current = await getUiPreferencesDeep();
         const next = Object.assign({}, current, changes);
         if (changes.shortcuts) next.shortcuts = Object.assign({}, current.shortcuts, changes.shortcuts);
+        if (changes.evaluation) next.evaluation = Object.assign({}, current.evaluation, changes.evaluation);
         if (changes.screens) {
             next.screens = {};
             Object.keys(current.screens).forEach((screen) => {
@@ -147,6 +158,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         DEFAULT_UPDATE_PREFERENCES,
         DEFAULT_UPDATE_STATUS,
         DEFAULT_UI_PREFERENCES,
+        mergeUiPreferences,
         getOverlaySettings: () => read(KEYS.overlaySettings, DEFAULT_OVERLAY_SETTINGS),
         setOverlaySettings: (settings) => write(KEYS.overlaySettings, settings),
         getUpdatePreferences: () => read(KEYS.updatePreferences, DEFAULT_UPDATE_PREFERENCES),

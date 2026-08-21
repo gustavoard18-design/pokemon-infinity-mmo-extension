@@ -10,6 +10,7 @@ const PokemonFilters = (() => {
             sortDirection: 'asc',
             shinyOnly: false,
             itemOnly: false,
+            ratingLabels: [],
             typeMode: 'any',
             types: [],
             natureMode: 'name',
@@ -41,6 +42,7 @@ const PokemonFilters = (() => {
                         <option value="type">Tipo</option>
                         <option value="nature">Nature</option>
                         <option value="ivPercent">IV%</option>
+                        <option value="evaluationScore">Avaliação</option>
                     </select>
                 </label>
 
@@ -59,6 +61,11 @@ const PokemonFilters = (() => {
                     <label class="filter-field--checkbox"><input type="checkbox" id="filter-shiny"> <span>Somente Shiny</span></label>
                     <label class="filter-field--checkbox"><input type="checkbox" id="filter-item"> <span>Somente com item</span></label>
                 </div>
+            </fieldset>
+
+            <fieldset class="pokemon-filter-section" id="filter-evaluation-section">
+                <legend>Avaliação</legend>
+                <div class="filter-checks">${['Ruim','Regular','Bom','Muito bom','Excelente'].map((label) => `<label class="filter-field--checkbox"><input type="checkbox" data-rating-label="${label}"> <span>${label}</span></label>`).join('')}</div>
             </fieldset>
 
             <fieldset class="pokemon-filter-section">
@@ -135,7 +142,7 @@ const PokemonFilters = (() => {
         const decreaseSelect = byId('filter-nature-decrease');
 
         function syncSortDirection() {
-            directionField.hidden = !['level', 'ivPercent'].includes(sortBy.value);
+            directionField.hidden = !['level', 'ivPercent', 'evaluationScore'].includes(sortBy.value);
         }
 
         function syncTypeHelp() {
@@ -242,6 +249,7 @@ const PokemonFilters = (() => {
                 sortDirection: byId('filter-sort-direction').value,
                 shinyOnly: byId('filter-shiny').checked,
                 itemOnly: byId('filter-item').checked,
+                ratingLabels: [...panel.querySelectorAll('[data-rating-label]:checked')].map((input) => input.dataset.ratingLabel),
                 typeMode: typeMode.value,
                 types: [...selectedTypes],
                 natureMode: natureMode.value,
@@ -260,6 +268,7 @@ const PokemonFilters = (() => {
             byId('filter-sort-direction').value = defaults.sortDirection;
             byId('filter-shiny').checked = false;
             byId('filter-item').checked = false;
+            panel.querySelectorAll('[data-rating-label]').forEach((input) => { input.checked = false; });
             typeMode.value = defaults.typeMode;
             [...selectedTypes].forEach((type) => setType(type, false));
             natureMode.value = defaults.natureMode;

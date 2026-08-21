@@ -105,7 +105,7 @@
 /* span inline ignora width/height — sem display block o preenchimento não renderiza */
 .px-bar-fill { display: block; height: 100%; }
 
-/* grade da avaliação de IVs (PokemonIvEvaluation.html) — usada tanto em
+/* grade da avaliação de IVs (PokemonEvaluation.ratingHTML) — usada tanto em
    myPokemons.html (card do Pokémon) quanto em battle.js (avaliação do
    oponente); cores mapeadas pros tokens px-* que batem com a paleta antiga */
 .iv-rating[data-rating="ruim"] { color: var(--px-bad); }

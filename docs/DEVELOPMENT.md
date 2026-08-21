@@ -152,7 +152,8 @@ data/extension-storage.js → components/pixel-icon.js
 | `pokemon-card.js` / `pokemon-card.css` | Card compartilhado por Meus Pokémons e Leilão; renderiza cabeçalho, Nature +/-, Habilidade hidratável, Item e IVs, aceitando extensões de contexto |
 | `pokemon-transfer.js` | Exportar/importar a lista de Meus Pokémon (`PokemonTransfer`): whitelist de campos, envelope `{ format, version, exportedAt, party, pc }`, parser tolerante que também aceita `{ party, pc }` cru, e o slug do link do Smogon. Sem DOM e sem `chrome.*` |
 | `catch-rate.js` | Cálculo de taxa de captura |
-| `iv-evaluation.js` | Avaliação de Atributos, IVs e Nature para classificar um Pokémon |
+| `pokemon-evaluation.js` | Avaliação pura do exemplar conforme o perfil funcional da espécie; produz Função, nota, confiança, adequações e compatibilidade evolutiva |
+| `iv-evaluation.js` | Alias temporário de compatibilidade para consumidores antigos do avaliador |
 | `ability-info.js` | Normalização e lookup de dados de habilidade |
 | `nature-effect.js` / `nature-effect.css` | Relação entre cada Nature e os atributos que ela aumenta/diminui |
 | `update-notice.js` / `update-notice.css` | Aviso compartilhado de atualização disponível, usado nas telas internas |
@@ -166,6 +167,8 @@ data/extension-storage.js → components/pixel-icon.js
 | `move-types.js` | Tabela golpe → tipo, gerada a partir da PokeAPI (`type/{type}.moves`); infere o tipo dos golpes prováveis de um oponente, já que o jogo não revela o moveset real na batalha |
 | `move-status.js` | Golpes de categoria "status" (sem poder de ataque), gerados a partir da PokeAPI, para não computar fraqueza/resistência de golpes que não causam dano |
 | `move-details.js` | Detalhes de golpe (poder, precisão, PP, categoria, efeito), gerados a partir da PokeAPI (`/move/{slug}`); usado no tooltip de golpes em `battle.js` |
+| `pokemon-role-rules.js` | Taxonomia versionada de funções, pesos de IV, faixas, thresholds relativos de velocidade, tags de habilidades e exceções |
+| `pokemon-species-profiler.js` | Gera o perfil funcional fixo e resolve `prevo`/`evo` em tendência ou potenciais durante a atualização da Pokédex |
 
 ## Interceptação de dados
 
@@ -394,6 +397,23 @@ todas relançadas ao iniciar o service worker (`initializeUpdateChecks`):
   treinador — mais confiável que a heurística por nível usada em batalhas
   selvagens; quando duas entradas colidem na mesma chave, fica com o
   moveset mais completo (times de exibição às vezes vêm sem golpes).
+
+Ao atualizar a Pokédex, o service worker preserva base stats, tipos,
+habilidades e learnset e injeta um `evaluationProfile` versionado em cada
+espécie. Se apenas a versão das regras mudar, o cache ainda válido é
+reprocessado localmente, sem nova request. Meus Pokémon, Encontro e Leilão
+fazem lookup desse perfil por espécie e executam somente o ajuste barato do
+exemplar. Meus Pokémon também memoiza por ID e fingerprint de IVs, EVs,
+Nature, habilidade e golpes; mudanças apenas de HP, status ou posição não
+recalculam a avaliação. O Leilão usa o cache local e não amplia o bridge nem o
+snapshot sanitizado.
+
+A função atual deriva prioritariamente dos base stats. Spe combina relevância
+interna (`relativeToMean`/`relativeToMax`) e percentil na Pokédex, evitando que
+um corte absoluto classifique Zubat como lento. IVs pontuam o exemplar para a
+função pronta e para cada destino evolutivo, mas nunca escolhem a função atual.
+O refresh preserva `prevo`/`evo` e resolve as linhas em duas passagens; caches
+antigos sem `evo` forçam uma nova request em vez de simular migração offline.
 
 Todo esse estado (preferências, resultado da checagem, caches) vive em
 `data/extension-storage.js` (`PokemonHelperStorage`), lido tanto pelo

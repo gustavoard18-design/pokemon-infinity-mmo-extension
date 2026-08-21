@@ -16,7 +16,7 @@
     }
   },
   "background": {
-    "scripts": ["data/extension-storage.js", "background.js"]
+    "scripts": ["data/extension-storage.js", "data/pokemon-role-rules.js", "data/pokemon-species-profiler.js", "background.js"]
   },
   "permissions": ["activeTab", "alarms", "scripting", "storage"],
   "host_permissions": ["*://infinitymmo.net/*", "*://*.infinitymmo.net/*", "https://raw.githubusercontent.com/andaraGui/pokemon-infinity-mmo-extension/*"],
