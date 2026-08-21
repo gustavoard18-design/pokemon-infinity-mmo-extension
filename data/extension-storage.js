@@ -23,6 +23,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         restoreTop: null,
         restoreHeight: null,
         collapsed: true,
+        panelLocked: false,
         view: 'calc',
         open: true
     });
@@ -42,6 +43,8 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
     });
 
     const DEFAULT_UI_PREFERENCES = Object.freeze({
+        auctionRequestsEnabled: false,
+        theme: 'dark',
         tooltipsEnabled: true,
         startView: 'last',            // 'last' | 'battle' | 'calc' | 'myPokemons'
         startCollapsed: 'remember',   // 'remember' | 'collapsed' | 'open'
@@ -73,7 +76,8 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
             myPokemons: Object.freeze({
                 expandPokemonByDefault: false,
                 expandGroupsByDefault: true,
-                showSmogonLink: true
+                showSmogonLink: true,
+                showStatsWithIvs: false
             }),
             battle: Object.freeze({
                 showStatChanges: true,

@@ -43,6 +43,7 @@
     ]).then(([storedSettings, prefs]) => {
         if (mode === 'ensure') window.__pkmnHelperEnsurePending = false;
         window.__pkmnHelperUiPrefs = prefs;
+        window.dispatchEvent(new CustomEvent('pkmn-helper-auction-permission', { detail:{ enabled:prefs.auctionRequestsEnabled === true } }));
         const settings = Object.assign({}, DEFAULT_SETTINGS, storedSettings);
         if (mode === 'ensure' && settings.open === false) return;
         settings.open = true;
@@ -69,7 +70,13 @@
             PokemonHelperStorage.getUiPreferences().then((prefs) => {
                 window.__pkmnHelperUiPrefs = prefs;
                 const container = document.getElementById(ID);
-                if (container) refreshShortcutLabels(container);
+                if (container) PokemonHelperTheme.apply(prefs.theme, container);
+                window.dispatchEvent(new CustomEvent('pkmn-helper-auction-permission', { detail:{ enabled:prefs.auctionRequestsEnabled === true } }));
+                if (container) {
+                    refreshShortcutLabels(container);
+                    container.querySelectorAll('.ph-frame').forEach((frame) => frame.contentWindow?.postMessage({ type:'pokemon-helper-theme', theme:prefs.theme }, '*'));
+                    document.getElementById('pokemon-auction-frame')?.contentWindow?.postMessage({ type:'auction-permission-changed' }, '*');
+                }
             });
         });
     }
@@ -91,6 +98,7 @@
         // visual das telas; escopa as regras de pixel-theme.css, que também é
         // injetado na página do jogo, só ao que é nosso
         container.className = 'px-scroll';
+        PokemonHelperTheme.apply(uiPrefs().theme, container);
         container.style.setProperty('--ph-zoom', String(PokemonHelperZoom.factor()));
         // referência ao MESMO objeto `settings` que arrastar/redimensionar/
         // maximizar mutam neste build() — o painel de configurações (função
@@ -113,7 +121,7 @@
 
         const fmt = PokemonHelperShortcutUtils.formatCombo;
         const shortcuts = uiPrefs().shortcuts;
-        const { collapseBtn, maximizeBtn } = buildHeaderButtons(header, [
+        const { collapseBtn, maximizeBtn, lockBtn } = buildHeaderButtons(header, [
             { icon: 'enc', tip: `Encontro atual — tecla ${fmt(shortcuts.battle)}`, view: 'battle' },
             { icon: 'calc', tip: `Calculadora de tipos — tecla ${fmt(shortcuts.calc)}`, view: 'calc' },
             { icon: 'team', tip: `Meus Pokémon — tecla ${fmt(shortcuts.myPokemons)}`, view: 'myPokemons' },
@@ -166,6 +174,7 @@
         [calcFrame, battleFrame, myPokemonsFrame, auctionFrame, chartFrame].forEach((frame) => {
             frame.addEventListener('load', () => {
                 frame.contentWindow?.postMessage({ type: 'panel-mode', full: settings.maximized === true }, '*');
+                frame.contentWindow?.postMessage({ type:'pokemon-helper-theme', theme:uiPrefs().theme }, '*');
                 if (frame === auctionFrame && typeof window.__pkmnHelperLatestVip === 'boolean') {
                     frame.contentWindow?.postMessage({ type: 'auction-character-meta', vip: window.__pkmnHelperLatestVip }, '*');
                 }
@@ -198,23 +207,29 @@
         resizeHandles.forEach((handle) => container.appendChild(handle));
         document.documentElement.appendChild(container);
 
+        const paintLock = () => {
+            lockBtn.setAttribute('aria-pressed', String(settings.panelLocked === true));
+            lockBtn.textContent = settings.panelLocked ? '◆' : '◇';
+            lockBtn.dataset.tip = settings.panelLocked ? 'Destravar posição' : 'Travar posição';
+        };
+        paintLock();
+        lockBtn.addEventListener('click', () => { settings.panelLocked = !settings.panelLocked; paintLock(); persist(currentSettings(container)); });
+
         // ---- mover: arrastar pelo cabeçalho (fora dos botões) ----
-        header.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.ph-icon-btn')) return;
+        const beginDrag = (e) => {
+            if (settings.panelLocked || e.target.closest('button,a,input,select,textarea,[role="button"],iframe')) return;
             e.preventDefault();
             const startX = e.clientX;
             const startY = e.clientY;
             const startTop = settings.top;
             const startRight = settings.right;
-            const maxTop = Math.max(0, window.innerHeight - settings.height);
-            const maxRight = Math.max(0, window.innerWidth - settings.width);
 
             let rafScheduled = false;
             const onMove = (moveEvent) => {
                 const dx = moveEvent.clientX - startX;
                 const dy = moveEvent.clientY - startY;
-                settings.top = clampNum(startTop + dy, 0, maxTop, startTop);
-                settings.right = clampNum(startRight - dx, 0, maxRight, startRight);
+                const next = PokemonHelperPanelPosition.clamp({ ...settings, top:startTop + dy, right:startRight - dx }, { width:window.innerWidth, height:window.innerHeight }, { headerHeight:header.offsetHeight || 30 });
+                settings.top = next.top; settings.right = next.right;
                 if (!rafScheduled) {
                     rafScheduled = true;
                     requestAnimationFrame(() => {
@@ -230,7 +245,15 @@
             };
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
-        });
+        };
+        header.addEventListener('mousedown', beginDrag);
+        statusBar.addEventListener('mousedown', beginDrag);
+        const keepPanelVisible = () => {
+            if (settings.maximized || settings.collapsed) return;
+            Object.assign(settings, PokemonHelperPanelPosition.clamp(settings, { width:window.innerWidth, height:window.innerHeight }, { headerHeight:header.offsetHeight || 30 }));
+            applyBox(container, settings); persist(currentSettings(container));
+        };
+        window.addEventListener('resize', keepPanelVisible);
 
         // ---- redimensionar: arrastar qualquer borda/canto ----
         resizeHandles.forEach((handle) => {
@@ -435,6 +458,10 @@
                         requestId: data.requestId.slice(0, 80), action: data.action, params: data.params || {}
                     } }));
                     return;
+                }
+                if (data.type === 'auction-open-settings') {
+                    const auctionFrame = document.getElementById('pokemon-auction-frame');
+                    if (event.source === auctionFrame?.contentWindow) setActiveView('settings', document.getElementById(ID));
                 }
                 if (data.type === 'panel-shortcut') handleShortcut(data);
                 if (data.type === 'panel-exit-full') {
@@ -749,6 +776,15 @@
                 cursor: nesw-resize;
                 background: linear-gradient(225deg, transparent 50%, #8a8aa0 50%);
             }
+            #${ID} { background:var(--px-bg); color:var(--px-text); border-color:var(--px-border); }
+            #${ID} .ph-header, #${ID} .ph-status { background:var(--px-bg-bar); border-color:var(--px-line); }
+            #${ID} .ph-icon-btn { background:var(--px-bg-btn); border-color:var(--px-border); color:var(--px-text-dim); }
+            #${ID} .ph-view-btn.active { background:var(--px-accent); border-color:var(--px-accent); }
+            #${ID} .ph-settings { background:var(--px-bg); }
+            #${ID} .ph-set-head, #${ID} .ph-status-text, #${ID} .ph-hint, #${ID} .ph-key-desc { color:var(--px-text-dim); }
+            #${ID} .ph-setting-label { color:var(--px-text-val); }
+            #${ID} .ph-step, #${ID} .ph-toggle, #${ID} .ph-cycle { background:var(--px-bg-btn2); border-color:var(--px-border-btn); color:var(--px-text-val); }
+            #${ID} .ph-width-value, #${ID} .ph-cycle, #${ID} .ph-key { color:var(--px-accent); }
         `;
         document.head.appendChild(style);
     }
@@ -770,6 +806,9 @@
     }
 
     function applyBox(container, settings) {
+        if (!settings.maximized && typeof PokemonHelperPanelPosition !== 'undefined') {
+            Object.assign(settings, PokemonHelperPanelPosition.clamp(settings, { width:window.innerWidth, height:window.innerHeight }, { headerHeight:30 }));
+        }
         if (container.classList.contains('collapsed')) return;
         container.style.top = `${settings.top}px`;
         container.style.right = `${settings.right}px`;
@@ -840,11 +879,12 @@
     }
 
     function currentSettings(container) {
+        const styleInt = (value, fallback) => { const parsed = parseInt(value, 10); return Number.isFinite(parsed) ? parsed : fallback; };
         return {
-            top: parseInt(container.style.top, 10) || DEFAULT_SETTINGS.top,
-            right: parseInt(container.style.right, 10) || DEFAULT_SETTINGS.right,
-            width: parseInt(container.style.width, 10) || DEFAULT_SETTINGS.width,
-            height: parseInt(container.style.height, 10) || DEFAULT_SETTINGS.height,
+            top: styleInt(container.style.top, DEFAULT_SETTINGS.top),
+            right: styleInt(container.style.right, DEFAULT_SETTINGS.right),
+            width: styleInt(container.style.width, DEFAULT_SETTINGS.width),
+            height: styleInt(container.style.height, DEFAULT_SETTINGS.height),
             maximized: container.dataset.maximized === 'true',
             restoreWidth: parseInt(container.dataset.restoreWidth, 10) || null,
             restoreRight: container.dataset.restoreRight === '' ? null : parseInt(container.dataset.restoreRight, 10),
@@ -853,6 +893,7 @@
             collapsed: container.classList.contains('collapsed'),
             view: container.dataset.activeView || DEFAULT_SETTINGS.view,
             open: true,
+            panelLocked: container.__phSettings?.panelLocked === true,
         };
     }
 

@@ -50,6 +50,17 @@
     --px-font-mono: 'Silkscreen', monospace;
 }
 
+[data-theme="light"] {
+    --px-bg-bar:#e5e7ee; --px-bg:#f7f7fb; --px-bg-card:#ffffff;
+    --px-bg-btn:#eceef4; --px-bg-cell:#f0f1f6; --px-bg-btn2:#e3e5ec;
+    --px-bg-track:#d8dbe5; --px-bg-badge:#d0d4df; --px-line:#d8dbe3;
+    --px-border:#c3c7d2; --px-border-btn:#aeb4c2; --px-border-tip:#858c9d;
+    --px-text-hi:#11131a; --px-text:#20232c; --px-text-val:#303542;
+    --px-text-soft:#4c5261; --px-text-dim:#5d6473; --px-on-dark:#101218;
+    --px-accent:#a85b00; --px-accent-hover:#7a4000; --px-good:#237a31;
+    --px-bad:#b52e48; --px-mid:#8a6200; --px-best-border:#b98022;
+}
+
 .px-label {
     font-family: var(--px-font-mono);
     font-size: 10px;

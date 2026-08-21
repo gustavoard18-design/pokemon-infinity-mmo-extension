@@ -1,0 +1,13 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const sandbox={}; sandbox.globalThis=sandbox;
+vm.runInNewContext(fs.readFileSync('components/shiny-alert.js','utf8'), sandbox);
+const alert=sandbox.PokemonShinyAlert;
+assert.deepEqual(JSON.parse(JSON.stringify(alert.visualState({ shiny:false, species:'Pikachu' }, 'b1', 0))), { visible:false, key:null, entering:false });
+assert.equal(alert.visualState({ shiny:true, species:'Pikachu' }, 'b1', 0).entering, true);
+assert.equal(alert.visualState({ shiny:true, species:'Pikachu' }, 'b1', 0).entering, false);
+assert.equal(alert.visualState({ shiny:true, species:'Eevee' }, 'b1', 1).entering, true);
+alert.reset();
+assert.equal(alert.visualState({ shiny:true, species:'Pikachu' }, 'b1', 0).entering, true);
+process.stdout.write('PASS shiny anuncia uma vez por oponente e reinicia por batalha\n');

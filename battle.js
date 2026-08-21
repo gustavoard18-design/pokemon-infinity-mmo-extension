@@ -38,6 +38,7 @@ const row = (label, value) => `<div class="row"><span class="label">${label}</sp
 const ivColor = (iv) => iv >= 26 ? 'var(--px-good)' : iv >= 15 ? 'var(--px-mid)' : 'var(--px-bad)';
 
 function resetBattle(battleId) {
+    PokemonShinyAlert.reset();
     Object.assign(state, {
         battleId: battleId || null, kind: null, foe: null, foeParty: [], turn: 1,
         canCatch: false, moves: [], caught: false, over: false,
@@ -430,6 +431,7 @@ function render() {
     const foeTypes = typeNames(foe.types);
     const hpPct = foe.maxHp > 0 ? Math.max(0, Math.min(100, foe.hp / foe.maxHp * 100)) : 0;
     const hpLevel = hpPct <= 20 ? 'low' : hpPct <= 50 ? 'mid' : 'high';
+    const shinyState = PokemonShinyAlert.visualState(foe, state.battleId, state.active.foe);
     const genderValue = String(foe.gender || '').toLowerCase();
     const gender = ['female', 'f', '♀'].includes(genderValue)
         ? '<span class="enc-gender-f">♀</span>'
@@ -447,7 +449,7 @@ function render() {
             <div class="enc-name-row">
                 <span class="enc-name">${escapeHtml(foe.name || foe.species)}</span>
                 <span class="enc-level">Lv${foe.level ?? '-'}</span>${gender}
-                ${foe.shiny ? '<span class="best-badge badge-stab" data-tip="Shiny!">★</span>' : ''}
+                ${shinyState.visible ? '<span class="best-badge badge-stab" data-tip="Shiny!">SHINY</span>' : ''}
                 ${SCREEN_PREFS.showSmogonLink ? PokemonTransfer.smogonLinkHTML(foe.name || foe.species) : ''}
             </div>
             <div class="enc-types">${foeTypes.map((type) => typeTagHTML(type)).join('')}</div>
@@ -485,16 +487,10 @@ function render() {
 
     const ivsSection = `<div class="section">
         <div class="section-head"><span class="px-label">IVS / STATS</span><span class="head-extra" style="color:${ivColor(ivPercent * 31 / 100)}">${ivPercent}%</span></div>
-        <div class="ivs-grid6">${STAT_KEYS.filter((key) => ivs[key] !== undefined).map((key) => `
-            <div class="iv-cell" data-tip="${key.toUpperCase()} — IV ${ivs[key]}/31${stats[key] !== undefined ? ` · stat atual ${stats[key]}` : ''}">
-                <span class="iv-key">${key.toUpperCase()}</span>
-                <span class="px-bar"><span class="px-bar-fill" style="width:${Math.round(ivs[key] / 31 * 100)}%;background:${ivColor(ivs[key])}"></span></span>
-                <span class="iv-num" style="color:${ivColor(ivs[key])}">${ivs[key]}</span>
-                ${stats[key] !== undefined ? `<span class="iv-stat">${stats[key]}</span>` : ''}
-            </div>`).join('')}</div>
+        ${PokemonCard.ivGrid({ ivs, stats }, { showStats:true })}
     </div>`;
 
-    let html = `<div class="enc-screen">` + head + meta + (SCREEN_PREFS.showIvs ? ivsSection : '');
+    let html = `<div class="enc-screen${shinyState.visible ? ' enc-screen--shiny' : ''}${shinyState.entering ? ' enc-screen--shiny-entering' : ''}">${shinyState.visible ? '<div class="shiny-alert" role="alert">★ SHINY ENCONTRADO ★</div>' : ''}` + head + meta + (SCREEN_PREFS.showIvs ? ivsSection : '');
     if (!state.caught) html += bestPlay(foe);
     if (SCREEN_PREFS.showWeaknesses) html += renderWeaknesses(foe);
     if (SCREEN_PREFS.showFoeMoves) html += renderFoeMoves(foe);

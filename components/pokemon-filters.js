@@ -2,6 +2,7 @@
 const PokemonFilters = (() => {
     const STATS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
     const EFFECT_STATS = ['ATK', 'DEF', 'SPA', 'SPD', 'SPE'];
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
 
     function defaultValues() {
         return {
@@ -10,6 +11,7 @@ const PokemonFilters = (() => {
             sortDirection: 'asc',
             shinyOnly: false,
             itemOnly: false,
+            abilitySlugs: [],
             ratingLabels: [],
             typeMode: 'any',
             types: [],
@@ -22,7 +24,7 @@ const PokemonFilters = (() => {
         };
     }
 
-    function mount(panel, callbacks = {}) {
+    function mount(panel, callbacks = {}, options = {}) {
         const selectedTypes = new Set();
         const selectedNatures = new Set();
 
@@ -67,6 +69,7 @@ const PokemonFilters = (() => {
                 <legend>Avaliação</legend>
                 <div class="filter-checks">${['Ruim','Regular','Bom','Muito bom','Excelente'].map((label) => `<label class="filter-field--checkbox"><input type="checkbox" data-rating-label="${label}"> <span>${label}</span></label>`).join('')}</div>
             </fieldset>
+            <fieldset class="pokemon-filter-section"><legend>Habilidades</legend><label class="filter-field"><span>Selecione uma ou mais</span><select id="filter-abilities" class="pxl-input" multiple size="5">${normalizeAbilityOptions(options.abilities).map((ability) => `<option value="${escapeHtml(ability.slug)}">${escapeHtml(ability.label)}</option>`).join('')}</select></label><p class="filter-help">As habilidades selecionadas combinam entre si por OU.</p></fieldset>
 
             <fieldset class="pokemon-filter-section">
                 <legend>Tipos</legend>
@@ -140,6 +143,11 @@ const PokemonFilters = (() => {
         const neutralCheckbox = byId('filter-nature-neutral');
         const increaseSelect = byId('filter-nature-increase');
         const decreaseSelect = byId('filter-nature-decrease');
+        const abilitiesSelect = byId('filter-abilities');
+        function setAbilities(items = []) {
+            const selected = new Set([...abilitiesSelect.selectedOptions].map((option) => option.value));
+            abilitiesSelect.innerHTML = normalizeAbilityOptions(items).map((ability) => `<option value="${escapeHtml(ability.slug)}"${selected.has(ability.slug) ? ' selected' : ''}>${escapeHtml(ability.label)}</option>`).join('');
+        }
 
         function syncSortDirection() {
             directionField.hidden = !['level', 'ivPercent', 'evaluationScore'].includes(sortBy.value);
@@ -249,6 +257,7 @@ const PokemonFilters = (() => {
                 sortDirection: byId('filter-sort-direction').value,
                 shinyOnly: byId('filter-shiny').checked,
                 itemOnly: byId('filter-item').checked,
+                abilitySlugs: [...byId('filter-abilities').selectedOptions].map((option) => option.value),
                 ratingLabels: [...panel.querySelectorAll('[data-rating-label]:checked')].map((input) => input.dataset.ratingLabel),
                 typeMode: typeMode.value,
                 types: [...selectedTypes],
@@ -268,6 +277,7 @@ const PokemonFilters = (() => {
             byId('filter-sort-direction').value = defaults.sortDirection;
             byId('filter-shiny').checked = false;
             byId('filter-item').checked = false;
+            [...byId('filter-abilities').options].forEach((option) => { option.selected = false; });
             panel.querySelectorAll('[data-rating-label]').forEach((input) => { input.checked = false; });
             typeMode.value = defaults.typeMode;
             [...selectedTypes].forEach((type) => setType(type, false));
@@ -291,8 +301,18 @@ const PokemonFilters = (() => {
         });
 
         reset();
-        return { getValues, reset };
+        return { getValues, reset, setAbilities };
     }
 
-    return Object.freeze({ mount, defaultValues });
+    const normalizeAbilitySlug = (value) => String(value || '').trim().toLowerCase().replace(/[ _]+/g, '-');
+    const normalizeAbilityOptions = (items = []) => {
+        const bySlug = new Map();
+        items.forEach((item) => {
+            const slug = normalizeAbilitySlug(item?.slug ?? item);
+            if (slug && !bySlug.has(slug)) bySlug.set(slug, { slug, label:String(item?.label || item?.slug || item) });
+        });
+        return [...bySlug.values()].sort((a, b) => a.label.localeCompare(b.label));
+    };
+    return Object.freeze({ mount, defaultValues, normalizeAbilitySlug, normalizeAbilityOptions });
 })();
+globalThis.PokemonFilters = PokemonFilters;

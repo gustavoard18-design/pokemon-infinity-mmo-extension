@@ -223,7 +223,7 @@ function runContentScripts(tabId, mode) {
         .then(() => {
             chrome.scripting.executeScript({
                 target: { tabId },
-                files: ['data/extension-storage.js', 'components/pixel-icon.js', 'components/panel-zoom.js', 'components/tooltip.js', 'components/header-buttons.js', 'components/shortcut-utils.js', 'components/settings-panel.js', 'content.js']
+                files: ['data/extension-storage.js', 'components/theme.js', 'components/panel-position.js', 'components/pixel-icon.js', 'components/panel-zoom.js', 'components/tooltip.js', 'components/header-buttons.js', 'components/shortcut-utils.js', 'components/settings-panel.js', 'content.js']
             });
             // MAIN world: só ali dá pra sobrescrever o window.fetch que o jogo usa.
             chrome.scripting.executeScript({

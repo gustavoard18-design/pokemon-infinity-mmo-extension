@@ -72,7 +72,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
         .then((prefs) => {
             SCREEN_PREFS = prefs.screens.myPokemons;
             EVALUATION_PREFS = prefs.evaluation;
-            if (!EVALUATION_PREFS.enabled) evaluationCache.clear();
+            if (!EVALUATION_PREFS.enabled) { evaluationCache.clear(); FILTER_STATE.applied.ratingLabels = []; }
             rebuildDataState(); applyFilters(); renderIfLoaded();
         })
         .catch(() => {});
@@ -229,6 +229,7 @@ function rebuildDataState() {
 
     DATA_STATE.sourcePokemon = pokemon;
     DATA_STATE.groups = groups;
+    filterController?.setAbilities(DATA_STATE.sourcePokemon.map((pokemon) => ({ slug:pokemon.ability, label:PokemonAbilityInfo.label(pokemon.ability) })));
     evaluationCache.retain(pokemon.map((viewModel) => viewModel.pokemon?.id ?? `${viewModel.pokemon?.species || viewModel.name}:${viewModel.level}`));
 }
 
@@ -241,7 +242,8 @@ function hasAdvancedFilter(values) {
         || (values.natureMode === 'effect' && (
             values.neutralOnly || values.natureIncrease || values.natureDecrease
         ))
-        || STAT_KEYS.some((stat) => values.ivMinimum[stat] > 0);
+        || STAT_KEYS.some((stat) => values.ivMinimum[stat] > 0)
+        || values.abilitySlugs.length > 0;
 }
 
 function pokemonPassesFilters(viewModel, nameQuery, values, advancedEnabled, compiled) {
@@ -249,6 +251,7 @@ function pokemonPassesFilters(viewModel, nameQuery, values, advancedEnabled, com
     if (!advancedEnabled) return true;
     if (values.shinyOnly && !viewModel.shiny) return false;
     if (values.itemOnly && !viewModel.hasItem) return false;
+    if (values.abilitySlugs.length && !values.abilitySlugs.includes(PokemonFilters.normalizeAbilitySlug(viewModel.ability))) return false;
     if (EVALUATION_PREFS.enabled && values.ratingLabels.length && !values.ratingLabels.includes(viewModel.evaluation?.rating?.label)) return false;
 
     if (values.types.length) {
@@ -391,7 +394,7 @@ function renderDetailRows(viewModel) {
 }
 
 function renderIvDetails(viewModel) {
-    return PokemonCard.ivGrid(viewModel);
+    return PokemonCard.ivGrid(viewModel, { showStats:SCREEN_PREFS.showStatsWithIvs });
 }
 
 // selo ao lado do nome; markup e tooltip vêm de PokemonTransfer para não
@@ -663,7 +666,7 @@ function bindControls() {
             FILTER_STATE.applied = values;
             applyAndRender();
         }
-    });
+    }, { abilities:PokemonFilters.normalizeAbilityOptions(DATA_STATE.sourcePokemon.map((pokemon) => ({ slug:pokemon.ability, label:PokemonAbilityInfo.label(pokemon.ability) }))) });
 
     advancedToggle.addEventListener('click', () => {
         FILTER_STATE.advancedEnabled = !FILTER_STATE.advancedEnabled;

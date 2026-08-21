@@ -23,6 +23,7 @@ function buildSettingsPanel(shell) {
                 <span class="ph-width-value" id="ph-zoom-value"></span>
                 <button type="button" class="ph-step" id="ph-zoom-plus">+</button>
             </div>
+            <div class="ph-setting-row"><span class="ph-setting-label" id="ph-theme-label">Tema claro</span><button type="button" class="ph-toggle" id="ph-theme" role="switch" aria-checked="false" aria-labelledby="ph-theme-label"></button></div>
             <div class="ph-setting-row">
                 <span class="ph-setting-label" id="ph-update-notifications-label">Avisar sobre atualizações</span>
                 <button type="button" class="ph-toggle" id="ph-update-notifications" role="switch" aria-checked="false" aria-labelledby="ph-update-notifications-label"></button>
@@ -70,6 +71,7 @@ function buildSettingsPanel(shell) {
                 <span class="ph-setting-label" id="ph-mp-smogon-label">Link do Smogon</span>
                 <button type="button" class="ph-toggle" id="ph-mp-smogon" role="switch" aria-checked="true" aria-labelledby="ph-mp-smogon-label"></button>
             </div>
+            <div class="ph-setting-row"><span class="ph-setting-label" id="ph-mp-stats-label">Mostrar status com IVs</span><button type="button" class="ph-toggle" id="ph-mp-stats" role="switch" aria-checked="false" aria-labelledby="ph-mp-stats-label"></button></div>
             <div class="ph-subhead">BATALHA</div>
             <div class="ph-setting-row">
                 <span class="ph-setting-label" id="ph-bt-stats-label">IVs / Stats</span>
@@ -99,6 +101,8 @@ function buildSettingsPanel(shell) {
                 <span class="ph-setting-label" id="ph-bt-smogon-label">Link do Smogon</span>
                 <button type="button" class="ph-toggle" id="ph-bt-smogon" role="switch" aria-checked="true" aria-labelledby="ph-bt-smogon-label"></button>
             </div>
+            <div class="ph-set-head">LEILÃO</div>
+            <div class="ph-setting-row" data-tip="Autoriza a extensão a reutilizar temporariamente sua sessão. A credencial não é salva."><span class="ph-setting-label" id="ph-auction-requests-label">Permitir acesso ao leilão</span><button type="button" class="ph-toggle" id="ph-auction-requests" role="switch" aria-checked="false" aria-labelledby="ph-auction-requests-label"></button></div>
             <div class="ph-set-head">ATALHOS</div>
             <div class="ph-shortcut-grid" id="ph-shortcut-grid"></div>
             <p class="ph-shortcut-error" id="ph-shortcut-error"></p>
@@ -528,6 +532,10 @@ function buildSettingsPanel(shell) {
         });
 
         PokemonHelperStorage.getUiPreferences().then((prefs) => {
+            bindPrefToggle('ph-theme', prefs.theme === 'light', (enabled) =>
+                PokemonHelperStorage.setUiPreferences({ theme:enabled ? 'light' : 'dark' }));
+            bindPrefToggle('ph-auction-requests', prefs.auctionRequestsEnabled,
+                (auctionRequestsEnabled) => PokemonHelperStorage.setUiPreferences({ auctionRequestsEnabled }));
             bindCycle('ph-start-view', [
                 { value: 'last', label: 'ÚLTIMA USADA' },
                 { value: 'battle', label: 'ENCONTRO' },
@@ -568,6 +576,8 @@ function buildSettingsPanel(shell) {
                 (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { expandPokemonByDefault: v } } }));
             bindPrefToggle('ph-mp-smogon', prefs.screens.myPokemons.showSmogonLink,
                 (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { showSmogonLink: v } } }));
+            bindPrefToggle('ph-mp-stats', prefs.screens.myPokemons.showStatsWithIvs,
+                (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { showStatsWithIvs: v } } }));
 
             const battleToggles = [
                 ['ph-bt-stats', 'showIvs'], ['ph-bt-weak', 'showWeaknesses'],

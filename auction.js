@@ -114,6 +114,14 @@
         paintSentinel();
     }
 
+    function showDisabled() {
+        state.authenticated = false; state.loading = false; state.activeRequest = null;
+        byId('sell-toolbar').hidden = true; byId('sell-review').hidden = true;
+        byId('auction-content').innerHTML = '<p class="empty">Para usar o Leilão, ative “Permitir acesso ao leilão” nas Configurações.<br><button type="button" class="px-btn" id="auction-open-settings">ABRIR CONFIGURAÇÕES</button></p>';
+        byId('summary').textContent = 'ACESSO AO LEILÃO DESATIVADO';
+        byId('expand-all-pokemon').disabled = true; paintSentinel();
+    }
+
     function requestSellables() {
         if (!state.authenticated || state.sellRequestId) return;
         const requestId = `sellables-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -186,6 +194,7 @@
     }
 
     function applyBootstrap(data) {
+        if (data?.status === 'disabled') { showDisabled(); return; }
         state.authenticated = data?.status === 'ready';
         if (!state.authenticated) { showWaiting(); return; }
         if (data?.params) {
@@ -783,6 +792,12 @@
         if (changes[PokemonHelperStorage.KEYS.uiPreferences]) PokemonHelperStorage.getUiPreferences().then((prefs) => {
             evaluationPreferences = prefs.evaluation; evaluationCache.clear(); render();
         });
+    });
+    window.addEventListener('message', (event) => {
+        if (event.source === window.parent && event.data?.type === 'auction-permission-changed') requestBootstrap();
+    });
+    byId('auction-content').addEventListener('click', (event) => {
+        if (event.target.closest('#auction-open-settings')) window.parent.postMessage({ type:'auction-open-settings' }, '*');
     });
     setupOptions();
     requestBootstrap();
