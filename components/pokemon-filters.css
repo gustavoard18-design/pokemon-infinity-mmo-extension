@@ -5,10 +5,20 @@
 }
 
 .pokemon-filter-grid,
+.pokemon-filter-summary-grid,
 .nature-effect-fields {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 10px;
+}
+
+.pokemon-filter-summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 0 18px;
+}
+
+.pokemon-filter-section[hidden] {
+    display: none;
 }
 
 .filter-field {
@@ -288,6 +298,10 @@
 }
 
 @media (max-width: 520px) {
+    .pokemon-filter-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
     .iv-filter-grid {
         grid-template-columns: repeat(3, minmax(58px, 1fr));
     }

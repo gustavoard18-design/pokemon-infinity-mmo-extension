@@ -4,6 +4,12 @@ const PokemonFilters = (() => {
     const EFFECT_STATS = ['ATK', 'DEF', 'SPA', 'SPD', 'SPE'];
     const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
 
+    function setAbilitySectionExpanded(section, toggle, expanded) {
+        section.hidden = !expanded;
+        toggle.checked = expanded;
+        toggle.setAttribute('aria-expanded', String(expanded));
+    }
+
     function defaultValues() {
         return {
             removeGroups: false,
@@ -35,6 +41,11 @@ const PokemonFilters = (() => {
                     <span>Remover caixas</span>
                 </label>
 
+                <label class="filter-field filter-field--checkbox filter-toggle-control">
+                    <input type="checkbox" id="filter-toggle-abilities" aria-controls="filter-ability-section" aria-expanded="false">
+                    <span>Filtros de Habilidade</span>
+                </label>
+
                 <label class="filter-field">
                     <span>Ordenar por</span>
                     <select id="filter-sort-by" class="pxl-input">
@@ -57,19 +68,21 @@ const PokemonFilters = (() => {
                 </label>
             </div>
 
-            <fieldset class="pokemon-filter-section">
-                <legend>Filtros rápidos</legend>
-                <div class="filter-checks">
-                    <label class="filter-field--checkbox"><input type="checkbox" id="filter-shiny"> <span>Somente Shiny</span></label>
-                    <label class="filter-field--checkbox"><input type="checkbox" id="filter-item"> <span>Somente com item</span></label>
-                </div>
-            </fieldset>
+            <div class="pokemon-filter-summary-grid">
+                <fieldset class="pokemon-filter-section">
+                    <legend>Filtros rápidos</legend>
+                    <div class="filter-checks">
+                        <label class="filter-field--checkbox"><input type="checkbox" id="filter-shiny"> <span>Somente Shiny</span></label>
+                        <label class="filter-field--checkbox"><input type="checkbox" id="filter-item"> <span>Somente com item</span></label>
+                    </div>
+                </fieldset>
 
-            <fieldset class="pokemon-filter-section" id="filter-evaluation-section">
-                <legend>Avaliação</legend>
-                <div class="filter-checks">${['Ruim','Regular','Bom','Muito bom','Excelente'].map((label) => `<label class="filter-field--checkbox"><input type="checkbox" data-rating-label="${label}"> <span>${label}</span></label>`).join('')}</div>
-            </fieldset>
-            <fieldset class="pokemon-filter-section"><legend>Habilidades</legend><label class="filter-field"><span>Selecione uma ou mais</span><select id="filter-abilities" class="pxl-input" multiple size="5">${normalizeAbilityOptions(options.abilities).map((ability) => `<option value="${escapeHtml(ability.slug)}">${escapeHtml(ability.label)}</option>`).join('')}</select></label><p class="filter-help">As habilidades selecionadas combinam entre si por OU.</p></fieldset>
+                <fieldset class="pokemon-filter-section" id="filter-evaluation-section">
+                    <legend>Avaliação</legend>
+                    <div class="filter-checks">${['Ruim','Regular','Bom','Muito bom','Excelente'].map((label) => `<label class="filter-field--checkbox"><input type="checkbox" data-rating-label="${label}"> <span>${label}</span></label>`).join('')}</div>
+                </fieldset>
+            </div>
+            <fieldset class="pokemon-filter-section" id="filter-ability-section" hidden><legend>Habilidades</legend><label class="filter-field"><span>Selecione uma ou mais</span><select id="filter-abilities" class="pxl-input" multiple size="5">${normalizeAbilityOptions(options.abilities).map((ability) => `<option value="${escapeHtml(ability.slug)}">${escapeHtml(ability.label)}</option>`).join('')}</select></label><p class="filter-help">Use Ctrl para selecionar opções individuais, Shift para selecionar um intervalo e o scroll para percorrer. As habilidades selecionadas combinam entre si por OU.</p></fieldset>
 
             <fieldset class="pokemon-filter-section">
                 <legend>Tipos</legend>
@@ -144,6 +157,8 @@ const PokemonFilters = (() => {
         const increaseSelect = byId('filter-nature-increase');
         const decreaseSelect = byId('filter-nature-decrease');
         const abilitiesSelect = byId('filter-abilities');
+        const abilitiesToggle = byId('filter-toggle-abilities');
+        const abilitiesSection = byId('filter-ability-section');
         function setAbilities(items = []) {
             const selected = new Set([...abilitiesSelect.selectedOptions].map((option) => option.value));
             abilitiesSelect.innerHTML = normalizeAbilityOptions(items).map((ability) => `<option value="${escapeHtml(ability.slug)}"${selected.has(ability.slug) ? ' selected' : ''}>${escapeHtml(ability.label)}</option>`).join('');
@@ -152,6 +167,8 @@ const PokemonFilters = (() => {
         function syncSortDirection() {
             directionField.hidden = !['level', 'ivPercent', 'evaluationScore'].includes(sortBy.value);
         }
+        abilitiesToggle.addEventListener('change', () => setAbilitySectionExpanded(abilitiesSection, abilitiesToggle, abilitiesToggle.checked));
+        setAbilitySectionExpanded(abilitiesSection, abilitiesToggle, false);
 
         function syncTypeHelp() {
             typeHelp.textContent = typeMode.value === 'all'
@@ -313,6 +330,6 @@ const PokemonFilters = (() => {
         });
         return [...bySlug.values()].sort((a, b) => a.label.localeCompare(b.label));
     };
-    return Object.freeze({ mount, defaultValues, normalizeAbilitySlug, normalizeAbilityOptions });
+    return Object.freeze({ mount, defaultValues, normalizeAbilitySlug, normalizeAbilityOptions, setAbilitySectionExpanded });
 })();
 globalThis.PokemonFilters = PokemonFilters;

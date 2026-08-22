@@ -51,6 +51,19 @@ test('habilidades são normalizadas e deduplicadas pelo slug', () => {
     ]);
 });
 
+test('toggle de habilidades altera só a visibilidade e preserva a seleção', () => {
+    const { PokemonFilters: filters } = load('components/pokemon-filters.js');
+    const section = { hidden:false, querySelectorAll:() => [{ selected:true }, { selected:false }] };
+    const toggle = { checked:false, attributes:{}, setAttribute(name, value) { this.attributes[name] = value; } };
+    filters.setAbilitySectionExpanded(section, toggle, false);
+    assert.equal(section.hidden, true);
+    assert.equal(toggle.attributes['aria-expanded'], 'false');
+    assert.deepEqual(section.querySelectorAll().map((option) => option.selected), [true, false]);
+    filters.setAbilitySectionExpanded(section, toggle, true);
+    assert.equal(section.hidden, false);
+    assert.equal(toggle.attributes['aria-expanded'], 'true');
+});
+
 test('grade compartilhada mostra status somente quando solicitado', () => {
     const { PokemonCard: card } = load('components/pokemon-card.js', { PokemonEvaluation:{} });
     const model = { ivs:{ hp:31,atk:1,def:2,spa:3,spd:4,spe:5 }, stats:{ hp:120,atk:21,def:22,spa:23,spd:24,spe:25 } };
