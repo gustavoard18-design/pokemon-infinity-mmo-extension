@@ -21,6 +21,13 @@ function buildHeaderButtons(header, items, collapseItem, maximizeItem = { tip: '
     spacer.className = 'ph-spacer';
     header.appendChild(spacer);
 
+    const lockBtn = document.createElement('button');
+    lockBtn.className = 'ph-icon-btn ph-lock-btn';
+    lockBtn.dataset.tip = 'Travar posição';
+    lockBtn.setAttribute('aria-pressed', 'false');
+    lockBtn.textContent = '◇';
+    header.appendChild(lockBtn);
+
     const maximizeBtn = document.createElement('button');
     maximizeBtn.className = 'ph-icon-btn ph-maximize-btn';
     maximizeBtn.dataset.tip = maximizeItem.tip;
@@ -33,7 +40,7 @@ function buildHeaderButtons(header, items, collapseItem, maximizeItem = { tip: '
     collapseBtn.textContent = '_';
     header.appendChild(collapseBtn);
 
-    return { collapseBtn, maximizeBtn };
+    return { collapseBtn, maximizeBtn, lockBtn };
 }
 
 // repinta os ícones conforme a view ativa (chamado por setActiveView)

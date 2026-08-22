@@ -141,6 +141,9 @@ data/extension-storage.js → components/pixel-icon.js
 |---|---|
 | `pixel-icon.js` | Ícones pixel-art 7×7 do design system (bitmap via `box-shadow`) e contraste automático de texto sobre cores de tipo |
 | `panel-zoom.js` | Fator de zoom do conteúdo do painel (`PokemonHelperZoom`): escada de degraus, snap, persistência em `panelZoom` e notificação por `subscribe`. Nas páginas da extensão aplica `body { zoom }` sozinho; no content script só distribui o fator, para nunca tocar na página do jogo |
+| `theme.js` | Normaliza e aplica `dark|light` somente no shell/iframes da extensão; nunca marca o documento do jogo |
+| `panel-position.js` | Helper puro que limita `top/right` e mantém o cabeçalho recuperável no viewport |
+| `shiny-alert.js` | Estado visual por batalha/oponente para anunciar shiny uma única vez por entrada |
 | `tooltip.js` | Tooltip global por delegação de eventos (`data-tip`), respeita a preferência `tooltipsEnabled` |
 | `header-buttons.js` | Barra de abas do overlay (encontro / calculadora / meus pokémons / config + expandir + minimizar) |
 | `shortcut-utils.js` | Normalização e exibição de combinações de atalho (formato canônico `ctrl+shift+e`, `t`, `escape`) |
@@ -212,6 +215,12 @@ do payload, não pela URL exata**:
   `state.over` para decidir o que mostrar).
 
 ### Bridge de consulta do leilão
+
+O bridge só captura/reutiliza `Authorization` quando a preferência booleana
+`auctionRequestsEnabled` está ativa. A preferência é persistida, a credencial
+não: ela permanece exclusivamente no MAIN world e é apagada ao desativar ou em
+`401/403`. Desativado, `bootstrap` responde `disabled` sem rede e todas as ações
+do iframe são recusadas antes de `fetch`.
 
 `auction.html` roda na origem da extensão e não recebe credenciais. Ele não faz
 request ao carregar: mostra um estado de espera até o próprio jogo consultar

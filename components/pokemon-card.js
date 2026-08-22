@@ -29,14 +29,16 @@ var PokemonCard = globalThis.PokemonCard || (() => {
 
     // mesma leitura da grade de IVs do Encontro (battle.js): barra proporcional
     // a iv/31 na cor da faixa, com o número logo abaixo
-    function ivGrid(viewModel) {
+    function ivGrid(viewModel, options = {}) {
         return `<div class="pokemon-iv-grid">${STAT_KEYS.map((stat) => {
             const iv = Math.min(Math.max(Number(viewModel.ivs?.[stat] ?? 0), 0), 31);
             const color = ivStatColor(iv);
+            const statValue = Number(viewModel.stats?.[stat]);
+            const statHtml = options.showStats && Number.isFinite(statValue) ? `<span class="pokemon-stat">${statValue}</span>` : '';
             return `<div class="pokemon-iv" data-tip="${stat.toUpperCase()} — IV ${iv}/31">
                 <span class="k">${stat.toUpperCase()}</span>
                 <span class="px-bar"><span class="px-bar-fill" style="width:${Math.round(iv / 31 * 100)}%;background:${color}"></span></span>
-                <span class="v" style="color:${color}">${iv}</span>
+                <span class="v" style="color:${color}">${iv}</span>${statHtml}
             </div>`;
         }).join('')}</div>`;
     }

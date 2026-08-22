@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="components/nature-effect.css">
     <link rel="stylesheet" href="components/update-notice.css">
     <link rel="stylesheet" href="components/type-tag.css">
+    <link rel="stylesheet" href="components/pokemon-card.css">
     <style>
         * { box-sizing: border-box; }
         body {
@@ -95,6 +96,11 @@
         .gotcha { padding: 12px; text-align: center; }
         .gotcha-badge { display: inline-block; padding: 9px 14px; background: var(--px-good); color: var(--px-on-dark); font-family: var(--px-font-mono); }
         .empty { color: var(--px-text-dim); }
+        .shiny-alert { border:2px solid var(--px-accent); background:var(--px-bg-card); color:var(--px-accent); padding:8px; text-align:center; font-family:var(--px-font-mono); font-size:13px; letter-spacing:1px; }
+        .enc-screen--shiny { outline:2px solid var(--px-accent); outline-offset:3px; }
+        .enc-screen--shiny-entering { animation:shiny-pulse .55s steps(2,end) 3; }
+        @keyframes shiny-pulse { 50% { filter:brightness(1.65); } }
+        @media (prefers-reduced-motion:reduce) { .enc-screen--shiny-entering { animation:none; } }
     </style>
 </head>
 
@@ -103,6 +109,7 @@
         <p class="empty">Nenhum encontro capturado ainda. Entre em uma batalha selvagem.</p>
     </div>
     <script src="data/extension-storage.js"></script>
+    <script src="components/theme.js"></script>
     <script src="components/panel-zoom.js"></script>
     <script src="data/constants.js"></script>
     <script src="components/tooltip.js"></script>
@@ -110,6 +117,8 @@
     <script src="components/nature-effect.js"></script>
     <script src="data/pokemon-role-rules.js"></script>
     <script src="components/pokemon-evaluation.js"></script>
+    <script src="components/pokemon-card.js"></script>
+    <script src="components/shiny-alert.js"></script>
     <script src="components/ability-info.js"></script>
     <script src="components/iv-evaluation.js"></script>
     <script src="components/catch-rate.js"></script>

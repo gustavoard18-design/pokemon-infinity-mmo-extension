@@ -126,6 +126,10 @@ overlay quando houver uma versão mais nova disponível na branch escolhida.
 
 ### Encontro
 
+Encontros shiny recebem uma faixa textual `SHINY ENCONTRADO`, selo no nome e
+destaque visual temporário. O aviso continua visível após a animação e respeita
+a preferência de movimento reduzido do sistema.
+
 Mostrada assim que há um oponente capturado numa batalha.
 
 - Sprite do oponente, nome, nível e símbolo de gênero (♂/♀).
@@ -213,6 +217,10 @@ Mostrada assim que há um oponente capturado numa batalha.
 
 ### Meus Pokémon
 
+Os filtros avançados incluem Avaliação e seleção múltipla de Habilidades. Em
+Configurações, “Mostrar status com IVs” alterna entre a grade compacta somente
+com IVs e a leitura combinada de IV/status, usando o mesmo componente do Encontro.
+
 - **Meu time** (até 6) e uma seção por caixa do PC, cada uma colapsável.
 - Busca por nome em tempo real (some quando os filtros avançados estão
   ligados, que passam a exigir o botão **Aplicar**).
@@ -285,6 +293,11 @@ O formato é este, e a importação também aceita um JSON cru com apenas
 
 ### Leilão
 
+Por padrão, a extensão não reutiliza a sessão do jogo para fazer requests do
+leilão. Ative **Permitir acesso ao leilão** nas Configurações e abra o leilão
+nativo uma vez para conectar. A credencial fica somente em memória e é apagada
+ao desativar a permissão ou após `401/403`.
+
 Uma leitura mais confortável do leilão do jogo, com os mesmos cards de Meus
 Pokémon. A aba é **passiva**: ela não consulta nada sozinha — espera você abrir
 o leilão dentro do jogo e reaproveita essa consulta. Até lá mostra que está
@@ -311,6 +324,10 @@ explícita sua, na sua sessão do jogo.
 > jogadores reais, e o print vai para um repositório público.
 
 ## Configurações
+
+Além das opções por tela, o painel oferece tema claro e trava de posição. O
+cabeçalho e a barra inferior movem a janela quando destravada; a posição é
+automaticamente limitada para manter os controles acessíveis.
 
 Cinco blocos, nesta ordem na tela.
 

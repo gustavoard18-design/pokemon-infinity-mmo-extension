@@ -9,6 +9,18 @@
     window.__pkmnHelperCharacterUrlRe = /\/character/;
 
     window.__pkmnHelperAuctionUrlRe = /\/api\/auction\//;
+    if (typeof window.__pkmnHelperAuctionRequestsEnabled !== 'boolean') window.__pkmnHelperAuctionRequestsEnabled = false;
+    if (!window.__pkmnHelperAuctionPermissionListenerAdded) {
+        window.__pkmnHelperAuctionPermissionListenerAdded = true;
+        window.addEventListener('pkmn-helper-auction-permission', (event) => {
+            window.__pkmnHelperAuctionRequestsEnabled = event.detail?.enabled === true;
+            if (!window.__pkmnHelperAuctionRequestsEnabled) {
+                delete window.__pkmnHelperAuctionAuth;
+                delete window.__pkmnHelperAuctionBootstrap;
+            }
+            window.__pkmnHelperPublishAuctionBootstrap?.(null);
+        });
+    }
 
     // Bridge estreito do leilão. A autenticação nasce exclusivamente de uma
     // request real do jogo e permanece no MAIN world, em memória.
@@ -103,7 +115,7 @@
         window.__pkmnHelperPublishAuctionBootstrap = (browse, params = null) => {
             if (browse) window.__pkmnHelperAuctionBootstrap = { tab: params?.tab || 'browse', params, browse };
             dispatchResult({ requestId: null, action: 'bootstrap', ok: true, data: {
-                status: window.__pkmnHelperAuctionAuth ? 'ready' : 'waiting',
+                status: !window.__pkmnHelperAuctionRequestsEnabled ? 'disabled' : window.__pkmnHelperAuctionAuth ? 'ready' : 'waiting',
                 tab: window.__pkmnHelperAuctionBootstrap?.tab || null,
                 params: window.__pkmnHelperAuctionBootstrap?.params || null,
                 browse: window.__pkmnHelperAuctionBootstrap?.browse || null
@@ -115,11 +127,16 @@
             if (!detail || !['bootstrap', 'browse', 'favorite', 'sellables', 'list', 'cancel'].includes(detail.action) || typeof detail.requestId !== 'string') return;
             if (detail.action === 'bootstrap') {
                 dispatchResult({ requestId: detail.requestId, action: 'bootstrap', ok: true, data: {
-                    status: window.__pkmnHelperAuctionAuth ? 'ready' : 'waiting',
+                    status: !window.__pkmnHelperAuctionRequestsEnabled ? 'disabled' : window.__pkmnHelperAuctionAuth ? 'ready' : 'waiting',
                     tab: window.__pkmnHelperAuctionBootstrap?.tab || null,
                     params: window.__pkmnHelperAuctionBootstrap?.params || null,
                     browse: window.__pkmnHelperAuctionBootstrap?.browse || null
                 } });
+                return;
+            }
+            if (!window.__pkmnHelperAuctionRequestsEnabled) {
+                dispatchResult({ requestId: detail.requestId, action: detail.action, ok:false,
+                    error:{ code:'auction_requests_disabled', message:'Ative “Permitir acesso ao leilão” nas Configurações.' } });
                 return;
             }
             if (!window.__pkmnHelperAuctionAuth) {
@@ -324,7 +341,7 @@
                 const requestHeaders = input && input.headers ? new Headers(input.headers) : new Headers();
                 const initHeaders = args[1]?.headers ? new Headers(args[1].headers) : null;
                 const authorization = initHeaders?.get('Authorization') || requestHeaders.get('Authorization');
-                if (authorization && /^Bearer\s+\S+$/i.test(authorization)) {
+                if (window.__pkmnHelperAuctionRequestsEnabled && authorization && /^Bearer\s+\S+$/i.test(authorization)) {
                     window.__pkmnHelperAuctionAuth = authorization;
                 }
             } catch (_) {
