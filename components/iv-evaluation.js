@@ -1,4 +1,9 @@
-var PokemonIvEvaluation = globalThis.PokemonIvEvaluation || (() => {
+var PokemonIvEvaluation = globalThis.PokemonIvEvaluation || (typeof PokemonEvaluation !== 'undefined' ? {
+    evaluate: (pokemon, profile) => PokemonEvaluation.evaluate(pokemon, profile),
+    html: (pokemon, profile) => PokemonEvaluation.ratingHTML(PokemonEvaluation.evaluate(pokemon, profile)),
+    roleFor: (pokemon, profile) => PokemonEvaluation.evaluate(pokemon, profile).role.label,
+    labelHTML: () => 'Avaliação [BETA]'
+} : (() => {
     const STATS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
     const TOOLTIP = 'Avalia Atributos, IVs e Natureza para classificar o Pokemon';
     const clampIv = (value) => Math.min(31, Math.max(0, Number(value) || 0));
@@ -63,6 +68,6 @@ var PokemonIvEvaluation = globalThis.PokemonIvEvaluation || (() => {
     }
 
     return Object.freeze({ evaluate, html, labelHTML, roleFor });
-})();
+})());
 globalThis.PokemonIvEvaluation = PokemonIvEvaluation;
-globalThis.PokemonEvaluation = PokemonIvEvaluation;
+globalThis.PokemonEvaluation = globalThis.PokemonEvaluation || PokemonIvEvaluation;

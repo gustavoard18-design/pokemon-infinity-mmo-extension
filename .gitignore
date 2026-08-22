@@ -1,3 +1,4 @@
 dist/
 .superpowers/
 .claude/worktrees/
+.worktrees/

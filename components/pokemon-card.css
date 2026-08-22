@@ -18,6 +18,7 @@
 .detail-key { font-family: var(--px-font-mono); font-size: 8px; color: var(--px-text-dim); width: 62px; flex: 0 0 auto; text-transform: uppercase; }
 .detail-val { font-size: 12px; color: var(--px-text-val); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .detail-val[data-ability] { overflow: visible; white-space: normal; }
+.detail-row--evolution .detail-val { overflow: visible; text-overflow: clip; white-space: normal; }
 .nat-mod { font-family: var(--px-font-mono); font-size: 8px; padding: 2px 4px; background: var(--px-bg-btn2); }
 .pokemon-iv-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
 .pokemon-iv { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--px-bg-btn2); padding: 3px 0; }

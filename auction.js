@@ -18,6 +18,10 @@
     const ivPercent = (ivs) => Math.round(STAT_KEYS.reduce((sum, key) => sum + (number(ivs?.[key]) || 0), 0) / 186 * 100);
     let searchTimer = null;
     let searchComposing = false;
+    let evaluationPreferences = Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES.evaluation);
+    let pokedexProfiles = new Map();
+    const evaluationCache = PokemonEvaluation.createCache();
+    const speciesKey = (value) => String(value || '').trim().toLowerCase().replace(/[ _]+/g, '-');
 
     function setupOptions() {
         TYPES.forEach((key) => byId('type').insertAdjacentHTML('beforeend', `<option value="${Object.keys(TYPE_MAPPER).find((id) => TYPE_MAPPER[id] === key)}">${escapeHtml(LABELS[key])}</option>`));
@@ -214,6 +218,9 @@
         const species = String(mon.species || '').toLowerCase();
         const pokemonId = POKEMON_NAME_TO_ID[species] || null;
         const genderKey = String(mon.gender || '').toUpperCase();
+        const evaluation = evaluationPreferences.enabled
+            ? evaluationCache.evaluate({ id:listing.id, ...mon }, pokedexProfiles.get(speciesKey(mon.species || mon.name)))
+            : null;
         return {
             key: `auction:${listing.id}`, location: 'auction', name: mon.name || species || 'Desconhecido',
             iconUrl: pokemonId ? `${SPRITES}${pokemonId}.svg` : null,
@@ -222,7 +229,7 @@
             natureName: mon.nature || '—', ability: mon.ability || '', heldItem: formatText(mon.heldItem),
             typeKeys: [...new Set((mon.types || []).map((id) => TYPE_MAPPER[id]).filter(Boolean))],
             ivs: Object.fromEntries(STAT_KEYS.map((key) => [key, number(mon.ivs?.[key]) || 0])),
-            ivPercent: ivPercent(mon.ivs)
+            ivPercent: ivPercent(mon.ivs), evaluation
         };
     }
 
@@ -236,7 +243,7 @@
     function detailRows(listing, viewModel) {
         const auctionRows = `<div class="detail-row"><span class="detail-key">Vendedor</span><span class="detail-val">${escapeHtml(listing.seller_name || 'Desconhecido')}</span></div>
             <div class="detail-row"><span class="detail-key">Expira em</span><span class="detail-val">${remaining(listing.expires_at)}</span></div>`;
-        return PokemonCard.detailRows(viewModel, { beforeRows: auctionRows }) + PokemonCard.ivGrid(viewModel);
+        return PokemonCard.detailRows(viewModel, { beforeRows: auctionRows, afterNatureRows:PokemonCard.natureFitRow(viewModel, evaluationPreferences), afterRows:PokemonCard.evaluationRows(viewModel, evaluationPreferences) }) + PokemonCard.ivGrid(viewModel);
     }
 
     function card(listing) {
@@ -307,7 +314,7 @@
             className: selected ? 'sell-selected' : '',
             badgesHtml: badges,
             metaHtml: meta,
-            detailsHtml: PokemonCard.detailRows(viewModel) + PokemonCard.ivGrid(viewModel)
+            detailsHtml: PokemonCard.detailRows(viewModel, { afterNatureRows:PokemonCard.natureFitRow(viewModel, evaluationPreferences), afterRows:PokemonCard.evaluationRows(viewModel, evaluationPreferences) }) + PokemonCard.ivGrid(viewModel)
         });
     }
 
@@ -323,7 +330,7 @@
             className: 'sell-review-card',
             badgesHtml: badges,
             rightTopHtml: `<span class="auction-price">● ${money(price)}</span><span class="pokemon-level">Lv. ${viewModel.level || '—'}</span>`,
-            detailsHtml: PokemonCard.detailRows(viewModel) + PokemonCard.ivGrid(viewModel)
+            detailsHtml: PokemonCard.detailRows(viewModel, { afterNatureRows:PokemonCard.natureFitRow(viewModel, evaluationPreferences), afterRows:PokemonCard.evaluationRows(viewModel, evaluationPreferences) }) + PokemonCard.ivGrid(viewModel)
         });
     }
 
@@ -762,6 +769,21 @@
         event.returnValue = '';
     });
 
+    PokemonHelperStorage.getUiPreferences().then((prefs) => { evaluationPreferences = prefs.evaluation; evaluationCache.clear(); render(); }).catch(() => {});
+    PokemonHelperStorage.getPokedex().then((cached) => {
+        pokedexProfiles = new Map((cached.items || []).map((item) => [speciesKey(item.slug || item.name), item.evaluationProfile]));
+        evaluationCache.clear(); render();
+    }).catch(() => {});
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area !== 'local') return;
+        if (changes[PokemonHelperStorage.KEYS.pokedex]) {
+            pokedexProfiles = new Map((changes[PokemonHelperStorage.KEYS.pokedex].newValue?.items || []).map((item) => [speciesKey(item.slug || item.name), item.evaluationProfile]));
+            evaluationCache.clear(); render();
+        }
+        if (changes[PokemonHelperStorage.KEYS.uiPreferences]) PokemonHelperStorage.getUiPreferences().then((prefs) => {
+            evaluationPreferences = prefs.evaluation; evaluationCache.clear(); render();
+        });
+    });
     setupOptions();
     requestBootstrap();
 })();
