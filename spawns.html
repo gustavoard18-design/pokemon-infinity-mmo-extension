@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neste mapa</title>
+    <link rel="stylesheet" href="pixel-theme.css">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 9px 10px 14px; background: var(--px-bg); color: var(--px-text); font-family: var(--px-font-body); font-size: 12px; }
+        .sp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .sp-title { font-family: var(--px-font-mono); font-size: 12px; font-weight: 800; color: var(--px-accent); letter-spacing: .5px; }
+        .sp-count { margin-left: auto; font-family: var(--px-font-mono); font-size: 12px; font-weight: 800; color: var(--px-text-hi); }
+        .sp-group { display: flex; align-items: center; gap: 6px; font-family: var(--px-font-mono); font-size: 10px; font-weight: 800; color: var(--px-text-dim); text-transform: uppercase; letter-spacing: .5px; margin: 10px 0 4px; }
+        .sp-group:first-child { margin-top: 2px; }
+        .sp-group-emoji { font-size: 13px; }
+        .sp-group-n { margin-left: auto; background: var(--px-bg-cell, #eee); border: 1px solid var(--px-border-panel, #1a1a1a); border-radius: 8px; padding: 0 6px; color: var(--px-text-hi); }
+        .sp-list { display: flex; flex-direction: column; border: 2px solid var(--px-border-panel, #1a1a1a); border-radius: 6px; overflow: hidden; }
+        .sp-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-bottom: 1px solid var(--px-line, #e6e0cf); }
+        .sp-row:last-child { border-bottom: none; }
+        .sp-row.caught { background: var(--px-bg-caught, rgba(79,168,74,.12)); }
+        .sp-spr { width: 34px; height: 34px; flex: 0 0 auto; image-rendering: pixelated; object-fit: contain; }
+        .sp-nm { font-family: var(--px-font-mono); font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--px-text-hi); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sp-ok { color: var(--px-good, #4fa84a); }
+        .sp-meta { font-family: var(--px-font-mono); font-size: 10px; color: var(--px-text-dim); flex: 0 0 auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+        .sp-time { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 8px; white-space: nowrap; }
+        .sp-time.day { background: #fde6b0; color: #7a5b00; }
+        .sp-time.night { background: #2e3350; color: #cdd6ff; }
+        .sp-time.always { background: var(--px-bg-cell, #eee); color: var(--px-text-dim); }
+        .sp-lv { color: var(--px-text-dim); }
+        .sp-wait { color: var(--px-text-dim); text-align: center; padding: 24px 10px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="sp-head">
+        <span class="sp-title">🌿 NESTE MAPA APARECEM</span>
+        <span class="sp-count" id="sp-count"></span>
+    </div>
+    <div id="sp-body"><div class="sp-wait">Aguardando o mapa…</div></div>
+
+    <script src="data/extension-storage.js"></script>
+    <script src="components/panel-interaction-forwarder.js"></script>
+    <script src="spawns.js"></script>
+</body>
+</html>

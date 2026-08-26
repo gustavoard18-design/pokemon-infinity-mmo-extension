@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farm de dinheiro</title>
+    <link rel="stylesheet" href="pixel-theme.css">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 9px 10px 14px; background: var(--px-bg); color: var(--px-text); font-family: var(--px-font-body); font-size: 12px; }
+        .fm-head { font-family: var(--px-font-mono); font-size: 12px; font-weight: 800; color: var(--px-accent); letter-spacing: .5px; margin-bottom: 6px; }
+        .fm-timer { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; padding: 5px 8px; background: var(--px-bg-bar, #f2efe4); border: 2px solid var(--px-border-panel, #1a1a1a); border-radius: 6px; }
+        .fm-timer.ready { border-color: var(--px-good, #4fa84a); background: rgba(79,168,74,.14); animation: fmpulse 1s ease-in-out infinite; }
+        @keyframes fmpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(79,168,74,.5); } 50% { box-shadow: 0 0 0 4px rgba(79,168,74,0); } }
+        .fm-timer-emoji { font-size: 15px; }
+        .fm-timer-clock { font-family: var(--px-font-mono); font-size: 17px; font-weight: 800; color: var(--px-text-hi); font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+        .fm-timer.ready .fm-timer-clock { color: var(--px-good, #2e8b2e); }
+        .fm-timer-btn { font-family: var(--px-font-mono); font-size: 11px; font-weight: 700; padding: 4px 12px; background: var(--px-accent, #e3350d); color: #fff; border: 2px solid var(--px-border-btn, #1a1a1a); border-radius: 6px; cursor: pointer; }
+        .fm-timer-rep { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--px-text-dim); cursor: pointer; user-select: none; }
+        .fm-tools { display: grid; grid-template-columns: 1fr; gap: 5px; margin-bottom: 6px; }
+        .fm-field { display: flex; flex-direction: column; gap: 2px; }
+        .fm-field label { font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--px-text-dim); letter-spacing: .5px; }
+        .fm-field select { width: 100%; font-family: var(--px-font-body); font-size: 12px; padding: 3px 5px; background: var(--px-bg-btn, #fff); color: var(--px-text-val, #2b2820); border: 2px solid var(--px-border-btn, #1a1a1a); border-radius: 6px; }
+        .fm-summary { font-family: var(--px-font-mono); font-size: 11px; font-weight: 700; color: var(--px-text-hi); margin: 4px 0 8px; padding: 5px 8px; background: var(--px-bg-bar, #f2efe4); border: 2px solid var(--px-border-panel, #1a1a1a); border-radius: 6px; }
+        .fm-summary b { color: var(--px-accent, #e3350d); }
+        .fm-region-head { display: flex; align-items: baseline; gap: 8px; margin: 12px 0 5px; padding-bottom: 3px; border-bottom: 2px solid var(--px-border-panel, #1a1a1a); }
+        .fm-region-head:first-child { margin-top: 2px; }
+        .fm-region-name { font-family: var(--px-font-mono); font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--px-text-hi); }
+        .fm-region-tot { margin-left: auto; font-family: var(--px-font-mono); font-size: 11px; font-weight: 800; color: var(--px-accent, #e3350d); white-space: nowrap; }
+        .fm-list { display: flex; flex-direction: column; gap: 5px; }
+        .fm-map { border: 2px solid var(--px-border-panel, #1a1a1a); border-radius: 6px; overflow: hidden; }
+        .fm-map.here { border-color: var(--px-accent, #e3350d); box-shadow: 0 0 0 1px var(--px-accent, #e3350d) inset; }
+        .fm-map-head { display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer; }
+        .fm-map-head:hover { background: var(--px-bg-cell, #f4f1e4); }
+        .fm-rank { font-family: var(--px-font-mono); font-size: 11px; font-weight: 800; color: var(--px-text-dim); width: 20px; flex: 0 0 auto; }
+        .fm-map-info { flex: 1; min-width: 0; }
+        .fm-map-name { font-family: var(--px-font-mono); font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--px-text-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fm-map-sub { font-size: 10px; color: var(--px-text-dim); }
+        .fm-badge { font-size: 8px; font-weight: 700; text-transform: uppercase; padding: 1px 5px; border-radius: 8px; background: var(--px-bg-cell, #eee); color: var(--px-text-dim); border: 1px solid var(--px-line, #ddd); }
+        .fm-map-money { text-align: right; flex: 0 0 auto; margin-left: 8px; }
+        .fm-total { font-family: var(--px-font-mono); font-size: 13px; font-weight: 800; color: var(--px-good, #2e8b2e); }
+        .fm-per { font-family: var(--px-font-mono); font-size: 9px; color: var(--px-text-dim); }
+        .fm-caret { flex: 0 0 auto; color: var(--px-text-dim); font-size: 11px; width: 14px; text-align: center; }
+        .fm-trainers { display: none; border-top: 1px solid var(--px-line, #e6e0cf); }
+        .fm-map.open .fm-trainers { display: block; }
+        .fm-floor { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 8px; background: var(--px-bg-bar, #f2efe4); font-family: var(--px-font-mono); font-size: 9px; font-weight: 800; text-transform: uppercase; color: var(--px-text-dim); }
+        .fm-floor-tot { color: var(--px-good, #2e8b2e); }
+        .fm-tr { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-bottom: 1px solid var(--px-line, #f0ead8); font-size: 11px; }
+        .fm-tr:last-child { border-bottom: none; }
+        .fm-tr-nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fm-tr-cls { font-size: 9px; color: var(--px-text-dim); }
+        .fm-tr-lv { font-family: var(--px-font-mono); font-size: 9px; color: var(--px-text-dim); flex: 0 0 auto; }
+        .fm-tr-money { font-family: var(--px-font-mono); font-size: 11px; font-weight: 700; color: var(--px-good, #2e8b2e); flex: 0 0 auto; }
+        .fm-wait { color: var(--px-text-dim); text-align: center; padding: 24px 10px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="fm-head">💰 FARM DE DINHEIRO</div>
+    <div class="fm-timer" id="fm-timer">
+        <span class="fm-timer-emoji">⏰</span>
+        <span class="fm-timer-clock" id="fm-clock">15:00</span>
+        <button type="button" class="fm-timer-btn" id="fm-timer-btn">Iniciar</button>
+        <label class="fm-timer-rep"><input type="checkbox" id="fm-timer-rep"> repetir</label>
+    </div>
+    <div class="fm-tools">
+        <div class="fm-field"><label>Ordenar por</label><select id="fm-sort">
+            <option value="per">💎 Custo-benefício (¥/inimigo)</option>
+            <option value="total">Dinheiro total</option>
+            <option value="npcs">Nº de inimigos</option>
+            <option value="name">Nome (A-Z)</option>
+        </select></div>
+    </div>
+    <div class="fm-summary" id="fm-summary"></div>
+    <div id="fm-body"><div class="fm-wait">Carregando dados de treinadores…</div></div>
+
+    <script src="components/panel-interaction-forwarder.js"></script>
+    <script src="farm.js"></script>
+</body>
+</html>

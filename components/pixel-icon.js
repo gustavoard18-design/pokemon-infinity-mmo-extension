@@ -18,7 +18,13 @@ var PokemonPixelIcons = globalThis.PokemonPixelIcons || (() => {
         // barra de minimizar — Recolher pra bolha
         min:  '<rect x="5" y="14.5" width="14" height="3" rx="1.5"/>',
         // dispositivo Pokédex: lente redonda + luzes + linhas — aba Pokédex
-        dex:  '<path d="M4 3h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1zm4 3.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM14 6h5v2h-5V6zm0 3.5h5v2h-5v-2zM6 14h12v2H6v-2zm0 3.5h12v2H6v-2z"/>'
+        dex:  '<path d="M4 3h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1zm4 3.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM14 6h5v2h-5V6zm0 3.5h5v2h-5v-2zM6 14h12v2H6v-2zm0 3.5h12v2H6v-2z"/>',
+        // folha/grama — aba "Neste mapa aparecem" (spawns)
+        grass: '<path d="M12 2C7 6 4 10 4 15a8 8 0 0016 0c0-5-3-9-8-13zm0 4.2c3.2 2.8 5 5.6 5 8.8a5 5 0 01-4 4.9V11h-2v13a5 5 0 01-4-4.9c0-3.2 1.8-6 5-8.9z"/>',
+        // ilha (palmeira + solo) — aba Ilha
+        island: '<path d="M11 9c-3 0-5.5 1.2-7 3 2-.6 3.6-.4 5 .5-2 .6-3.4 2-4 4 1.4-1.4 3-2 5-1.8-1 1.4-1.4 3-1 5h4c-.4-3 .2-8.4 2-11l-.2-.2c-1 .3-2 .8-2.8 1.5.2-1.4 1-2.6 2-3.5C15.4 9.4 13.4 9 11 9zM3 20h18v2H3z"/>',
+        // moeda com cifrão — aba Farm de dinheiro
+        money: '<path d="M12 1a11 11 0 100 22 11 11 0 000-22zm.9 16.5v1.4h-1.6v-1.4c-1.5-.2-2.7-1-3-2.6l1.8-.5c.2.9.9 1.4 1.9 1.4.9 0 1.5-.4 1.5-1.1 0-.7-.6-1-2-1.4-1.7-.4-3-1-3-2.8 0-1.4 1-2.3 2.3-2.6V6.6h1.6V8c1.3.2 2.3 1 2.6 2.3l-1.8.6c-.2-.7-.7-1.2-1.6-1.2-.8 0-1.3.4-1.3 1 0 .6.6.9 1.9 1.2 1.8.4 3.1 1.1 3.1 3 0 1.4-1 2.3-2.3 2.6z"/>'
     };
     const TYPE_COLORS = {
         normal: '#9a9a80', fire: '#f0803c', water: '#4a90e2', electric: '#f5cd35',

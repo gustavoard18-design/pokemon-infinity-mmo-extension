@@ -137,6 +137,9 @@
             { icon: 'enc', tip: 'Encontro atual', view: 'battle' },
             { icon: 'team', tip: 'Meus Pokémon', view: 'myPokemons' },
             { icon: 'dex', tip: 'Pokédex (capturados)', view: 'pokedex' },
+            { icon: 'grass', tip: 'Neste mapa (selvagens)', view: 'spawns' },
+            { icon: 'island', tip: 'Ilha (postos)', view: 'island' },
+            { icon: 'money', tip: 'Farm de dinheiro', view: 'farm' },
             { icon: 'cfg', tip: 'Configurações', view: 'settings' },
         ], { tip: 'Minimizar' }, { tip: 'Expandir' });
 
@@ -165,6 +168,21 @@
         pokedexFrame.className = 'ph-frame';
         pokedexFrame.src = chrome.runtime.getURL('pokedex.html');
 
+        const spawnsFrame = document.createElement('iframe');
+        spawnsFrame.id = 'pokemon-spawns-frame';
+        spawnsFrame.className = 'ph-frame';
+        spawnsFrame.src = chrome.runtime.getURL('spawns.html');
+
+        const islandFrame = document.createElement('iframe');
+        islandFrame.id = 'pokemon-island-frame';
+        islandFrame.className = 'ph-frame';
+        islandFrame.src = chrome.runtime.getURL('island.html');
+
+        const farmFrame = document.createElement('iframe');
+        farmFrame.id = 'pokemon-farm-frame';
+        farmFrame.className = 'ph-frame';
+        farmFrame.src = chrome.runtime.getURL('farm.html');
+
         const chartFrame = document.createElement('iframe');
         chartFrame.id = 'pokemon-chart-frame';
         chartFrame.className = 'ph-frame';
@@ -183,7 +201,7 @@
         // caminho. Cada frame recebe seu próprio postMessage direto assim que
         // carrega, sem passar pela guarda, com o estado atual lido do MESMO
         // objeto `settings` que o resto do build() usa.
-        [battleFrame, myPokemonsFrame, pokedexFrame, chartFrame].forEach((frame) => {
+        [battleFrame, myPokemonsFrame, pokedexFrame, spawnsFrame, islandFrame, farmFrame, chartFrame].forEach((frame) => {
             frame.addEventListener('load', () => {
                 frame.contentWindow?.postMessage({ type: 'panel-mode', full: settings.maximized === true }, '*');
             });
@@ -194,19 +212,22 @@
         // no load dele e sempre que o atributo mudar (novo Pokémon capturado).
         const relayDex = () => {
             const raw = document.documentElement.dataset.pkmnDex;
-            if (!raw) return;
-            const frame = document.getElementById('pokemon-pokedex-frame');
-            if (!frame) return;
-            try {
-                frame.contentWindow?.postMessage({ type: 'dex-data', payload: JSON.parse(raw) }, '*');
-            } catch (_) {}
+            const payload = raw ? (() => { try { return JSON.parse(raw); } catch (_) { return {}; } })() : {};
+            // junta a chave do mapa atual (pra a aba de spawns)
+            payload.mapKey = document.documentElement.dataset.pkmnMapKey || '';
+            const msg = { type: 'dex-data', payload };
+            ['pokemon-pokedex-frame', 'pokemon-spawns-frame', 'pokemon-farm-frame'].forEach((id) => {
+                const f = document.getElementById(id);
+                try { f && f.contentWindow?.postMessage(msg, '*'); } catch (_) {}
+            });
         };
         pokedexFrame.addEventListener('load', () => { relayDex(); });
+        spawnsFrame.addEventListener('load', () => { relayDex(); });
         if (!window.__phDexObserver) {
             window.__phDexObserver = new MutationObserver(relayDex);
             try {
                 window.__phDexObserver.observe(document.documentElement, {
-                    attributes: true, attributeFilter: ['data-pkmn-dex']
+                    attributes: true, attributeFilter: ['data-pkmn-dex', 'data-pkmn-map-key']
                 });
             } catch (_) {}
         }
@@ -218,6 +239,9 @@
         body.appendChild(battleFrame);
         body.appendChild(myPokemonsFrame);
         body.appendChild(pokedexFrame);
+        body.appendChild(spawnsFrame);
+        body.appendChild(islandFrame);
+        body.appendChild(farmFrame);
         body.appendChild(chartFrame);
         body.appendChild(settingsPanel);
 
@@ -484,8 +508,10 @@
                 if (!data || typeof data !== 'object') return;
                 const battleFrame = document.getElementById('pokemon-battle-frame');
                 const myPokemonsFrame = document.getElementById('pokemon-myPokemons-frame');
+                const islandFrame = document.getElementById('pokemon-island-frame');
                 if (battleFrame) battleFrame.contentWindow.postMessage({ type: 'battle-data', payload: data }, '*');
                 if (myPokemonsFrame) myPokemonsFrame.contentWindow.postMessage({ type: 'character-data', payload: data }, '*');
+                if (islandFrame) islandFrame.contentWindow.postMessage({ type: 'character-data', payload: data }, '*');
 
                 const isCharacterPayload = !!(data.party || data.pc);
                 // sinal real de fim de luta: só usado aqui pra saber quando voltar
@@ -960,9 +986,12 @@
         const battle = container.querySelector('#pokemon-battle-frame');
         const myPokemons = container.querySelector('#pokemon-myPokemons-frame');
         const pokedex = container.querySelector('#pokemon-pokedex-frame');
+        const spawns = container.querySelector('#pokemon-spawns-frame');
+        const island = container.querySelector('#pokemon-island-frame');
+        const farm = container.querySelector('#pokemon-farm-frame');
         const chart = container.querySelector('#pokemon-chart-frame');
         const settingsPanel = container.querySelector('#pokemon-settings-panel');
-        if (!battle || !myPokemons || !pokedex || !chart || !settingsPanel) return;
+        if (!battle || !myPokemons || !pokedex || !spawns || !island || !farm || !chart || !settingsPanel) return;
 
         container.dataset.activeView = view;
         syncFullSide(container, currentSettings(container));
@@ -975,7 +1004,7 @@
         // sempre que não são a view ativa "sozinha": assim a folha de estilo
         // decide sozinha (nada de display:none preso de uma navegação anterior
         // sobrevivendo até o próximo toggle de F, que não passa por este laço).
-        [battle, myPokemons, pokedex, chart].forEach((frame) => {
+        [battle, myPokemons, pokedex, spawns, island, farm, chart].forEach((frame) => {
             const active = frame.id === `pokemon-${view}-frame`;
             const cssManaged = frame === chart || frame.classList.contains('side-active');
             frame.style.display = active ? 'block' : (cssManaged ? '' : 'none');

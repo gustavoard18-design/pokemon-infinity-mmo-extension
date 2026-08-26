@@ -165,7 +165,7 @@
         } catch (_) { return null; }
     }
 
-    let last = null, lastRect = '', lastDex = '';
+    let last = null, lastRect = '', lastDex = '', lastMapKey = '';
     const tick = () => {
         try {
             const g = findGame();
@@ -185,6 +185,11 @@
                     const toArr = (v) => (v instanceof Set ? Array.from(v) : Array.isArray(v) ? v : []);
                     const dex = JSON.stringify({ caught: toArr(gg.dexCaught), seen: toArr(gg.dexSeen) });
                     if (dex !== lastDex) { lastDex = dex; document.documentElement.dataset.pkmnDex = dex; }
+                }
+                // chave interna do mapa atual (pra listar os spawns do mapa)
+                if (gg && typeof gg.mapKey === 'string' && gg.mapKey && gg.mapKey !== lastMapKey) {
+                    lastMapKey = gg.mapKey;
+                    document.documentElement.dataset.pkmnMapKey = gg.mapKey;
                 }
             } catch (_) {}
             const nameEl = document.querySelector('#pokemon-type-matchup-overlay .ph-map-name');

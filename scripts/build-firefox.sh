@@ -21,6 +21,12 @@ FILES=(
   myPokemons.js
   pokedex.html
   pokedex.js
+  spawns.html
+  spawns.js
+  island.html
+  island.js
+  farm.html
+  farm.js
   pixel-theme.css
 )
 

@@ -1,14 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Infinity Dex Helper",
-  "version": "1.0.1",
+  "version": "1.7.2",
   "description": "Companion do InfinityMMO: dados de batalha ao vivo, melhor jogada e dano estimado, Pokédex e Meus Pokémon.",
   "action": {},
   "background": {
     "scripts": ["data/extension-storage.js", "background.js"]
   },
   "permissions": ["activeTab", "alarms", "scripting", "storage"],
-  "host_permissions": ["*://infinitymmo.net/*", "*://*.infinitymmo.net/*", "https://raw.githubusercontent.com/gustavoard18-design/infinity-dex-helper/*"],
+  "host_permissions": ["*://infinitymmo.net/*", "*://*.infinitymmo.net/*", "https://raw.githubusercontent.com/gustavoard18-design/pokemon-infinity-mmo-extension/*"],
   "content_scripts": [
     {
       "matches": ["*://infinitymmo.net/*", "*://*.infinitymmo.net/*"],
@@ -20,7 +20,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["battle.html", "battle.js", "chart.html", "chart.js", "pixel-theme.css", "myPokemons.html", "myPokemons.js", "pokedex.html", "pokedex.js", "components/*.js", "components/*.css", "data/*.js", "icons/types/*.png", "icons/types/colored/*.png"],
+      "resources": ["battle.html", "battle.js", "chart.html", "chart.js", "pixel-theme.css", "myPokemons.html", "myPokemons.js", "pokedex.html", "pokedex.js", "spawns.html", "spawns.js", "island.html", "island.js", "farm.html", "farm.js", "components/*.js", "components/*.css", "data/*.js", "icons/types/*.png", "icons/types/colored/*.png"],
       "matches": ["<all_urls>"]
     }
   ],

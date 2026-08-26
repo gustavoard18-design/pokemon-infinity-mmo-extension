@@ -157,7 +157,7 @@ async function checkForUpdates() {
         const manifestName = installedManifest.browser_specific_settings
             ? 'manifest.firefox.json'
             : 'manifest.json';
-        const manifestUrl = `https://raw.githubusercontent.com/gustavoard18-design/infinity-dex-helper/${branch}/${manifestName}`;
+        const manifestUrl = `https://raw.githubusercontent.com/gustavoard18-design/pokemon-infinity-mmo-extension/${branch}/${manifestName}`;
 
         try {
             const response = await fetch(manifestUrl, { cache: 'no-store' });

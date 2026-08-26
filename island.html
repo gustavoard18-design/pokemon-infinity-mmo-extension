@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ilha</title>
+    <link rel="stylesheet" href="pixel-theme.css">
+    <link rel="stylesheet" href="components/type-tag.css">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 9px 10px 14px; background: var(--px-bg); color: var(--px-text); font-family: var(--px-font-body); font-size: 12px; }
+        .isl-head { font-family: var(--px-font-mono); font-size: 12px; font-weight: 800; color: var(--px-accent); letter-spacing: .5px; margin-bottom: 4px; }
+        .isl-sub { font-size: 11px; color: var(--px-text-dim); line-height: 1.5; margin-bottom: 10px; }
+        .isl-post { border: 2px solid var(--px-border-panel, #1a1a1a); border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+        .isl-post-head { display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: var(--px-bg-bar, #f2efe4); border-bottom: 2px solid var(--px-border-panel, #1a1a1a); }
+        .isl-post-emoji { font-size: 15px; }
+        .isl-post-name { font-family: var(--px-font-mono); font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--px-text-hi); }
+        .isl-post-desc { font-size: 10px; color: var(--px-text-dim); }
+        .isl-post-n { margin-left: auto; font-family: var(--px-font-mono); font-size: 11px; font-weight: 800; background: var(--px-bg-cell, #fff); border: 1px solid var(--px-border-panel, #1a1a1a); border-radius: 8px; padding: 0 6px; color: var(--px-text-hi); }
+        .isl-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-bottom: 1px solid var(--px-line, #e6e0cf); }
+        .isl-row:last-child { border-bottom: none; }
+        .isl-spr { width: 30px; height: 30px; flex: 0 0 auto; image-rendering: pixelated; object-fit: contain; }
+        .isl-nm { font-family: var(--px-font-mono); font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--px-text-hi); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .isl-lv { font-family: var(--px-font-mono); font-size: 10px; color: var(--px-text-dim); flex: 0 0 auto; }
+        .isl-tags { display: inline-flex; gap: 3px; flex: 0 0 auto; }
+        .isl-empty { padding: 8px; font-size: 11px; color: var(--px-text-dim); }
+        .isl-shiny { color: var(--px-mid, #f5cd35); }
+        .isl-wait { color: var(--px-text-dim); text-align: center; padding: 24px 10px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="isl-head">🏝️ ASSISTENTE DA ILHA</div>
+    <div class="isl-sub">Pokémon do seu box ideais para cada posto (bônus de tipo +50%). Abra "Meus Pokémon" uma vez pra sincronizar o box.</div>
+    <div id="isl-body"><div class="isl-wait">Aguardando seu box…<br>Abra a aba "Meus Pokémon" no jogo pra sincronizar.</div></div>
+
+    <script src="components/pixel-icon.js"></script>
+    <script src="components/type-tag.js"></script>
+    <script src="data/constants.js"></script>
+    <script src="components/panel-interaction-forwarder.js"></script>
+    <script src="island.js"></script>
+</body>
+</html>
