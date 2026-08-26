@@ -10,7 +10,6 @@ const PokemonFilters = (() => {
             sortDirection: 'asc',
             shinyOnly: false,
             itemOnly: false,
-            ratingLabels: [],
             typeMode: 'any',
             types: [],
             natureMode: 'name',
@@ -18,6 +17,7 @@ const PokemonFilters = (() => {
             natureIncrease: '',
             natureDecrease: '',
             neutralOnly: false,
+            ivTotalMin: 0,
             ivMinimum: Object.fromEntries(STATS.map((stat) => [stat, 0]))
         };
     }
@@ -42,7 +42,6 @@ const PokemonFilters = (() => {
                         <option value="type">Tipo</option>
                         <option value="nature">Nature</option>
                         <option value="ivPercent">IV%</option>
-                        <option value="evaluationScore">Avaliação</option>
                     </select>
                 </label>
 
@@ -61,11 +60,6 @@ const PokemonFilters = (() => {
                     <label class="filter-field--checkbox"><input type="checkbox" id="filter-shiny"> <span>Somente Shiny</span></label>
                     <label class="filter-field--checkbox"><input type="checkbox" id="filter-item"> <span>Somente com item</span></label>
                 </div>
-            </fieldset>
-
-            <fieldset class="pokemon-filter-section" id="filter-evaluation-section">
-                <legend>Avaliação</legend>
-                <div class="filter-checks">${['Ruim','Regular','Bom','Muito bom','Excelente'].map((label) => `<label class="filter-field--checkbox"><input type="checkbox" data-rating-label="${label}"> <span>${label}</span></label>`).join('')}</div>
             </fieldset>
 
             <fieldset class="pokemon-filter-section">
@@ -115,6 +109,7 @@ const PokemonFilters = (() => {
 
             <fieldset class="pokemon-filter-section">
                 <legend>IV mínimo</legend>
+                <label class="filter-field iv-total-field"><span>IV total ≥</span><input type="number" id="filter-iv-total" min="0" max="100" value="0" inputmode="numeric"> %</label>
                 <div class="iv-filter-grid">
                     ${STATS.map((stat) => `<label><span>${stat.toUpperCase()}</span><input type="number" id="filter-iv-${stat}" min="0" max="31" value="0" inputmode="numeric"></label>`).join('')}
                 </div>
@@ -142,7 +137,7 @@ const PokemonFilters = (() => {
         const decreaseSelect = byId('filter-nature-decrease');
 
         function syncSortDirection() {
-            directionField.hidden = !['level', 'ivPercent', 'evaluationScore'].includes(sortBy.value);
+            directionField.hidden = !['level', 'ivPercent'].includes(sortBy.value);
         }
 
         function syncTypeHelp() {
@@ -249,7 +244,6 @@ const PokemonFilters = (() => {
                 sortDirection: byId('filter-sort-direction').value,
                 shinyOnly: byId('filter-shiny').checked,
                 itemOnly: byId('filter-item').checked,
-                ratingLabels: [...panel.querySelectorAll('[data-rating-label]:checked')].map((input) => input.dataset.ratingLabel),
                 typeMode: typeMode.value,
                 types: [...selectedTypes],
                 natureMode: natureMode.value,
@@ -257,6 +251,13 @@ const PokemonFilters = (() => {
                 natureIncrease: increaseSelect.value,
                 natureDecrease: decreaseSelect.value,
                 neutralOnly: neutralCheckbox.checked,
+                ivTotalMin: (() => {
+                    const el = byId('filter-iv-total');
+                    const n = Number.parseInt(el.value, 10);
+                    const v = Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0;
+                    el.value = v;
+                    return v;
+                })(),
                 ivMinimum
             };
         }
@@ -268,7 +269,6 @@ const PokemonFilters = (() => {
             byId('filter-sort-direction').value = defaults.sortDirection;
             byId('filter-shiny').checked = false;
             byId('filter-item').checked = false;
-            panel.querySelectorAll('[data-rating-label]').forEach((input) => { input.checked = false; });
             typeMode.value = defaults.typeMode;
             [...selectedTypes].forEach((type) => setType(type, false));
             natureMode.value = defaults.natureMode;
@@ -277,6 +277,7 @@ const PokemonFilters = (() => {
             increaseSelect.value = '';
             decreaseSelect.value = '';
             neutralCheckbox.checked = false;
+            byId('filter-iv-total').value = 0;
             STATS.forEach((stat) => { byId(`filter-iv-${stat}`).value = 0; });
             syncSortDirection();
             syncTypeHelp();

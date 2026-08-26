@@ -44,10 +44,15 @@ var PokemonCatchRate = globalThis.PokemonCatchRate || (() => {
         const rate = Number(catchRate);
         if (!Number.isFinite(rate) || rate <= 0) return null;
         const value = ((3 * maximum - 2 * current) * rate * ballMultiplier * statusMultiplier(status)) / (3 * maximum);
-        if (value >= 255) return 100;
         if (value <= 0) return 0;
         const shakeThreshold = 1048560 / Math.sqrt(Math.sqrt(16711680 / value));
-        return Math.max(0, Math.min(100, (shakeThreshold / 65536) ** 4 * 100));
+        const pct = (shakeThreshold / 65536) ** 4 * 100;
+        // Só a Master Ball (tratada no topo) é captura 100% garantida. A fórmula
+        // clássica dá ~100% pra espécies de catchRate alto com HP baixo, mas o
+        // InfinityMMO é mais difícil que o padrão (um Bronzor catchRate 255,
+        // dormindo e a 1 de HP, ainda escapou). Então isto é uma ESTIMATIVA e
+        // nunca mostramos 100% aqui — no máximo 99,9%.
+        return Math.max(0, Math.min(99.9, pct));
     }
 
     return Object.freeze({ BALLS, normalizeSlug, isBall, multiplier, statusMultiplier, chance });

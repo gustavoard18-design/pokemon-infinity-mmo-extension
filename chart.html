@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="px-scroll">
+<html lang="pt-BR">
 
 <head>
     <meta charset="UTF-8">
@@ -148,13 +148,13 @@
     </style>
 </head>
 
-<body>
+<body class="px-scroll">
     <div class="chart-top">
         <span class="chart-title">TABELA DE TIPOS</span>
         <span class="chart-caption" id="chart-caption">linha = atacante · coluna = defensor</span>
         <span class="chart-legend">
             <span class="legend-item"><span class="legend-swatch mult-2"></span>2×</span>
-            <span class="legend-item"><span class="legend-swatch" style="background:#14141d"></span>1×</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:var(--px-bg-cell)"></span>1×</span>
             <span class="legend-item"><span class="legend-swatch mult-0-5"></span>½×</span>
             <span class="legend-item"><span class="legend-swatch mult-0"></span>0×</span>
         </span>
@@ -169,13 +169,12 @@
         novo pra soltar.</p>
 
     <script src="data/extension-storage.js"></script>
-    <script src="components/panel-zoom.js"></script>
     <script src="components/tooltip.js"></script>
     <script src="components/update-notice.js"></script>
     <script src="components/pixel-icon.js"></script>
     <script src="components/type-tag.js"></script>
     <script src="components/type-chart-data.js"></script>
-    <script src="components/shortcut-forwarder.js"></script>
+    <script src="components/panel-interaction-forwarder.js"></script>
     <script src="chart.js"></script>
 
 </body>

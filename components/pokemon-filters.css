@@ -1,6 +1,7 @@
 .pokemon-advanced-filters {
     padding: 14px;
-    border: 1px solid var(--px-line);
+    border: 1px solid var(--px-border-panel);
+    border-radius: var(--px-radius-sm, 4px);
     background: var(--px-bg-card);
 }
 
@@ -64,7 +65,7 @@
 }
 
 .filter-toggle-control input:checked {
-    background: #235c3c;
+    background: var(--px-good);
 }
 
 .filter-toggle-control input:checked::after {
@@ -219,7 +220,7 @@
     min-width: 0;
     padding: 6px 8px;
     border: 1px solid var(--px-border);
-    border-radius: 0;
+    border-radius: var(--px-radius-sm, 4px);
     background: var(--px-bg-card);
     color: var(--px-text);
     font-family: var(--px-font-body);
@@ -236,14 +237,14 @@
 /* -----------------------------------------------------------------------
    pokemon-filters.js continua usando as classes v1 (.pxl-input/.pxl-btn)
    pra inputs/selects e pros botões Limpar/Aplicar — como o componente é
-   compartilhado e não pode ser editado aqui, a rescala pro visual v2 (flat,
-   borda 1px, Silkscreen) é feita via override escopado a este
+   compartilhado e não pode ser editado aqui, a rescala pro visual flat
+   (borda 1px, cantos arredondados) é feita via override escopado a este
    painel, sem mexer em pokemon-filters.js.
 ----------------------------------------------------------------------- */
 .pokemon-advanced-filters .pxl-input {
     font-family: var(--px-font-body);
     border: 1px solid var(--px-border);
-    border-radius: 0;
+    border-radius: var(--px-radius-sm, 4px);
     background: var(--px-bg-card);
     color: var(--px-text);
     box-shadow: none;
@@ -268,7 +269,7 @@
     font-size: 11px;
     line-height: 1.5;
     border: 1px solid var(--px-border-btn);
-    border-radius: 0;
+    border-radius: var(--px-radius-sm, 4px);
     background: var(--px-bg-btn2);
     color: var(--px-text-dim);
     box-shadow: none;

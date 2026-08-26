@@ -34,7 +34,7 @@ var PokemonAbilityInfo = globalThis.PokemonAbilityInfo || (() => {
                 }
             });
         } catch (error) {
-            console.warn('[Pokemon Helper] Não foi possível carregar habilidades:', error);
+            console.warn('[Infinity Dex Helper] Não foi possível carregar habilidades:', error);
         }
     }
 

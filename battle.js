@@ -4,28 +4,24 @@ const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 // STATUS_MOVES vem de data/move-status.js
 
 const state = {
-    battleId: null, kind: null, foe: null, foeParty: [], party: [], bag: {}, turn: 1,
+    battleId: null, kind: null, foe: null, foeParty: [], party: [], youMon: null, bag: {}, turn: 1,
     canCatch: false, moves: [], caught: false, over: false, active: { you: null, foe: null },
-    stages: { you: {}, foe: {} }
+    stages: { you: {}, foe: {} }, foeMoveUses: {}
 };
 let pokedexBySlug = new Map();
 let trainerMovesByKey = new Map();
 let discoveredMovesByKey = new Map();
 const openMoves = new Set();
-// golpes que causam dano começam expandidos (uma única vez por slug — depois
-// disso a escolha do usuário de fechar/abrir é respeitada)
-const autoExpandedMoves = new Set();
 
 // seções visíveis da tela (Configurações → TELAS → BATALHA)
 let SCREEN_PREFS = Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES.screens.battle);
-let EVALUATION_PREFS = Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES.evaluation);
 PokemonHelperStorage.getUiPreferences()
-    .then((prefs) => { SCREEN_PREFS = prefs.screens.battle; EVALUATION_PREFS = prefs.evaluation; render(); })
+    .then((prefs) => { SCREEN_PREFS = prefs.screens.battle; render(); })
     .catch(() => {});
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !changes[PokemonHelperStorage.KEYS.uiPreferences]) return;
     PokemonHelperStorage.getUiPreferences()
-        .then((prefs) => { SCREEN_PREFS = prefs.screens.battle; EVALUATION_PREFS = prefs.evaluation; render(); })
+        .then((prefs) => { SCREEN_PREFS = prefs.screens.battle; render(); })
         .catch(() => {});
 });
 
@@ -39,10 +35,79 @@ const ivColor = (iv) => iv >= 26 ? 'var(--px-good)' : iv >= 15 ? 'var(--px-mid)'
 
 function resetBattle(battleId) {
     Object.assign(state, {
-        battleId: battleId || null, kind: null, foe: null, foeParty: [], turn: 1,
+        battleId: battleId || null, kind: null, foe: null, foeParty: [], youMon: null, turn: 1,
         canCatch: false, moves: [], caught: false, over: false,
-        active: { you: null, foe: null }, stages: { you: {}, foe: {} }
+        active: { you: null, foe: null }, stages: { you: {}, foe: {} }, foeMoveUses: {}
     });
+}
+
+// acha o Pokémon ativo do time. Prioriza o índice de batalha em state.party;
+// se não alinhar, casa pelo moveset atual (state.moves). Se o time ainda não
+// foi sincronizado nesta sessão, cai pros dados ao vivo do próprio Pokémon
+// ativo vindos do payload de batalha (state.youMon) — assim o dano aparece
+// mesmo sem a sincronização do personagem ter rolado.
+function resolveActivePokemon() {
+    const byIndex = state.party[state.active.you];
+    if (byIndex) return byIndex;
+    const wanted = state.moves.map((move) => slugifyMoveName(move.name)).filter(Boolean);
+    if (wanted.length) {
+        const byMoves = state.party.find((pokemon) => {
+            const names = new Set((pokemon?.moves || []).map((move) => slugifyMoveName(move.name)));
+            return wanted.every((slug) => names.has(slug));
+        });
+        if (byMoves) return byMoves;
+    }
+    return state.youMon || null;
+}
+
+// multiplicador de atributo alterado (mesma tabela dos jogos): +1 = ×1.5,
+// +2 = ×2 … +6 = ×4; -1 = ×2/3 … -6 = ×1/4. Aplica-se a atk/def/spa/spd/spe.
+function stageMultiplier(stage) {
+    const s = Math.max(-6, Math.min(6, Number(stage) || 0));
+    return s >= 0 ? (2 + s) / 2 : 2 / (2 - s);
+}
+
+// stat efetivo de um Pokémon: usa o valor ao vivo (payload) quando existe; se
+// faltar (o jogo nem sempre manda os stats completos do oponente), calcula do
+// base da Pokédex + IV + nível (natureza neutra) em vez de usar 1 — senão a
+// defesa vira 1 e o dano estimado explota. Devolve null se não dá pra saber.
+function effectiveStat(mon, key) {
+    const live = Number(mon && mon.stats ? mon.stats[key] : NaN);
+    if (Number.isFinite(live) && live > 0) return live;
+    const entry = pokedexBySlug.get(normalizeSpecies(mon && (mon.species || mon.name)));
+    const base = Number(entry && entry.base ? entry.base[key] : NaN);
+    if (!Number.isFinite(base) || base <= 0) return null;
+    const ivRaw = Number(mon && mon.ivs ? mon.ivs[key] : NaN);
+    const iv = Number.isFinite(ivRaw) ? Math.max(0, Math.min(31, ivRaw)) : 15;
+    const level = Number(mon && mon.level) || 1;
+    return Math.floor((2 * base + iv) * level / 100 + 5);
+}
+
+// estimativa de dano (fórmula padrão de jogos Pokémon). Inclui os atributos
+// alterados: `atkStage` é o estágio ofensivo de quem ataca e `defStage` o
+// defensivo de quem defende (quem chama escolhe atk/spa vs def/spd). Continua
+// sem crítico/clima/item/habilidade. Devolve { min, max } (variação 85–100%),
+// ou null quando não dá pra resolver ataque/defesa (aí quem chama não mostra).
+function estimateDamage(pokemon, move, foe, multiplier, stab = 1, atkStage = 0, defStage = 0) {
+    const level = Number(pokemon.level) || 1;
+    const power = Number(move.power) || 0;
+    const isSpecial = move.category === 'special';
+    const rawAtk = effectiveStat(pokemon, isSpecial ? 'spa' : 'atk');
+    const rawDef = effectiveStat(foe, isSpecial ? 'spd' : 'def');
+    if (rawAtk == null || rawDef == null) return null;
+    // estatística efetiva depois do estágio (o jogo trunca o resultado)
+    const atk = Math.max(1, Math.floor(rawAtk * stageMultiplier(atkStage)));
+    const def = Math.max(1, Math.floor(rawDef * stageMultiplier(defStage)));
+    // fórmula EXATA do jogo (calcDamage em battle54.js): a base tem UM único
+    // floor na conta inteira, com o +2 fora do floor; e STAB × efetividade ×
+    // aleatório (85–100%) entram todos juntos num único floor no final — NÃO
+    // um floor por passo (era isso que dava a imprecisão de ±1–2).
+    const base = Math.floor((Math.floor(2 * level / 5) + 2) * power * atk / def / 50) + 2;
+    const roll = (randPct) => {
+        const d = Math.floor(base * stab * multiplier * randPct / 100);
+        return multiplier > 0 ? Math.max(1, d) : 0;
+    };
+    return { min: roll(85), max: roll(100) };
 }
 
 // escolhe a melhor combinação Pokémon+golpe do time contra o oponente atual
@@ -56,53 +121,164 @@ function bestPlay(foe) {
             const multiplier = defMultiplier(moveType, defenders);
             const stab = typeNames(pokemon.types).includes(moveType) ? 1.5 : 1;
             const attack = move.category === 'special' ? Number(pokemon.stats?.spa || 1) : Number(pokemon.stats?.atk || 1);
-            candidates.push({ pokemon, index, move, moveIndex, multiplier, score:Number(move.power) * (Number(move.accuracy) || 100) / 100 * multiplier * stab * attack });
+            candidates.push({ pokemon, index, move, moveIndex, moveType, multiplier, score:Number(move.power) * (Number(move.accuracy) || 100) / 100 * multiplier * stab * attack });
         });
     });
+
+    // fallback: se os dados de time sincronizados não trazem golpe com poder
+    // pro Pokémon que está de fato em campo agora (acontece em algumas lutas),
+    // usa o moveset real desta luta (state.moves — mesma fonte de SEUS GOLPES,
+    // que sempre reflete o Pokémon ativo corretamente) pra a caixa não sumir.
+    const activePokemon = resolveActivePokemon();
+    if (activePokemon && !candidates.some((c) => c.pokemon === activePokemon)) {
+        const activeIndex = state.party.indexOf(activePokemon);
+        state.moves.forEach((move, moveIndex) => {
+            const slug = resolveMoveSlug(move.name);
+            const details = MOVE_DETAILS[slug];
+            const moveType = MOVE_TYPES[slug];
+            if (!details || !moveType || Number(move.pp) <= 0 || Number(details.power) <= 0) return;
+            const multiplier = defMultiplier(moveType, defenders);
+            const stab = typeNames(activePokemon.types).includes(moveType) ? 1.5 : 1;
+            const attack = details.category === 'special' ? Number(activePokemon.stats?.spa || 1) : Number(activePokemon.stats?.atk || 1);
+            candidates.push({
+                pokemon: activePokemon, index: activeIndex,
+                move: { name: move.name, power: details.power, accuracy: details.accuracy, category: details.category },
+                moveIndex, moveType, multiplier,
+                score: Number(details.power) * (Number(details.accuracy) || 100) / 100 * multiplier * stab * attack
+            });
+        });
+    }
+
     candidates.sort((left, right) => right.score - left.score);
     const best = candidates[0];
     if (!best) return '';
-    const moveType = TYPE_MAPPER[best.move.type];
+    const moveType = best.moveType;
     const hasStab = typeNames(best.pokemon.types).includes(moveType);
     const typeBg = PokemonPixelIcons.typeColor(moveType);
     const fg = PokemonPixelIcons.onColor(typeBg);
     const multBadge = best.multiplier !== 1
         ? `<span class="best-badge ${multClass(best.multiplier)}" data-tip="${best.multiplier > 1 ? 'Super eficaz' : 'Pouco eficaz'} contra o oponente.">${multLabel(best.multiplier)}</span>`
         : '';
-    return `<div class="best-box">
-        <div class="best-head">MELHOR JOGADA ${PokemonHelperTooltip.iconHTML('Melhor combinação de Pokémon e golpe do seu time contra este oponente (potência × precisão × eficácia × STAB × ataque).')}</div>
-        <div class="best-row">
-            <div class="best-detail">
-                <div class="best-mon">${escapeHtml(best.pokemon.name || best.pokemon.species)} — slot ${best.index + 1}</div>
-                <div class="best-line">
-                    <span class="type-tag" style="background:${typeBg};color:${fg}" data-tip="${escapeHtml(best.move.name)} está no slot ${best.moveIndex + 1} de golpes">
-                        ${PokemonPixelIcons.typeIcon(moveType, fg)}<span class="abbr">${escapeHtml(best.move.name)}</span><span class="slot-num" style="color:${fg}">${best.moveIndex + 1}</span>
-                    </span>
-                    <span class="best-badges">
-                        ${multBadge}
-                        <span class="best-badge badge-neutral" data-tip="Potência base do golpe.">POT ${best.move.power}</span>
-                        ${hasStab ? '<span class="best-badge badge-stab" data-tip="STAB: +50% de dano porque o golpe é do mesmo tipo do Pokémon.">STAB</span>' : ''}
-                    </span>
-                </div>
+
+    // atributos alterados no dano exibido: o estágio defensivo dele vale sempre
+    // (ele continua em campo); o seu estágio ofensivo só se a jogada for com o
+    // Pokémon que já está ativo (trocar zera os stages do que entra).
+    const isSpecial = best.move.category === 'special';
+    const defStage = Number(state.stages.foe[isSpecial ? 'spd' : 'def'] || 0);
+    const bestIsActive = best.pokemon === resolveActivePokemon();
+    const atkStage = bestIsActive ? Number(state.stages.you[isSpecial ? 'spa' : 'atk'] || 0) : 0;
+    const dmg = estimateDamage(best.pokemon, best.move, foe, best.multiplier, hasStab ? 1.5 : 1, atkStage, defStage);
+    const foeHp = Number(foe.hp) || 0;
+    let koBadge = '';
+    if (dmg && foeHp > 0) {
+        if (dmg.min >= foeHp) {
+            koBadge = `<span class="best-badge badge-ko" data-tip="Dano estimado: ${dmg.min}–${dmg.max} (HP dele: ${foeHp}). Mesmo no pior caso da variação aleatória, esse golpe nocauteia.">💀 OHKO</span>`;
+        } else if (dmg.max >= foeHp) {
+            koBadge = `<span class="best-badge badge-ko-maybe" data-tip="Dano estimado: ${dmg.min}–${dmg.max} (HP dele: ${foeHp}). Pode nocautear dependendo da variação aleatória do jogo, mas não é garantido.">⚡ OHKO?</span>`;
+        }
+    }
+
+    return `<div class="section"><div class="section-head"><span class="px-label">MELHOR JOGADA</span>${PokemonHelperTooltip.iconHTML('Melhor combinação de Pokémon e golpe do seu time contra este oponente (potência × precisão × eficácia × STAB × ataque).')}</div>
+        <div class="best-two">
+            <div class="best-r1"><span class="best-star" data-tip="Pokémon do seu time recomendado (slot ${best.index + 1}).">★</span> ${escapeHtml(best.pokemon.name || best.pokemon.species)}·${best.index + 1}</div>
+            <div class="best-r2">
+                <span class="type-tag" style="background:${typeBg};color:${fg}" data-tip="${escapeHtml(best.move.name)} está no slot ${best.moveIndex + 1} de golpes">
+                    <span class="abbr">${escapeHtml(best.move.name)}</span><span class="slot-num" style="color:${fg}">${best.moveIndex + 1}</span>
+                </span>
+                ${koBadge}${multBadge}
             </div>
         </div>
     </div>`;
 }
 
+// destaca, dentre os golpes disponíveis do Pokémon ativo agora, qual causa
+// mais dano estimado neste oponente (mesmo cálculo de score do bestPlay, mas
+// restrito ao Pokémon que já está em campo — não ao time inteiro)
+function renderMyMoves(foe) {
+    const activePokemon = resolveActivePokemon();
+    const defenders = typeNames(foe.types);
+    const foeHp = Number(foe.hp) || 0;
+    let bestSlug = null, bestScore = 0;
+    const scored = state.moves.map((move) => {
+        const slug = resolveMoveSlug(move.name);
+        const details = MOVE_DETAILS[slug];
+        const moveType = MOVE_TYPES[slug];
+        let score = -1;
+        let dmgChip = '';
+        if (details && moveType && Number(move.pp) > 0 && Number(details.power) > 0) {
+            const multiplier = defMultiplier(moveType, defenders);
+            const isSpecial = details.category === 'special';
+            const stab = activePokemon ? (typeNames(activePokemon.types).includes(moveType) ? 1.5 : 1) : 1;
+            // atributos alterados: você ataca → seu estágio ofensivo (atk/spa) e
+            // o estágio defensivo dele (def/spd). Stages só valem pro Pokémon
+            // ativo (eles zeram ao trocar); state.stages guarda os dois lados.
+            const atkStage = activePokemon ? Number(state.stages.you[isSpecial ? 'spa' : 'atk'] || 0) : 0;
+            const defStage = Number(state.stages.foe[isSpecial ? 'spd' : 'def'] || 0);
+
+            // dano estimado por golpe: só dá pra calcular com o Pokémon ativo
+            // resolvido e com os stats de defesa dele (ao vivo ou da Pokédex)
+            const dmg = activePokemon
+                ? estimateDamage(activePokemon, { power: details.power, category: details.category }, foe, multiplier, stab, atkStage, defStage)
+                : null;
+            if (dmg) {
+                // ordena pela estimativa de dano de verdade (já com stages)
+                score = dmg.max;
+                if (score > bestScore) { bestScore = score; bestSlug = slug; }
+                const pct = foeHp > 0 ? Math.round(dmg.max / foeHp * 100) : null;
+                let cls = 'dmg-normal', prefix = '';
+                if (foeHp > 0 && dmg.min >= foeHp) { cls = 'dmg-ko'; prefix = '💀 '; }
+                else if (foeHp > 0 && dmg.max >= foeHp) { cls = 'dmg-maybe'; prefix = '⚡ '; }
+                const tipParts = [`Dano estimado: ${dmg.min}–${dmg.max}`];
+                if (foeHp > 0) tipParts.push(`HP dele: ${foeHp}${pct != null ? ` (até ${pct}%)` : ''}`);
+                if (atkStage || defStage) tipParts.push('inclui atributos alterados');
+                if (cls === 'dmg-ko') tipParts.push('Mesmo no pior caso, deve nocautear.');
+                else if (cls === 'dmg-maybe') tipParts.push('Pode nocautear, mas não é garantido.');
+                dmgChip = `<span class="move-dmg ${cls}" data-tip="${tipParts.join(' · ')}">${prefix}${dmg.min}–${dmg.max}</span>`;
+            } else {
+                // sem dano estimável (sem Pokémon ativo ou sem defesa dele):
+                // ordena por potência × eficácia e não mostra número
+                score = Number(details.power) * multiplier * stab;
+                if (score > bestScore) { bestScore = score; bestSlug = slug; }
+            }
+        }
+        return { move, slug, dmgChip };
+    });
+    const rows = scored.map(({ move, slug, dmgChip }) => {
+        const isBest = bestSlug !== null && slug === bestSlug;
+        return `<div class="row${isBest ? ' row-best' : ''}">
+            <span class="label">${isBest ? '<span class="best-star" data-tip="Melhor golpe disponível agora contra esse oponente.">★</span> ' : ''}${escapeHtml(move.name)}</span>
+            <span class="value">${dmgChip}<span class="move-pp-mine">${move.pp} PP</span></span>
+        </div>`;
+    }).join('');
+    return `<div class="section"><div class="section-head"><span class="px-label">SEUS GOLPES</span></div><div class="rows">${rows}</div></div>`;
+}
+
 const KNOWN_EVENT_TYPES = ['stat_change', 'capture_result', 'battle_end'];
 const slugifyMoveName = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+// alguns golpes vêm do jogo como palavra única (THUNDERPUNCH, DYNAMICPUNCH,
+// SELFDESTRUCT) mas a base (PokeAPI) usa a forma com separador (thunder_punch,
+// self_destruct). Este índice mapeia a forma "colada" (sem _) pra chave real,
+// e resolveMoveSlug tenta o slug direto e, se falhar, a forma colada — assim
+// esses golpes voltam a ter tipo/detalhes (e entram no dano/ranking).
+const MOVE_SLUG_BY_JOINED = new Map(Object.keys(MOVE_TYPES).map((key) => [key.replace(/_/g, ''), key]));
+function resolveMoveSlug(name) {
+    const slug = slugifyMoveName(name);
+    if (MOVE_TYPES[slug]) return slug;
+    return MOVE_SLUG_BY_JOINED.get(slug.replace(/_/g, '')) || slug;
+}
 
 // não sabemos o nome exato do campo que carrega o golpe usado num evento de
 // batalha (o jogo não documenta isso), então procuramos em qualquer campo de
 // texto do evento por algo que bata com um golpe conhecido (data/move-types.js)
 function findRevealedMoveSlug(event) {
     for (const key of ['move', 'moveSlug', 'slug', 'name', 'moveName']) {
-        const slug = slugifyMoveName(event[key]);
+        const slug = resolveMoveSlug(event[key]);
         if (MOVE_TYPES[slug]) return slug;
     }
     for (const value of Object.values(event)) {
         if (typeof value !== 'string') continue;
-        const slug = slugifyMoveName(value);
+        const slug = resolveMoveSlug(value);
         if (MOVE_TYPES[slug]) return slug;
     }
     return null;
@@ -121,9 +297,15 @@ function applyEvents(events) {
         // pra achar golpes que o oponente revelou usando em combate
         if (event.side === 'foe') {
             const slug = findRevealedMoveSlug(event);
-            if (slug) recordDiscoveredMove(slug);
+            if (slug) {
+                // conta toda vez que o golpe é usado (não só a primeira) pra
+                // estimar o PP restante — diferente de recordDiscoveredMove,
+                // que só grava a primeira vez (é uma lista, não um contador)
+                state.foeMoveUses[slug] = (state.foeMoveUses[slug] || 0) + 1;
+                recordDiscoveredMove(slug);
+            }
         } else if (event.t && !KNOWN_EVENT_TYPES.includes(event.t)) {
-            console.debug('[Pokemon Helper] evento de batalha não mapeado (ajuda a calibrar a detecção de golpes):', event);
+            console.debug('[Infinity Dex Helper] evento de batalha não mapeado (ajuda a calibrar a detecção de golpes):', event);
         }
     });
 }
@@ -153,7 +335,7 @@ function updateBattle(data) {
     if (battleState) {
         const foeActive = Number(battleState.foe?.active ?? state.active.foe ?? 0);
         const youActive = Number(battleState.you?.active ?? state.active.you ?? 0);
-        if (state.active.foe !== null && foeActive !== state.active.foe) state.stages.foe = {};
+        if (state.active.foe !== null && foeActive !== state.active.foe) { state.stages.foe = {}; state.foeMoveUses = {}; }
         if (state.active.you !== null && youActive !== state.active.you) state.stages.you = {};
         state.active = { foe:foeActive, you:youActive };
         const activeMon = battleState.foe?.mon;
@@ -163,6 +345,11 @@ function updateBattle(data) {
             state.foe = { ...(sameSpecies ? state.foe : {}), ...detailed, ...activeMon };
             state.foeParty[foeActive] = { ...detailed, ...state.foe };
         }
+        // dados ao vivo do SEU Pokémon ativo (simétrico ao foe.mon). Serve de
+        // fonte pro dano estimado quando o time (state.party) ainda não foi
+        // sincronizado nesta sessão — sem isso o dano não aparece.
+        const youMon = battleState.you?.mon;
+        if (youMon && (youMon.stats || youMon.species || youMon.name)) state.youMon = { ...youMon };
         state.turn = Number(battleState.turn || state.turn);
         state.over = battleState.over === true;
         if (battleState.outcome === 'caught') state.caught = true;
@@ -292,6 +479,23 @@ function foeMovesHint(resolved) {
     return `Mistura de fontes: ${parts.join(' + ')}.`;
 }
 
+// avisa quando os golpes conhecidos do oponente estão perto de acabar o PP
+// (ele seria forçado a usar Impasse/Struggle). Só entra na conta golpe com
+// PP máximo conhecido (data/move-details.js) — golpes nunca usados sempre
+// estão com PP cheio, então isso só dispara quando o uso real foi detectado.
+function foeStrugglingSoon(resolved) {
+    const known = resolved.moves.filter((move) => MOVE_DETAILS[move.slug]?.pp != null);
+    if (!known.length) return null;
+    const totalRemaining = known.reduce((sum, move) => {
+        const details = MOVE_DETAILS[move.slug];
+        const used = state.foeMoveUses[move.slug] || 0;
+        return sum + Math.max(0, details.pp - used);
+    }, 0);
+    if (totalRemaining === 0) return 'out';
+    if (totalRemaining <= 3) return 'low';
+    return null;
+}
+
 const MOVE_CATEGORY_LABELS = { physical: 'Físico', special: 'Especial', status: 'Status' };
 
 // tooltip nativo (title) com poder/precisão/PP/categoria/efeito — dados vêm
@@ -339,42 +543,36 @@ function renderFoeMoves(foe) {
     const sourceHint = foeMovesHint(resolved);
     const items = resolved.moves.map((move) => {
         const isStatus = STATUS_MOVES.has(move.slug);
-        if (!isStatus && !autoExpandedMoves.has(move.slug)) {
-            autoExpandedMoves.add(move.slug);
-            openMoves.add(move.slug);
-        }
-        const open = openMoves.has(move.slug);
-        const typeBg = PokemonPixelIcons.typeColor(move.type);
-        const fg = PokemonPixelIcons.onColor(typeBg);
         const worst = isStatus ? null : moveWorstCase(move.type);
         const multChip = worst === null
             ? '<span class="move-mult mult-1">—</span>'
             : `<span class="move-mult ${multClass(worst)}" data-tip="Pior caso contra o seu time.">${multLabel(worst)}</span>`;
         const details = MOVE_DETAILS[move.slug];
-        const sub = details
-            ? `${MOVE_CATEGORY_LABELS[details.category] || '?'} · ${details.pp ?? '—'} PP`
-            : (isStatus ? 'Status' : '');
-        let detail = '';
-        if (open) {
-            const body = isStatus
-                ? '<div class="status-note">Golpe de status — não causa dano.</div>'
-                : renderEffRows(move.type);
-            detail = `<div class="move-detail">${body}</div>`;
-        }
-        return `<div class="move-item">
-            <div class="move-main" data-tip="${escapeHtml(moveTooltip(move.slug))}">
-                <span class="move-type-box" style="background:${typeBg}">${PokemonPixelIcons.typeIcon(move.type, fg)}</span>
-                <span class="move-info"><span class="move-name-row"><span class="move-name">${escapeHtml(moveLabel(move.slug))}</span>${move.source === 'discovered' ? '<span class="move-seen" data-tip="Golpe confirmado: visto em batalha contra esse oponente.">VISTO</span>' : ''}</span><span class="move-sub">${sub}</span></span>
-                ${multChip}
-                <button type="button" class="move-expand${open ? ' open' : ''}" data-action="toggle-move" data-slug="${move.slug}"
-                    data-tip="${open ? 'Fechar' : 'Ver'} contra quais tipos ${escapeHtml(moveLabel(move.slug))} é forte ou fraco">${open ? '▾' : '▸'}</button>
-            </div>
-            ${detail}
-        </div>`;
+        // PP restante é uma estimativa: só contamos usos vistos NESTA troca do
+        // oponente (foeMoveUses zera ao trocar de Pokémon) a partir do PP máximo
+        // da wiki — se o golpe nunca foi visto sendo usado, mostra o PP cheio.
+        const used = state.foeMoveUses[move.slug] || 0;
+        const ppLabel = details?.pp == null
+            ? '—'
+            : used > 0
+                ? `${Math.max(0, details.pp - used)}/${details.pp} PP`
+                : `${details.pp} PP`;
+        const ppEmpty = details?.pp != null && used >= details.pp;
+        return `<div class="row foe-row" data-tip="${escapeHtml(moveTooltip(move.slug))}">
+                <span class="label">${escapeHtml(moveLabel(move.slug))}${move.source === 'discovered' ? '<span class="move-seen" data-tip="Golpe confirmado: visto em batalha contra esse oponente.">VISTO</span>' : ''}</span>
+                <span class="value">${multChip}<span class="move-pp-mine${ppEmpty ? ' pp-empty' : ''}">${ppLabel}</span></span>
+            </div>`;
     }).join('');
+    const struggleStatus = foeStrugglingSoon(resolved);
+    const ppWarning = struggleStatus === 'out'
+        ? `<div class="pp-warning pp-warning-out" data-tip="Todos os golpes conhecidos dele estão sem PP — ele deve usar Impasse (Struggle) e se ferir a cada turno.">🚨 SEM PP — VAI USAR IMPASSE</div>`
+        : struggleStatus === 'low'
+            ? `<div class="pp-warning pp-warning-low" data-tip="Restam poucos PP entre os golpes conhecidos dele — pode ficar sem PP em breve.">⚠️ QUASE SEM PP</div>`
+            : '';
     return `<div class="section">
         <div class="section-head"><span class="px-label">GOLPES DELE</span>${PokemonHelperTooltip.iconHTML(sourceHint)}</div>
-        ${items}
+        ${ppWarning}
+        <div class="rows">${items}</div>
     </div>`;
 }
 
@@ -395,7 +593,7 @@ function renderBalls(foe) {
     const context = { types:typeNames(foe.types), level:foe.level, turn:state.turn };
     const balls = Object.entries(state.bag).map(([slug,quantity]) => ({ slug:PokemonCatchRate.normalizeSlug(slug), quantity:Number(quantity || 0) })).filter((item) => PokemonCatchRate.isBall(item.slug) && item.quantity > 0);
     if (!balls.length) return '';
-    return `<div class="section"><div class="section-head"><span class="px-label">POKÉBOLAS</span></div><div class="rows">` +
+    return `<div class="section"><div class="section-head"><span class="px-label">POKÉBOLAS</span>${PokemonHelperTooltip.iconHTML('Chance de captura pela fórmula clássica de Gen III/IV — a MESMA que o InfinityMMO usa (confirmado pelo desenvolvedor). Só a Master Ball é 100% garantido; mesmo com HP baixo sobra uma pequena chance de escapar. Pode variar um pouco se o catchRate da espécie no servidor diferir da wiki.')}</span></div><div class="rows">` +
         balls.map((ball) => {
             const definition = PokemonCatchRate.BALLS[ball.slug];
             const chance = PokemonCatchRate.chance({ hp:foe.hp, maxHp:foe.maxHp, catchRate, status:foe.status, ballMultiplier:PokemonCatchRate.multiplier(ball.slug, context) });
@@ -422,11 +620,7 @@ function foeSpriteId(foe) {
 function render() {
     const content = document.getElementById('content'), foe = state.foe;
     if (!foe) { content.innerHTML = '<p class="empty">Nenhum encontro capturado ainda. Entre em uma batalha selvagem.</p>'; return; }
-    const stats = foe.stats || {}, ivs = foe.ivs || {};
-    const pokedexEntry = pokedexBySlug.get(normalizeSpecies(foe.species || foe.name));
-    const inferredMoves = Array.isArray(foe.moves) && foe.moves.length ? foe.moves : probableMoves(foe).map((move) => ({ ...move, ...(MOVE_DETAILS[move.slug] || {}) }));
-    const evaluation = EVALUATION_PREFS.enabled ? PokemonEvaluation.evaluate({ ...foe, moves:inferredMoves }, pokedexEntry?.evaluationProfile) : null;
-    const ivPercent = evaluation?.ivPercent ?? Math.round(STAT_KEYS.reduce((sum, key) => sum + Math.min(31, Math.max(0, Number(ivs[key]) || 0)), 0) / (31 * STAT_KEYS.length) * 100);
+    const stats = foe.stats || {}, ivs = foe.ivs || {}, evaluation = PokemonIvEvaluation.evaluate(foe);
     const foeTypes = typeNames(foe.types);
     const hpPct = foe.maxHp > 0 ? Math.max(0, Math.min(100, foe.hp / foe.maxHp * 100)) : 0;
     const hpLevel = hpPct <= 20 ? 'low' : hpPct <= 50 ? 'mid' : 'high';
@@ -448,7 +642,6 @@ function render() {
                 <span class="enc-name">${escapeHtml(foe.name || foe.species)}</span>
                 <span class="enc-level">Lv${foe.level ?? '-'}</span>${gender}
                 ${foe.shiny ? '<span class="best-badge badge-stab" data-tip="Shiny!">★</span>' : ''}
-                ${SCREEN_PREFS.showSmogonLink ? PokemonTransfer.smogonLinkHTML(foe.name || foe.species) : ''}
             </div>
             <div class="enc-types">${foeTypes.map((type) => typeTagHTML(type)).join('')}</div>
             <div class="enc-hp">
@@ -458,33 +651,19 @@ function render() {
         </div>
     </div>`;
 
-    const metaCell = (key, value, tip, color, className = '') =>
-        `<div class="meta-cell${className ? ` ${className}` : ''}" data-tip="${escapeHtml(tip)}"><span class="meta-key">${key}</span><span class="meta-val"${color ? ` style="color:${color}"` : ''}>${value}</span></div>`;
-    const metaCells = [
-        metaCell('HABILIDADE', `<span data-ability="${escapeHtml(foe.ability)}">${escapeHtml(PokemonAbilityInfo.label(foe.ability))}</span>`, 'Habilidade do oponente.'),
-        metaCell('NATUREZA', natureEffectHTML(foe.nature), 'Natureza e atributos afetados.'),
-        metaCell('ITEM', escapeHtml(foe.heldItem || '—'), foe.heldItem ? 'Item segurado.' : 'Nenhum item detectado neste encontro.', foe.heldItem ? null : 'var(--px-text-dim)')
-    ];
-    if (evaluation && EVALUATION_PREFS.showNatureFit) {
-        const natureFit = PokemonEvaluation.natureFitPresentation(evaluation.nature?.fit);
-        metaCells.push(metaCell('COMPAT. NATUREZA', escapeHtml(natureFit.label), 'Adequação da Nature à função.', natureFit.color));
-    }
-    if (evaluation && EVALUATION_PREFS.showCoreFields) {
-        metaCells.push(metaCell('FUNÇÃO', escapeHtml(PokemonEvaluation.roleDisplayLabel(evaluation.role.label)), evaluation.role.tooltip));
-        metaCells.push(metaCell('AVALIAÇÃO', PokemonEvaluation.ratingHTML(evaluation), 'Avaliação dos IVs conforme a função.'));
-    }
-    if (evaluation && EVALUATION_PREFS.showConfidence) metaCells.push(metaCell('CONFIANÇA', escapeHtml(evaluation.role.confidence), 'Confiança da função estimada.'));
-    if (evaluation && EVALUATION_PREFS.showMovesetFit) metaCells.push(metaCell('GOLPES', escapeHtml(evaluation.moveset.fit), 'Adequação dos golpes à função.'));
-    if (evaluation && EVALUATION_PREFS.showAlternativeRole && evaluation.role.secondaryLabel) metaCells.push(metaCell('ALTERNATIVA', escapeHtml(evaluation.role.secondaryLabel), 'Outra função compatível.'));
-    metaCells.push(metaCell('IVS TOTAL', `${ivPercent}%`, 'Percentual dos IVs em relação ao máximo.', ivColor(ivPercent * 31 / 100)));
-    const completedMetaCells = evaluation && EVALUATION_PREFS.showEvolutionPotential
-        ? PokemonEvaluation.appendEvolutionGridCell(metaCells, evaluation, (evolution, wide) =>
-            metaCell(evolution.key.toUpperCase(), escapeHtml(evolution.value), evolution.tooltip, null, wide ? 'meta-cell--wide' : ''))
-        : metaCells;
-    const meta = `<div class="meta-grid">${completedMetaCells.join('')}</div>`;
+    const metaCell = (key, value, tip, color) =>
+        `<div class="meta-cell" data-tip="${escapeHtml(tip)}"><span class="meta-key">${key}</span><span class="meta-val"${color ? ` style="color:${color}"` : ''}>${value}</span></div>`;
+    const meta = `<div class="meta-grid">
+        ${metaCell('HABILIDADE', `<span data-ability="${escapeHtml(foe.ability)}">${escapeHtml(PokemonAbilityInfo.label(foe.ability))}</span>`, 'Habilidade do oponente.')}
+        ${metaCell('NATUREZA', natureEffectHTML(foe.nature), 'Natureza e atributos afetados.')}
+        ${metaCell('ITEM', escapeHtml(foe.heldItem || '—'), foe.heldItem ? 'Item segurado.' : 'Nenhum item detectado neste encontro.', foe.heldItem ? null : 'var(--px-text-dim)')}
+        ${metaCell('ATQ PRINCIPAL', evaluation.role, 'Estimado pelo maior stat ofensivo.')}
+        ${metaCell('AVALIAÇÃO', PokemonIvEvaluation.html(foe), 'Avaliação combinando IVs, natureza e stats base.')}
+        ${metaCell('IVS TOTAL', `${evaluation.percent}%`, 'Percentual dos IVs em relação ao máximo.', ivColor(evaluation.percent * 31 / 100))}
+    </div>`;
 
     const ivsSection = `<div class="section">
-        <div class="section-head"><span class="px-label">IVS / STATS</span><span class="head-extra" style="color:${ivColor(ivPercent * 31 / 100)}">${ivPercent}%</span></div>
+        <div class="section-head"><span class="px-label">IVS / STATS</span><span class="head-extra" style="color:${ivColor(evaluation.percent * 31 / 100)}">${evaluation.percent}%</span></div>
         <div class="ivs-grid6">${STAT_KEYS.filter((key) => ivs[key] !== undefined).map((key) => `
             <div class="iv-cell" data-tip="${key.toUpperCase()} — IV ${ivs[key]}/31${stats[key] !== undefined ? ` · stat atual ${stats[key]}` : ''}">
                 <span class="iv-key">${key.toUpperCase()}</span>
@@ -494,15 +673,22 @@ function render() {
             </div>`).join('')}</div>
     </div>`;
 
-    let html = `<div class="enc-screen">` + head + meta + (SCREEN_PREFS.showIvs ? ivsSection : '');
-    if (!state.caught) html += bestPlay(foe);
-    if (SCREEN_PREFS.showWeaknesses) html += renderWeaknesses(foe);
-    if (SCREEN_PREFS.showFoeMoves) html += renderFoeMoves(foe);
-    if (SCREEN_PREFS.showPokeballs) html += renderBalls(foe);
-    if (SCREEN_PREFS.showStatChanges) html += renderStages();
+    // cada seção reordenável mapeia sua chave pra função que devolve o HTML
+    // (respeitando os toggles de visibilidade). A ordem vem de SCREEN_PREFS.order,
+    // editável em Configurações → BATALHA; cabeçalho + meta ficam sempre no topo.
+    const sectionHtml = {
+        ivs:        () => (SCREEN_PREFS.showIvs ? ivsSection : ''),
+        best:       () => (!state.caught ? bestPlay(foe) : ''),
+        weaknesses: () => (SCREEN_PREFS.showWeaknesses ? renderWeaknesses(foe) : ''),
+        foeMoves:   () => (SCREEN_PREFS.showFoeMoves ? renderFoeMoves(foe) : ''),
+        pokeballs:  () => (SCREEN_PREFS.showPokeballs ? renderBalls(foe) : ''),
+        stages:     () => (SCREEN_PREFS.showStatChanges ? renderStages() : ''),
+        myMoves:    () => (!state.caught && SCREEN_PREFS.showMyMoves && state.moves.length ? renderMyMoves(foe) : '')
+    };
+    const order = PokemonHelperStorage.sanitizeBattleOrder(SCREEN_PREFS.order);
+    let html = `<div class="enc-screen">` + head + meta;
+    order.forEach((key) => { html += sectionHtml[key] ? sectionHtml[key]() : ''; });
     if (state.caught) html += '<div class="gotcha"><span class="gotcha-badge">GOTCHA</span><p>Pokémon capturado</p></div>';
-    else if (SCREEN_PREFS.showMyMoves && state.moves.length) html += `<div class="section"><div class="section-head"><span class="px-label">SEUS GOLPES</span></div><div class="rows">` +
-        state.moves.map((move) => `<div class="row"><span class="label">${escapeHtml(move.name)}</span><span class="value">${move.pp} PP</span></div>`).join('') + '</div></div>';
     html += `</div>`;
     content.innerHTML = html;
     // sprite pode não existir no repositório (formas regionais etc.) — volta
@@ -523,7 +709,7 @@ async function loadPokedex() {
         render();
         chrome.runtime.sendMessage({ type:'pkmn-helper-refresh-pokedex' });
     } catch (error) {
-        console.warn('[Pokemon Helper] Não foi possível carregar a Pokédex:', error);
+        console.warn('[Infinity Dex Helper] Não foi possível carregar a Pokédex:', error);
     }
 }
 
@@ -534,7 +720,7 @@ async function loadTrainerMoves() {
         render();
         chrome.runtime.sendMessage({ type:'pkmn-helper-refresh-trainer-moves' });
     } catch (error) {
-        console.warn('[Pokemon Helper] Não foi possível carregar golpes de treinadores:', error);
+        console.warn('[Infinity Dex Helper] Não foi possível carregar golpes de treinadores:', error);
     }
 }
 
@@ -544,7 +730,7 @@ async function loadDiscoveredMoves() {
         discoveredMovesByKey = new Map((cached.items || []).map((item) => [discoveryKey(item.species, item.level), item.moves]));
         render();
     } catch (error) {
-        console.warn('[Pokemon Helper] Não foi possível carregar golpes descobertos:', error);
+        console.warn('[Infinity Dex Helper] Não foi possível carregar golpes descobertos:', error);
     }
 }
 
@@ -556,7 +742,7 @@ async function saveDiscoveredMoves() {
         });
         await PokemonHelperStorage.setDiscoveredMoves({ items });
     } catch (error) {
-        console.warn('[Pokemon Helper] Não foi possível salvar golpes descobertos:', error);
+        console.warn('[Infinity Dex Helper] Não foi possível salvar golpes descobertos:', error);
     }
 }
 
@@ -567,27 +753,11 @@ window.addEventListener('message', (event) => {
 });
 
 document.getElementById('content').addEventListener('click', (event) => {
-    const externo = event.target.closest('.px-extlink');
-    if (externo) {
-        event.preventDefault();
-        event.stopPropagation();
-        window.open(externo.dataset.smogon, '_blank', 'noopener');
-        return;
-    }
     const btn = event.target.closest('[data-action="toggle-move"]');
     if (!btn) return;
     const slug = btn.dataset.slug;
     if (openMoves.has(slug)) openMoves.delete(slug); else openMoves.add(slug);
     render();
-});
-
-document.getElementById('content').addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    const externo = event.target.closest?.('.px-extlink');
-    if (!externo) return;
-    event.preventDefault();
-    event.stopPropagation();
-    window.open(externo.dataset.smogon, '_blank', 'noopener');
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {

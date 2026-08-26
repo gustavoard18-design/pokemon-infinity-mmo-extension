@@ -1,36 +1,24 @@
 // ---------------------------------------------------------------------------
-// Ícones pixel-art 7×7 do design system: cada glifo é um bitmap de '0'/'1'
-// renderizado como box-shadow de um quadrado 2×2 dentro de uma âncora 14×14.
+// Ícones do design system. Os ícones da barra do cabeçalho (uiIcon) são SVGs
+// sólidos — combinam com o traço de tinta grosso do visual "Quadro de Tipos".
+// Tipo elemental (typeIcon) usa um quadrado sólido de cor com contorno.
 // Também centraliza o contraste automático de texto sobre cores de tipo.
 // ---------------------------------------------------------------------------
 var PokemonPixelIcons = globalThis.PokemonPixelIcons || (() => {
-    const TYPE_ICONS = {
-        NRM: '0011100/0100010/1000001/1000001/1000001/0100010/0011100',
-        FIR: '0010100/0011100/0111010/0111110/1111111/1101111/0111110',
-        WTR: '0001000/0011100/0011100/0111110/1111111/1111111/0111110',
-        ELC: '0000110/0001100/0011000/0111110/0001100/0011000/0110000',
-        GRS: '0000111/0001111/0011110/0111100/1111000/0110100/1100010',
-        ICE: '1001001/0101010/0011100/1111111/0011100/0101010/1001001',
-        FGT: '0000000/0110110/1111111/1111111/1111111/0111110/0011100',
-        PSN: '0111110/1111111/1011101/1111111/0111110/0010100/0101010',
-        GRD: '0000000/0001000/0011100/0111110/1111111/0000000/1111111',
-        FLY: '0000000/1100000/1111000/0111110/0011111/0000110/0000000',
-        PSY: '0000000/0111110/1000001/1001101/1000001/0111110/0000000',
-        BUG: '1000001/0100010/0111110/1111111/0111110/1111111/0100010',
-        RCK: '0001100/0011110/0111111/1111111/1111110/0111100/0000000',
-        GHO: '0011100/0111110/1101011/1111111/1111111/1111111/1010101',
-        DRG: '0001000/0011100/0111110/1111111/0111110/0011100/0001000',
-        DRK: '0011100/0111110/1111000/1110000/1111000/0111110/0011100',
-        STL: '0011100/0111110/1110111/1100011/1110111/0111110/0011100',
-        FRY: '0001000/0001000/0101010/0011100/1110111/0011100/0101010'
-    };
-    const UI_ICONS = {
-        enc:  '0001000/0011100/0110110/1110111/0110110/0011100/0001000',
-        calc: '1111111/1000001/1011101/1000001/1010101/1010101/1111111',
-        tbl:  '1111111/1001001/1111111/1001001/1111111/1001001/1111111',
-        team: '0011100/0100010/1111111/1000001/1010101/1000001/1111111',
-        auc:  '0001000/0011100/0011100/1111111/0011100/0011100/0001000',
-        cfg:  '0101010/1111111/1110111/1100011/1110111/1111111/0101010'
+    // corpo (paths) de cada ícone SVG do cabeçalho, viewBox 0 0 24 24, sólido.
+    const UI_SVG = {
+        // alvo/mira (anéis concêntricos + retículo) — aba Encontro/Batalha
+        enc:  '<path fill-rule="evenodd" d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 2.6a7.4 7.4 0 110 14.8 7.4 7.4 0 010-14.8zm0 3.9a3.5 3.5 0 100 7 3.5 3.5 0 000-7z"/><path d="M11 0h2v4h-2zM11 20h2v4h-2zM0 11h4v2H0zM20 11h4v2h-4z"/>',
+        // pokébola: aro + linha central + botão — Meus Pokémon
+        team: '<path d="M12 3a9 9 0 018.94 8H15.7a3.7 3.7 0 00-7.4 0H3.06A9 9 0 0112 3zm0 6.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM3.06 13h5.24a3.7 3.7 0 007.4 0h5.24A9 9 0 013.06 13z"/>',
+        // engrenagem clássica com furo central — Configurações
+        cfg:  '<path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 00.12-.64l-1.92-3.32a.5.5 0 00-.61-.22l-2.39.96a7.03 7.03 0 00-1.62-.94l-.36-2.54a.5.5 0 00-.5-.42h-3.84a.5.5 0 00-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 00-.61.22L2.74 8.84a.5.5 0 00.12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 00-.12.64l1.92 3.32c.14.24.42.34.68.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.25.42.5.42h3.84c.25 0 .45-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.26.12.54.02.68-.22l1.92-3.32a.5.5 0 00-.12-.64l-2.03-1.58zM12 15.6a3.6 3.6 0 110-7.2 3.6 3.6 0 010 7.2z"/>',
+        // janela maximizada (moldura + barra de título) — Tabela de tipos (expandir)
+        tbl:  '<path d="M3 4h18v16H3V4zm2 4v10h14V8H5z"/>',
+        // barra de minimizar — Recolher pra bolha
+        min:  '<rect x="5" y="14.5" width="14" height="3" rx="1.5"/>',
+        // dispositivo Pokédex: lente redonda + luzes + linhas — aba Pokédex
+        dex:  '<path d="M4 3h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1zm4 3.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5zM14 6h5v2h-5V6zm0 3.5h5v2h-5v-2zM6 14h12v2H6v-2zm0 3.5h12v2H6v-2z"/>'
     };
     const TYPE_COLORS = {
         normal: '#9a9a80', fire: '#f0803c', water: '#4a90e2', electric: '#f5cd35',
@@ -40,18 +28,11 @@ var PokemonPixelIcons = globalThis.PokemonPixelIcons || (() => {
         steel: '#8fa5b8', fairy: '#ee90c0'
     };
 
-    function px(map, color, scale) {
-        const out = [];
-        map.split('/').forEach((rowBits, y) => rowBits.split('').forEach((bit, x) => {
-            if (bit === '1') out.push(`${x * scale}px ${y * scale}px 0 0 ${color}`);
-        }));
-        return out.join(',');
-    }
-
-    function iconHTML(map, color, scale = 2) {
-        const size = 7 * scale;
-        return `<span class="px-icon" style="position:relative;display:inline-block;width:${size}px;height:${size}px;flex:0 0 auto;">` +
-            `<span style="position:absolute;left:0;top:0;width:${scale}px;height:${scale}px;box-shadow:${px(map, color, scale)};"></span>` +
+    // ícone SVG sólido da barra do cabeçalho, na cor pedida
+    function uiIcon(name, color, size = 18) {
+        const body = UI_SVG[name] || '';
+        return `<span class="px-icon" style="display:inline-flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;flex:0 0 auto;">` +
+            `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${color}" style="display:block;">${body}</svg>` +
             `</span>`;
     }
 
@@ -75,18 +56,17 @@ var PokemonPixelIcons = globalThis.PokemonPixelIcons || (() => {
         return '#' + a.map((v, i) => Math.round(b[i] + (v - b[i]) * amount).toString(16).padStart(2, '0')).join('');
     }
 
-    function typeIcon(typeKey, color) {
-        // ABBR vem de components/type-tag.js (carregado antes deste arquivo? não:
-        // este arquivo não depende da ordem — usa o próprio mapa de abreviações)
-        const ab = ({ normal:'NRM', fire:'FIR', water:'WTR', electric:'ELC', grass:'GRS',
-            ice:'ICE', fighting:'FGT', poison:'PSN', ground:'GRD', flying:'FLY',
-            psychic:'PSY', bug:'BUG', rock:'RCK', ghost:'GHO', dragon:'DRG',
-            dark:'DRK', steel:'STL', fairy:'FRY' })[typeKey] || typeKey;
-        return iconHTML(TYPE_ICONS[ab] || TYPE_ICONS.NRM, color);
+    // marcador de tipo do visual "Quadro de Tipos": um quadrado sólido de cor,
+    // arredondado, com contorno de tinta — sem pontinhos de LCD nem emoji.
+    // A cor identifica o tipo; onde há texto ao lado (tabela, cards,
+    // filtros) ele complementa. `color` é a cor de preenchimento do marcador.
+    function typeIcon(typeKey, color, scale = 2) {
+        const size = Math.round(7 * scale * 0.82);
+        return `<span class="px-icon" style="display:inline-block;width:${size}px;height:${size}px;border-radius:3px;background:${color};box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.4);flex:0 0 auto;"></span>`;
     }
 
     return Object.freeze({
-        TYPE_ICONS, UI_ICONS, px, iconHTML, typeIcon, onColor, mix,
+        UI_SVG, uiIcon, typeIcon, onColor, mix,
         typeColor: (typeKey) => TYPE_COLORS[typeKey] || '#9a9a80'
     });
 })();

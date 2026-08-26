@@ -3,26 +3,25 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST="$ROOT/dist/chrome"
-ZIP="$ROOT/dist/infinity-mmo-extension-chrome.zip"
+ZIP="$ROOT/dist/infinity-dex-helper-chrome.zip"
 
 rm -rf "$DIST"
 mkdir -p "$DIST"
 
 FILES=(
-  app.js
-  auction.html
-  auction.js
   background.js
   battle.html
   battle.js
   chart.html
   chart.js
   content.js
-  index.html
   interceptor.js
+  hook.js
   manifest.json
   myPokemons.html
   myPokemons.js
+  pokedex.html
+  pokedex.js
   pixel-theme.css
 )
 

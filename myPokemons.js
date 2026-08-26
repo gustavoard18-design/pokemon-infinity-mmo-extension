@@ -1,18 +1,5 @@
 let LOCAL_PAYLOAD = { party: [], pc: [] };
 
-// lista importada de um arquivo: vive só na memória do iframe, nunca vai para
-// o chrome.storage e nunca se mistura ao payload real do jogo (LOCAL_PAYLOAD,
-// que continua sendo atualizado em segundo plano enquanto o modo está ativo)
-const IMPORT_STATE = { active: false, fileName: '', payload: null };
-
-function activePayload() {
-    return IMPORT_STATE.active ? IMPORT_STATE.payload : LOCAL_PAYLOAD;
-}
-
-function payloadIsEmpty(payload) {
-    return !(payload?.party?.length) && !(payload?.pc?.some((box) => box?.pokemon?.length));
-}
-
 const ICON_URL = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/dream-world/';
 const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 
@@ -41,46 +28,22 @@ const UI_STATE = {
     // no modo full os detalhes começam todos abertos, mas o usuário pode
     // recolher card a card — os recolhidos vivem aqui, fora do Set
     // persistido (expandedPokemon), e zeram a cada entrada no modo full.
-    fullCollapsed: new Set(),
-    // seção de golpes de todos os cartões — estado só da sessão, como os
-    // outros dois toggles globais da barra de ferramentas
-    showMoves: true
+    fullCollapsed: new Set()
 };
 
 // defaults de expansão da tela (Configurações → TELAS). Começa com os
 // defaults síncronos: se o primeiro payload chegar antes da leitura do
 // storage resolver, o comportamento é o padrão — aceitável e raro.
 let SCREEN_PREFS = Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES.screens.myPokemons);
-let EVALUATION_PREFS = Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES.evaluation);
-let pokedexProfiles = new Map();
-const evaluationCache = PokemonEvaluation.createCache();
 PokemonHelperStorage.getUiPreferences()
-    .then((prefs) => { SCREEN_PREFS = prefs.screens.myPokemons; EVALUATION_PREFS = prefs.evaluation; renderIfLoaded(); })
+    .then((prefs) => { SCREEN_PREFS = prefs.screens.myPokemons; })
     .catch(() => {});
 chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local') return;
-    if (changes[PokemonHelperStorage.KEYS.pokedex]) {
-        const items = changes[PokemonHelperStorage.KEYS.pokedex].newValue?.items || [];
-        pokedexProfiles = new Map(items.map((item) => [normalizeSearch(item.slug || item.name), item.evaluationProfile]));
-        evaluationCache.clear();
-        rebuildDataState(); applyFilters(); renderIfLoaded();
-    }
-    if (!changes[PokemonHelperStorage.KEYS.uiPreferences]) return;
-    // re-render para o link do Smogon aparecer/sumir assim que a configuração
-    // muda, sem precisar fechar e reabrir a aba
+    if (area !== 'local' || !changes[PokemonHelperStorage.KEYS.uiPreferences]) return;
     PokemonHelperStorage.getUiPreferences()
-        .then((prefs) => {
-            SCREEN_PREFS = prefs.screens.myPokemons;
-            EVALUATION_PREFS = prefs.evaluation;
-            if (!EVALUATION_PREFS.enabled) evaluationCache.clear();
-            rebuildDataState(); applyFilters(); renderIfLoaded();
-        })
+        .then((prefs) => { SCREEN_PREFS = prefs.screens.myPokemons; })
         .catch(() => {});
 });
-PokemonHelperStorage.getPokedex().then((cached) => {
-    pokedexProfiles = new Map((cached.items || []).map((item) => [normalizeSearch(item.slug || item.name), item.evaluationProfile]));
-    rebuildDataState(); applyFilters(); renderIfLoaded();
-}).catch(() => {});
 
 let filterController = null;
 
@@ -149,8 +112,6 @@ function createPokemonViewModel(pokemon, location) {
     const natureName = pokemon.nature || '—';
     const pokemonId = getPokemonId(name);
 
-    const profile = pokedexProfiles.get(normalizeSearch(pokemon.species || name));
-    const evaluation = EVALUATION_PREFS.enabled ? evaluationCache.evaluate(pokemon, profile) : null;
     return {
         pokemon,
         key: location.key,
@@ -179,13 +140,11 @@ function createPokemonViewModel(pokemon, location) {
         ivPercent: calculateIvPercent(pokemon.ivs),
         typeKeys,
         typeOrder: typeKeys.map((type) => TYPES.indexOf(type)),
-        moves: normalizeMoves(pokemon.moves),
-        evaluation
+        moves: normalizeMoves(pokemon.moves)
     };
 }
 
-function rebuildDataState() {
-    const data = activePayload();
+function rebuildDataState(data) {
     const party = Array.isArray(data?.party) ? data.party : [];
     const pc = Array.isArray(data?.pc) ? data.pc : [];
     const groups = [{ key: 'party', kind: 'party', title: 'Meu time', capacity: 6, boxIndex: null }];
@@ -229,18 +188,17 @@ function rebuildDataState() {
 
     DATA_STATE.sourcePokemon = pokemon;
     DATA_STATE.groups = groups;
-    evaluationCache.retain(pokemon.map((viewModel) => viewModel.pokemon?.id ?? `${viewModel.pokemon?.species || viewModel.name}:${viewModel.level}`));
 }
 
 function hasAdvancedFilter(values) {
     return values.shinyOnly
         || values.itemOnly
-        || (EVALUATION_PREFS.enabled && values.ratingLabels.length > 0)
         || values.types.length > 0
         || (values.natureMode === 'name' && values.natures.length > 0)
         || (values.natureMode === 'effect' && (
             values.neutralOnly || values.natureIncrease || values.natureDecrease
         ))
+        || values.ivTotalMin > 0
         || STAT_KEYS.some((stat) => values.ivMinimum[stat] > 0);
 }
 
@@ -249,7 +207,6 @@ function pokemonPassesFilters(viewModel, nameQuery, values, advancedEnabled, com
     if (!advancedEnabled) return true;
     if (values.shinyOnly && !viewModel.shiny) return false;
     if (values.itemOnly && !viewModel.hasItem) return false;
-    if (EVALUATION_PREFS.enabled && values.ratingLabels.length && !values.ratingLabels.includes(viewModel.evaluation?.rating?.label)) return false;
 
     if (values.types.length) {
         const matchesType = values.typeMode === 'all'
@@ -273,6 +230,7 @@ function pokemonPassesFilters(viewModel, nameQuery, values, advancedEnabled, com
         }
     }
 
+    if (values.ivTotalMin > 0 && Number(viewModel.ivPercent) < values.ivTotalMin) return false;
     if (STAT_KEYS.some((stat) => viewModel.ivs[stat] < values.ivMinimum[stat])) return false;
     return true;
 }
@@ -307,11 +265,6 @@ function createComparator(values) {
             case 'ivPercent':
                 result = (left.ivPercent - right.ivPercent) * direction;
                 break;
-            case 'evaluationScore':
-                result = ((left.evaluation?.rating?.sortValue ?? -1) - (right.evaluation?.rating?.sortValue ?? -1)) * direction;
-                if (!result) result = (left.ivPercent - right.ivPercent) * direction;
-                if (!result) result = left.normalizedName.localeCompare(right.normalizedName, 'pt-BR');
-                break;
             default:
                 result = left.sourceOrder - right.sourceOrder;
         }
@@ -321,8 +274,7 @@ function createComparator(values) {
 
 function applyFilters() {
     const advancedEnabled = FILTER_STATE.advancedEnabled;
-    const values = advancedEnabled ? { ...FILTER_STATE.applied } : PokemonFilters.defaultValues();
-    if (!EVALUATION_PREFS.enabled && values.sortBy === 'evaluationScore') values.sortBy = 'position';
+    const values = advancedEnabled ? FILTER_STATE.applied : PokemonFilters.defaultValues();
     const nameQuery = advancedEnabled ? FILTER_STATE.appliedName : FILTER_STATE.liveName;
     FILTER_STATE.isFiltering = Boolean(nameQuery) || (advancedEnabled && hasAdvancedFilter(values));
 
@@ -346,15 +298,34 @@ function applyFilters() {
 // Render — cartões e grupos no design system v2 (pixel).
 // ---------------------------------------------------------------------
 
+// mesmas faixas usadas no encontro (battle.js): >=26 verde, >=15 âmbar
+const ivStatColor = (iv) => iv >= 26 ? 'var(--px-good)' : iv >= 15 ? 'var(--px-mid)' : 'var(--px-bad)';
+// faixa do IV total (%): >=80 verde, >=50 âmbar
+const ivPercentColor = (percent) => percent >= 80 ? 'var(--px-good)' : percent >= 50 ? 'var(--px-mid)' : 'var(--px-bad)';
+
 const MOVE_CATEGORY_STYLE = {
     physical: { label: 'FÍS', color: '#e0803c' },
     special: { label: 'ESP', color: '#4a90e2' },
-    status: { label: 'STA', color: '#8a8aa0' }
+    status: { label: 'STA', color: 'var(--px-text-dim)' }
 };
 
 function moveCategoryInfo(category) {
     const key = String(category ?? '').trim().toLowerCase();
     return MOVE_CATEGORY_STYLE[key] || { label: '—', color: 'var(--px-text-dim)' };
+}
+
+function ivTooltipText(ivs) {
+    return STAT_KEYS.map((stat) => `${stat.toUpperCase()} ${ivs[stat]}`).join(' · ');
+}
+
+// chips de +/- da nature (verde/vermelho), a partir de getNatureEffect
+function natureModsHTML(effect) {
+    if (!effect) return '';
+    if (effect.increases === effect.decreases) {
+        return '<span class="nat-mod" style="color:var(--px-mid)">NEUTRA</span>';
+    }
+    return `<span class="nat-mod" style="color:var(--px-good)">${effect.increases}⬆</span>`
+        + `<span class="nat-mod" style="color:var(--px-bad)">${effect.decreases}⬇</span>`;
 }
 
 function syncUiState() {
@@ -382,23 +353,26 @@ function syncUiState() {
 }
 
 function renderDetailRows(viewModel) {
-    // avaliação e função já foram calculadas no view model e são reutilizadas
-    // por renderização, filtros e ordenação.
-    return PokemonCard.detailRows(viewModel, { afterNatureRows:PokemonCard.natureFitRow(viewModel, EVALUATION_PREFS), afterRows: `
+    // avaliação de IVs/natureza/stats (grade Ruim..Excelente) + papel ofensivo
+    // principal — mesma fonte (PokemonIvEvaluation) usada no encontro (battle.js)
+    const evaluation = PokemonIvEvaluation.evaluate(viewModel.pokemon);
+    return `
+        <div class="detail-row"><span class="detail-key">Natureza</span><span class="detail-val">${escapeHtml(viewModel.natureName)} ${natureModsHTML(viewModel.natureEffect)}</span></div>
+        <div class="detail-row"><span class="detail-key">Habilidade</span><span class="detail-val" data-ability="${escapeHtml(viewModel.ability)}">${escapeHtml(PokemonAbilityInfo.label(viewModel.ability))}</span></div>
+        <div class="detail-row"><span class="detail-key">Item</span><span class="detail-val">${escapeHtml(viewModel.heldItem)}</span></div>
         <div class="detail-row"><span class="detail-key">Posição</span><span class="detail-val">${escapeHtml(viewModel.slotLabel)}</span></div>
-        ${PokemonCard.evaluationRows(viewModel, EVALUATION_PREFS)}
-    ` });
+        <div class="detail-row"><span class="detail-key">Avaliação</span><span class="detail-val">${PokemonIvEvaluation.html(viewModel.pokemon)} ${PokemonHelperTooltip.iconHTML('Avalia IVs, natureza e stats base pra classificar o Pokémon.')}</span></div>
+        <div class="detail-row"><span class="detail-key">Atq Principal</span><span class="detail-val">${escapeHtml(evaluation.role)}</span></div>
+    `;
 }
 
 function renderIvDetails(viewModel) {
-    return PokemonCard.ivGrid(viewModel);
-}
-
-// selo ao lado do nome; markup e tooltip vêm de PokemonTransfer para não
-// divergir do mesmo selo na tela de Encontro
-function renderSmogonLink(viewModel) {
-    if (!SCREEN_PREFS.showSmogonLink) return '';
-    return PokemonTransfer.smogonLinkHTML(viewModel.name);
+    return `<div class="pokemon-iv-grid">${STAT_KEYS.map((stat) => `
+        <div class="pokemon-iv">
+            <span class="k">${stat.toUpperCase()}</span>
+            <span class="v" style="color:${ivStatColor(viewModel.ivs[stat])}">${viewModel.ivs[stat]}</span>
+        </div>
+    `).join('')}</div>`;
 }
 
 function renderMoveDetails(viewModel) {
@@ -408,10 +382,9 @@ function renderMoveDetails(viewModel) {
     const rows = viewModel.moves.map((move) => {
         const category = moveCategoryInfo(move.category);
         const typeBg = move.typeKey ? PokemonPixelIcons.typeColor(move.typeKey) : 'var(--px-bg-track)';
-        const typeIcon = move.typeKey ? PokemonPixelIcons.typeIcon(move.typeKey, PokemonPixelIcons.onColor(typeBg)) : '';
         return `
             <div class="pokemon-move">
-                <span class="pokemon-move-type" style="background:${typeBg}">${typeIcon}</span>
+                <span class="pokemon-move-type" style="background:${typeBg}"></span>
                 <span class="pokemon-move-name">${escapeHtml(move.name)}</span>
                 <span class="pokemon-move-category" style="color:${category.color}">${category.label}</span>
                 <span class="pokemon-move-pp">${move.pp ?? '—'} PP</span>
@@ -425,12 +398,40 @@ function renderPokemonCard(viewModel) {
     const expanded = UI_STATE.forceExpandAll
         ? !UI_STATE.fullCollapsed.has(viewModel.key)
         : UI_STATE.expandedPokemon.has(viewModel.key);
-    const moves = UI_STATE.showMoves ? renderMoveDetails(viewModel) : '';
-    return PokemonCard.render(viewModel, {
-        expanded,
-        nameBadgesHtml: renderSmogonLink(viewModel),
-        detailsHtml: renderDetailRows(viewModel) + renderIvDetails(viewModel) + moves
-    });
+    const detailsId = `pokemon-details-${viewModel.key.replace(/:/g, '-')}`;
+    const icon = viewModel.iconUrl
+        ? `<img class="pokemon-icon" src="${viewModel.iconUrl}" alt="${escapeHtml(viewModel.name)} icon">`
+        : '<span class="pokemon-icon"><span class="pxl-pokeball"></span></span>';
+    const genderClass = viewModel.gender.class === 'male' ? 'pokemon-gender-m' : viewModel.gender.class === 'female' ? 'pokemon-gender-f' : '';
+    const gender = genderClass ? `<span class="${genderClass}">${viewModel.gender.symbol}</span>` : '';
+    const shiny = viewModel.shiny ? '<span data-tip="Shiny!">✨</span>' : '';
+    const chips = viewModel.typeKeys.map((type) => typeTagHTML(type, { stack: true })).join('');
+    const ivColor = ivPercentColor(viewModel.ivPercent);
+    const cardStyle = viewModel.typeKeys[0] ? ` style="--card-type-color:${PokemonPixelIcons.typeColor(viewModel.typeKeys[0])}"` : '';
+
+    return `
+        <article class="pokemon-card pokemon-card--${viewModel.location}" data-pokemon-key="${viewModel.key}"${cardStyle}>
+            <button type="button" class="pokemon-card-toggle" aria-expanded="${expanded}" aria-controls="${detailsId}">
+                ${icon}
+                <span class="pokemon-id-col">
+                    <span class="pokemon-name">
+                        <span class="pokemon-name-text">${escapeHtml(viewModel.name)}</span>
+                        ${gender}
+                        ${shiny}
+                    </span>
+                    <span class="pokemon-chips">${chips}</span>
+                </span>
+                <span class="pokemon-right">
+                    <span class="pokemon-level">Lv. ${viewModel.level || '—'}</span>
+                    <span class="pokemon-ivbar" data-tip="${escapeHtml(ivTooltipText(viewModel.ivs))}">
+                        <span class="px-bar"><span class="px-bar-fill" style="width:${viewModel.ivPercent}%;background:${ivColor}"></span></span>
+                        <span class="pokemon-ivbar-label" style="color:${ivColor}">${viewModel.ivPercent}%</span>
+                    </span>
+                </span>
+            </button>
+            <div class="pokemon-details" id="${detailsId}" ${expanded ? '' : 'hidden'}>${renderDetailRows(viewModel)}${renderIvDetails(viewModel)}${renderMoveDetails(viewModel)}</div>
+        </article>
+    `;
 }
 
 function renderPokemonList(viewModels, location = 'all') {
@@ -506,20 +507,18 @@ function syncGlobalControls() {
     groupsToggle?.setAttribute('aria-pressed', String(allGroupsExpanded));
     if (groupsToggle) groupsToggle.hidden = removeGroups;
     document.getElementById('expand-all-pokemon')?.setAttribute('aria-pressed', String(allPokemonExpanded));
-    document.getElementById('toggle-moves')?.setAttribute('aria-pressed', String(UI_STATE.showMoves));
-    syncTransferControls();
 }
 
 function render() {
     const content = document.getElementById('content');
     if (!content) return;
-    const evaluationSection = document.getElementById('filter-evaluation-section');
-    if (evaluationSection) evaluationSection.hidden = !EVALUATION_PREFS.enabled;
-    const evaluationSort = document.querySelector('#filter-sort-by option[value="evaluationScore"]');
-    if (evaluationSort) evaluationSort.hidden = !EVALUATION_PREFS.enabled;
     syncUiState();
     const removeGroups = FILTER_STATE.advancedEnabled && FILTER_STATE.applied.removeGroups;
-    content.innerHTML = removeGroups ? renderFlat() : renderGrouped();
+    // linha de total de resultados no topo (só quando há filtro ativo)
+    const summary = FILTER_STATE.isFiltering
+        ? `<div class="pokemon-results-summary">${DATA_STATE.filteredPokemon.length} de ${DATA_STATE.sourcePokemon.length} Pokémon</div>`
+        : '';
+    content.innerHTML = summary + (removeGroups ? renderFlat() : renderGrouped());
     PokemonAbilityInfo.hydrate(content);
     syncGlobalControls();
 }
@@ -527,113 +526,6 @@ function render() {
 function applyAndRender() {
     applyFilters();
     render();
-}
-
-// evita trocar a mensagem inicial de "aguardando" por um render vazio quando
-// as preferências chegam antes do primeiro payload do personagem
-function renderIfLoaded() {
-    if (DATA_STATE.groups.length > 0) render();
-}
-
-// ---------------------------------------------------------------------
-// Exportar / importar — arquivo JSON no modelo de components/pokemon-transfer.js
-// ---------------------------------------------------------------------
-
-const TRANSFER_MESSAGES = {
-    json: 'Arquivo inválido: não é um JSON válido.',
-    shape: 'Arquivo inválido: não contém uma lista de Pokémon.',
-    empty: 'Arquivo sem Pokémon.'
-};
-
-function setTransferStatus(message, kind) {
-    const status = document.getElementById('transfer-status');
-    if (!status) return;
-    status.textContent = message || '';
-    status.hidden = !message;
-    if (kind) status.dataset.kind = kind;
-    else delete status.dataset.kind;
-}
-
-function syncTransferControls() {
-    const exportButton = document.getElementById('export-pokemon');
-    if (exportButton) exportButton.disabled = payloadIsEmpty(activePayload());
-    const banner = document.getElementById('imported-banner');
-    if (banner) banner.hidden = !IMPORT_STATE.active;
-    const fileLabel = document.getElementById('imported-banner-file');
-    if (fileLabel) fileLabel.textContent = IMPORT_STATE.fileName;
-}
-
-// a lista importada e a do jogo usam chaves de card diferentes (party:0,
-// pc:2:13 apontam para Pokémon distintos), então a expansão recomeça do padrão
-function resetViewState() {
-    UI_STATE.expandedGroups.clear();
-    UI_STATE.expandedPokemon.clear();
-    UI_STATE.fullCollapsed.clear();
-    UI_STATE.knownGroups.clear();
-    UI_STATE.initialized = false;
-}
-
-function exportPokemon() {
-    const payload = activePayload();
-    if (payloadIsEmpty(payload)) {
-        setTransferStatus('Nada para exportar — aguardando os dados do personagem.', 'erro');
-        return;
-    }
-    const name = PokemonTransfer.filename();
-    const json = JSON.stringify(PokemonTransfer.buildExport(payload), null, 2);
-    try {
-        const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = name;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        setTransferStatus(`Exportado: ${name}`, 'ok');
-    } catch (error) {
-        // download dentro do iframe pode ser recusado pelo navegador —
-        // a área de transferência mantém o dado acessível
-        console.warn('[Pokemon Helper] Falha ao baixar a exportação:', error);
-        navigator.clipboard?.writeText(json)
-            .then(() => setTransferStatus('Download bloqueado — JSON copiado para a área de transferência.', 'ok'))
-            .catch(() => setTransferStatus('Não foi possível exportar neste navegador.', 'erro'));
-    }
-}
-
-function enterImportedMode(payload, fileName, count) {
-    IMPORT_STATE.active = true;
-    IMPORT_STATE.payload = payload;
-    IMPORT_STATE.fileName = fileName;
-    resetViewState();
-    rebuildDataState();
-    applyAndRender();
-    setTransferStatus(`Importado: ${fileName} — ${count} Pokémon.`, 'ok');
-}
-
-function exitImportedMode() {
-    IMPORT_STATE.active = false;
-    IMPORT_STATE.payload = null;
-    IMPORT_STATE.fileName = '';
-    resetViewState();
-    rebuildDataState();
-    applyAndRender();
-    setTransferStatus('', null);
-}
-
-function importPokemonFile(file) {
-    const reader = new FileReader();
-    reader.onerror = () => setTransferStatus('Não foi possível ler o arquivo.', 'erro');
-    reader.onload = () => {
-        const result = PokemonTransfer.parse(String(reader.result || ''));
-        // arquivo inválido não derruba a lista que já está na tela
-        if (!result.ok) {
-            setTransferStatus(TRANSFER_MESSAGES[result.error] || TRANSFER_MESSAGES.shape, 'erro');
-            return;
-        }
-        enterImportedMode(result.payload, file.name, result.count);
-    };
-    reader.readAsText(file);
 }
 
 function toggleSetValue(set, key) {
@@ -648,7 +540,6 @@ function bindControls() {
     const advancedPanel = document.getElementById('pokemon-advanced-filters');
     const groupsToggle = document.getElementById('expand-all-groups');
     const pokemonToggle = document.getElementById('expand-all-pokemon');
-    const movesToggle = document.getElementById('toggle-moves');
 
     filterController = PokemonFilters.mount(advancedPanel, {
         onApply(values) {
@@ -688,24 +579,6 @@ function bindControls() {
         render();
     });
 
-    movesToggle.addEventListener('click', () => {
-        UI_STATE.showMoves = !UI_STATE.showMoves;
-        render();
-    });
-
-    document.getElementById('export-pokemon').addEventListener('click', exportPokemon);
-
-    const importInput = document.getElementById('import-file');
-    document.getElementById('import-pokemon').addEventListener('click', () => importInput.click());
-    importInput.addEventListener('change', () => {
-        const file = importInput.files?.[0];
-        // zera o input para o mesmo arquivo poder ser reimportado depois
-        importInput.value = '';
-        if (file) importPokemonFile(file);
-    });
-
-    document.getElementById('exit-imported').addEventListener('click', exitImportedMode);
-
     pokemonToggle.addEventListener('click', () => {
         const shouldExpand = pokemonToggle.getAttribute('aria-pressed') !== 'true';
         DATA_STATE.filteredPokemon.forEach((viewModel) => {
@@ -724,15 +597,6 @@ function bindControls() {
     });
 
     content.addEventListener('click', (event) => {
-        // antes do cartão: o selo fica dentro do <button>, e sem parar aqui o
-        // clique também expandiria/recolheria os detalhes
-        const smogon = event.target.closest('.px-extlink');
-        if (smogon) {
-            event.preventDefault();
-            event.stopPropagation();
-            window.open(smogon.dataset.smogon, '_blank', 'noopener');
-            return;
-        }
         const groupButton = event.target.closest('.pokemon-group-toggle');
         if (groupButton) {
             const group = groupButton.closest('[data-group-key]');
@@ -752,17 +616,6 @@ function bindControls() {
             render();
         }
     });
-
-    content.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        const smogon = event.target.closest?.('.px-extlink');
-        if (!smogon) return;
-        event.preventDefault();
-        event.stopPropagation();
-        window.open(smogon.dataset.smogon, '_blank', 'noopener');
-    });
-
-    syncTransferControls();
 }
 
 bindControls();
@@ -773,13 +626,7 @@ window.addEventListener('message', (event) => {
     if (type !== 'character-data' || !hasData) return;
     if (payload.pc?.length > 0) LOCAL_PAYLOAD.pc = payload.pc;
     if (payload.party?.length > 0) LOCAL_PAYLOAD.party = payload.party;
-    // no modo importado os dados do jogo continuam chegando e ficam guardados,
-    // mas não trocam a lista que está na tela
-    if (IMPORT_STATE.active) {
-        syncTransferControls();
-        return;
-    }
-    rebuildDataState();
+    rebuildDataState(LOCAL_PAYLOAD);
     applyAndRender();
 });
 

@@ -3,25 +3,24 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST="$ROOT/dist/firefox"
-ZIP="$ROOT/dist/infinity-mmo-extension-firefox.zip"
+ZIP="$ROOT/dist/infinity-dex-helper-firefox.zip"
 
 rm -rf "$DIST"
 mkdir -p "$DIST"
 
 FILES=(
-  app.js
-  auction.html
-  auction.js
   background.js
   battle.html
   battle.js
   chart.html
   chart.js
   content.js
-  index.html
   interceptor.js
+  hook.js
   myPokemons.html
   myPokemons.js
+  pokedex.html
+  pokedex.js
   pixel-theme.css
 )
 

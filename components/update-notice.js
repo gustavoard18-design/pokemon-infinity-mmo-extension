@@ -36,12 +36,12 @@
         ];
         if (relevantKeys.some((key) => changes[key])) {
             renderUpdateNotice().catch((error) => {
-                console.warn('[Pokemon Helper] Não foi possível atualizar o aviso de versão:', error);
+                console.warn('[Infinity Dex Helper] Não foi possível atualizar o aviso de versão:', error);
             });
         }
     });
 
     renderUpdateNotice().catch((error) => {
-        console.warn('[Pokemon Helper] Não foi possível carregar o aviso de versão:', error);
+        console.warn('[Infinity Dex Helper] Não foi possível carregar o aviso de versão:', error);
     });
 })();

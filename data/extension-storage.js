@@ -23,7 +23,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         restoreTop: null,
         restoreHeight: null,
         collapsed: true,
-        view: 'calc',
+        view: 'myPokemons',
         open: true
     });
 
@@ -41,39 +41,46 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         error: null
     });
 
+    // seções reordenáveis da aba Encontro (cabeçalho + meta ficam sempre no
+    // topo, fora dessa lista). key = identificador usado no render/preferência;
+    // label = rótulo mostrado na UI de reordenação (Configurações → BATALHA).
+    const BATTLE_SECTIONS = Object.freeze([
+        Object.freeze({ key: 'ivs',        label: 'IVs / Stats' }),
+        Object.freeze({ key: 'best',       label: 'Melhor Jogada' }),
+        Object.freeze({ key: 'weaknesses', label: 'Fraquezas dele' }),
+        Object.freeze({ key: 'foeMoves',   label: 'Golpes dele' }),
+        Object.freeze({ key: 'pokeballs',  label: 'Pokébolas' }),
+        Object.freeze({ key: 'stages',     label: 'Atributos alterados' }),
+        Object.freeze({ key: 'myMoves',    label: 'Seus golpes' })
+    ]);
+    const BATTLE_SECTION_ORDER = Object.freeze(BATTLE_SECTIONS.map((section) => section.key));
+
+    // normaliza uma ordem salva: mantém só chaves conhecidas (sem duplicar) e
+    // acrescenta no fim, na ordem canônica, qualquer seção nova que ainda não
+    // esteja na lista — assim ordens antigas não perdem seções adicionadas depois.
+    function sanitizeBattleOrder(order) {
+        const known = new Set(BATTLE_SECTION_ORDER);
+        const seen = new Set();
+        const out = [];
+        (Array.isArray(order) ? order : []).forEach((key) => {
+            if (known.has(key) && !seen.has(key)) { seen.add(key); out.push(key); }
+        });
+        BATTLE_SECTION_ORDER.forEach((key) => { if (!seen.has(key)) out.push(key); });
+        return out;
+    }
+
     const DEFAULT_UI_PREFERENCES = Object.freeze({
         tooltipsEnabled: true,
-        startView: 'last',            // 'last' | 'battle' | 'calc' | 'myPokemons'
+        startView: 'last',            // 'last' | 'battle' | 'myPokemons'
         startCollapsed: 'remember',   // 'remember' | 'collapsed' | 'open'
         autoSwitchToBattle: true,
-        evaluation: Object.freeze({
-            enabled: true,
-            showCoreFields: true,
-            showConfidence: false,
-            showNatureFit: false,
-            showMovesetFit: false,
-            showAlternativeRole: false,
-            showEvolutionPotential: false
-        }),
-        panelZoom: 1,                 // fator de zoom do conteúdo do painel (ver components/panel-zoom.js)
-        // ação → combinação normalizada (ver PokemonHelperShortcutUtils)
-        // 1..5 seguem a ordem dos ícones no cabeçalho; quem já customizou não é
-        // afetado, porque mergeUiPreferences preserva o que estiver salvo
-        shortcuts: Object.freeze({
-            battle: '1',
-            calc: '2',
-            myPokemons: '3',
-            auction: '4',
-            settings: '5',
-            typeChart: 't',
-            toggleFull: 'f',
-            minimize: 'q'
-        }),
+        minimizeAfterBattle: false,   // recolher pra bolha quando a luta termina
+        minimizeOnLeave: true,        // recolher pra bolha ao sair da aba/tela do jogo
+        dockToGameGap: true,          // encaixar na faixa preta que o jogo deixa à esquerda
         screens: Object.freeze({
             myPokemons: Object.freeze({
                 expandPokemonByDefault: false,
-                expandGroupsByDefault: true,
-                showSmogonLink: true
+                expandGroupsByDefault: true
             }),
             battle: Object.freeze({
                 showStatChanges: true,
@@ -82,7 +89,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
                 showPokeballs: true,
                 showIvs: true,
                 showMyMoves: true,
-                showSmogonLink: true
+                order: BATTLE_SECTION_ORDER
             })
         })
     });
@@ -118,13 +125,11 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         return write(key, Object.assign(current, changes));
     }
 
-    // uiPreferences tem objetos aninhados (shortcuts, screens) — o merge raso
-    // de read() substituiria o objeto inteiro pelo salvo, e uma versão futura
-    // que adicionasse uma ação/tela nova deixaria configs antigas sem o campo.
+    // uiPreferences tem um objeto aninhado (screens) — o merge raso de read()
+    // substituiria o objeto inteiro pelo salvo, e uma versão futura que
+    // adicionasse uma tela nova deixaria configs antigas sem o campo.
     function mergeUiPreferences(stored) {
         const prefs = Object.assign({}, DEFAULT_UI_PREFERENCES, stored);
-        prefs.shortcuts = Object.assign({}, DEFAULT_UI_PREFERENCES.shortcuts, stored && stored.shortcuts);
-        prefs.evaluation = Object.assign({}, DEFAULT_UI_PREFERENCES.evaluation, stored && stored.evaluation);
         prefs.screens = {};
         Object.keys(DEFAULT_UI_PREFERENCES.screens).forEach((screen) => {
             prefs.screens[screen] = Object.assign({},
@@ -141,8 +146,6 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
     async function updateUiPreferences(changes) {
         const current = await getUiPreferencesDeep();
         const next = Object.assign({}, current, changes);
-        if (changes.shortcuts) next.shortcuts = Object.assign({}, current.shortcuts, changes.shortcuts);
-        if (changes.evaluation) next.evaluation = Object.assign({}, current.evaluation, changes.evaluation);
         if (changes.screens) {
             next.screens = {};
             Object.keys(current.screens).forEach((screen) => {
@@ -158,7 +161,8 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         DEFAULT_UPDATE_PREFERENCES,
         DEFAULT_UPDATE_STATUS,
         DEFAULT_UI_PREFERENCES,
-        mergeUiPreferences,
+        BATTLE_SECTIONS,
+        sanitizeBattleOrder,
         getOverlaySettings: () => read(KEYS.overlaySettings, DEFAULT_OVERLAY_SETTINGS),
         setOverlaySettings: (settings) => write(KEYS.overlaySettings, settings),
         getUpdatePreferences: () => read(KEYS.updatePreferences, DEFAULT_UPDATE_PREFERENCES),

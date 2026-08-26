@@ -8,13 +8,13 @@
 }
 
 .nature-increase {
-    color: #57c785;
+    color: var(--px-good);
 }
 
 .nature-decrease {
-    color: #e2637a;
+    color: var(--px-bad);
 }
 
 .nature-neutral {
-    color: #f7d02c;
+    color: var(--px-text-dim);
 }

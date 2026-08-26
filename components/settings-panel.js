@@ -17,12 +17,6 @@ function buildSettingsPanel(shell) {
                 <span class="ph-width-value" id="ph-width-value"></span>
                 <button type="button" class="ph-step" id="ph-width-plus">+</button>
             </div>
-            <div class="ph-setting-row" id="ph-zoom-row" data-tip="Tamanho do conteúdo do painel, de 67% a 200%. Não afeta a página do jogo.">
-                <span class="ph-setting-label">Zoom</span>
-                <button type="button" class="ph-step" id="ph-zoom-minus">-</button>
-                <span class="ph-width-value" id="ph-zoom-value"></span>
-                <button type="button" class="ph-step" id="ph-zoom-plus">+</button>
-            </div>
             <div class="ph-setting-row">
                 <span class="ph-setting-label" id="ph-update-notifications-label">Avisar sobre atualizações</span>
                 <button type="button" class="ph-toggle" id="ph-update-notifications" role="switch" aria-checked="false" aria-labelledby="ph-update-notifications-label"></button>
@@ -35,14 +29,6 @@ function buildSettingsPanel(shell) {
                 <span class="ph-setting-label" id="ph-tooltips-label">Tooltips ao passar o mouse</span>
                 <button type="button" class="ph-toggle" id="ph-tooltips" role="switch" aria-checked="true" aria-labelledby="ph-tooltips-label"></button>
             </div>
-            <div class="ph-set-head">AVALIAÇÃO DE POKÉMON</div>
-            <div class="ph-setting-row"><span class="ph-setting-label" id="ph-eval-enabled-label">Ativar avaliação</span><button type="button" class="ph-toggle" id="ph-eval-enabled" role="switch" aria-checked="true" aria-labelledby="ph-eval-enabled-label"></button></div>
-            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-core-label">Avaliação e Função</span><button type="button" class="ph-toggle" id="ph-eval-core" role="switch" aria-checked="true" aria-labelledby="ph-eval-core-label"></button></div>
-            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-confidence-label">Confiança</span><button type="button" class="ph-toggle" id="ph-eval-confidence" role="switch" aria-checked="false" aria-labelledby="ph-eval-confidence-label"></button></div>
-            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-nature-label">Adequação da Nature</span><button type="button" class="ph-toggle" id="ph-eval-nature" role="switch" aria-checked="false" aria-labelledby="ph-eval-nature-label"></button></div>
-            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-moves-label">Adequação dos golpes</span><button type="button" class="ph-toggle" id="ph-eval-moves" role="switch" aria-checked="false" aria-labelledby="ph-eval-moves-label"></button></div>
-            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-alternative-label">Função alternativa</span><button type="button" class="ph-toggle" id="ph-eval-alternative" role="switch" aria-checked="false" aria-labelledby="ph-eval-alternative-label"></button></div>
-            <div class="ph-setting-row ph-eval-option"><span class="ph-setting-label" id="ph-eval-evolution-label">Potencial evolutivo</span><button type="button" class="ph-toggle" id="ph-eval-evolution" role="switch" aria-checked="false" aria-labelledby="ph-eval-evolution-label"></button></div>
             <div class="ph-set-head">COMPORTAMENTO</div>
             <div class="ph-setting-row" data-tip="Qual aba o painel mostra ao carregar a página.">
                 <span class="ph-setting-label">View inicial</span>
@@ -56,6 +42,18 @@ function buildSettingsPanel(shell) {
                 <span class="ph-setting-label" id="ph-auto-battle-label">Auto-troca no encontro</span>
                 <button type="button" class="ph-toggle" id="ph-auto-battle" role="switch" aria-checked="true" aria-labelledby="ph-auto-battle-label"></button>
             </div>
+            <div class="ph-setting-row" data-tip="Recolher o painel pra bolha quando a batalha termina.">
+                <span class="ph-setting-label" id="ph-min-after-label">Minimizar após a batalha</span>
+                <button type="button" class="ph-toggle" id="ph-min-after" role="switch" aria-checked="false" aria-labelledby="ph-min-after-label"></button>
+            </div>
+            <div class="ph-setting-row" data-tip="Recolher o painel pra bolha ao sair da aba/tela do jogo.">
+                <span class="ph-setting-label" id="ph-min-leave-label">Minimizar ao sair do jogo</span>
+                <button type="button" class="ph-toggle" id="ph-min-leave" role="switch" aria-checked="true" aria-labelledby="ph-min-leave-label"></button>
+            </div>
+            <div class="ph-setting-row" data-tip="Ao abrir, encaixar o painel na faixa preta que o jogo deixa à esquerda.">
+                <span class="ph-setting-label" id="ph-dock-gap-label">Encaixar na faixa do jogo</span>
+                <button type="button" class="ph-toggle" id="ph-dock-gap" role="switch" aria-checked="true" aria-labelledby="ph-dock-gap-label"></button>
+            </div>
             <div class="ph-set-head">TELAS</div>
             <div class="ph-subhead">MEUS POKÉMON</div>
             <div class="ph-setting-row">
@@ -65,10 +63,6 @@ function buildSettingsPanel(shell) {
             <div class="ph-setting-row">
                 <span class="ph-setting-label" id="ph-mp-pokemon-label">Pokémon já expandidos</span>
                 <button type="button" class="ph-toggle" id="ph-mp-pokemon" role="switch" aria-checked="false" aria-labelledby="ph-mp-pokemon-label"></button>
-            </div>
-            <div class="ph-setting-row" data-tip="Botão ↗ no cartão, abre o Pokémon no Smogon em outra aba.">
-                <span class="ph-setting-label" id="ph-mp-smogon-label">Link do Smogon</span>
-                <button type="button" class="ph-toggle" id="ph-mp-smogon" role="switch" aria-checked="true" aria-labelledby="ph-mp-smogon-label"></button>
             </div>
             <div class="ph-subhead">BATALHA</div>
             <div class="ph-setting-row">
@@ -95,17 +89,17 @@ function buildSettingsPanel(shell) {
                 <span class="ph-setting-label" id="ph-bt-mymoves-label">Seus golpes</span>
                 <button type="button" class="ph-toggle" id="ph-bt-mymoves" role="switch" aria-checked="true" aria-labelledby="ph-bt-mymoves-label"></button>
             </div>
-            <div class="ph-setting-row" data-tip="Botão ↗ ao lado do nome do oponente, abre a página dele no Smogon.">
-                <span class="ph-setting-label" id="ph-bt-smogon-label">Link do Smogon</span>
-                <button type="button" class="ph-toggle" id="ph-bt-smogon" role="switch" aria-checked="true" aria-labelledby="ph-bt-smogon-label"></button>
+            <div class="ph-subhead">ORDEM DAS SEÇÕES</div>
+            <p class="ph-hint">Use ▲▼ pra reordenar as seções da aba Encontro.</p>
+            <div class="ph-order-list" id="ph-order-list"></div>
+            <div class="ph-set-head">APOIE O PROJETO 💛</div>
+            <p class="ph-hint">A extensão é <b>gratuita</b>. Se ela te ajuda, considere uma doação — ajuda a manter e melhorar o Infinity Dex Helper. Obrigado!</p>
+            <button type="button" class="ph-btn-shortcut px-btn" id="ph-donate">💛 Fazer uma doação</button>
+            <div class="ph-setting-row" id="ph-pix-row" data-tip="Chave Pix para doação — clique pra copiar.">
+                <span class="ph-setting-label">Chave Pix</span>
+                <button type="button" class="ph-step" id="ph-pix-copy" style="width:auto;padding:0 10px;">Copiar</button>
             </div>
-            <div class="ph-set-head">ATALHOS</div>
-            <div class="ph-shortcut-grid" id="ph-shortcut-grid"></div>
-            <p class="ph-shortcut-error" id="ph-shortcut-error"></p>
-            <p class="ph-hint">Os atalhos valem com o mouse/foco sobre o painel. Clique numa tecla e pressione a nova combinação (ESC cancela; ESC só volta a uma ação via restaurar padrões). Combinações do navegador (Ctrl+W, Ctrl+T…) podem não funcionar.</p>
-            <button type="button" class="ph-btn-shortcut px-btn" id="ph-shortcut-reset">Restaurar atalhos padrão</button>
-            <button type="button" class="ph-btn-shortcut px-btn" id="ph-set-shortcut">Configurar atalho do navegador</button>
-            <p class="ph-hint">Abre a página de atalhos do Chrome, onde dá pra definir a combinação que abre e fecha a extensão.</p>
+            <p class="ph-data-feedback" id="ph-donate-msg"></p>
             <div class="ph-set-head">DADOS</div>
             <button type="button" class="ph-btn-shortcut px-btn" id="ph-export">Exportar configurações</button>
             <p class="ph-hint">Baixa um .json só com preferências (nada de pokédex ou golpes descobertos).</p>
@@ -115,108 +109,6 @@ function buildSettingsPanel(shell) {
             <button type="button" class="ph-btn-shortcut px-btn" id="ph-reset-all">Restaurar tudo</button>
             <p class="ph-data-feedback" id="ph-data-feedback"></p>
         `;
-
-        panel.querySelector('#ph-set-shortcut').addEventListener('click', () => {
-            chrome.runtime.sendMessage({ type: 'pkmn-helper-open-shortcuts' });
-        });
-
-        const SHORTCUT_ACTIONS = [
-            ['battle', 'Encontro atual'],
-            ['calc', 'Calculadora de tipos'],
-            ['myPokemons', 'Meus Pokémon'],
-            ['auction', 'Leilão'],
-            ['settings', 'Configurações'],
-            ['typeChart', 'Tabela de tipos (expande o painel)'],
-            ['toggleFull', 'Expandir / recolher'],
-            ['minimize', 'Minimizar / voltar']
-        ];
-        const shortcutGrid = panel.querySelector('#ph-shortcut-grid');
-        const shortcutError = panel.querySelector('#ph-shortcut-error');
-        const fmt = PokemonHelperShortcutUtils.formatCombo;
-
-        function renderShortcutGrid(shortcuts) {
-            shortcutGrid.innerHTML = SHORTCUT_ACTIONS.map(([action, label]) =>
-                `<button type="button" class="ph-key ph-key-btn" data-action="${action}">${fmt(shortcuts[action])}</button>` +
-                `<span class="ph-key-desc">${label}</span>`
-            ).join('');
-        }
-        PokemonHelperStorage.getUiPreferences().then((prefs) => renderShortcutGrid(prefs.shortcuts)).catch(() => {});
-
-        let capturing = null; // { action, btn }
-        let captureToken = 0; // sobe a cada início/fim de captura; descarta o re-render assíncrono de uma stopCapture já superada por uma captura mais nova
-        function stopCapture() {
-            if (!capturing) return;
-            capturing.btn.classList.remove('capturing');
-            capturing = null; // síncrono: uma captura nova iniciada logo em seguida nunca é apagada por este reset
-            document.removeEventListener('keydown', onCaptureKey, true);
-            document.removeEventListener('pointerdown', onCapturePointerDown, true);
-            const token = ++captureToken;
-            PokemonHelperStorage.getUiPreferences()
-                .then((prefs) => { if (token === captureToken) renderShortcutGrid(prefs.shortcuts); })
-                .catch(() => {});
-        }
-
-        // qualquer clique fora do botão em captura cancela — inclusive fora do
-        // painel (página do jogo) ou fora do container (ícone do cabeçalho,
-        // que troca de view): o listener fica no document da página top-level
-        // em vez de só no `panel`, então nada escapa ao alcance dele.
-        function onCapturePointerDown(event) {
-            if (!capturing || capturing.btn.contains(event.target)) return;
-            shortcutError.textContent = '';
-            stopCapture();
-        }
-
-        function onCaptureKey(event) {
-            if (!capturing) return;
-            // o container pode ter sido removido do DOM sem passar por
-            // stopCapture (ex.: desligar a extensão pelo ícone) — sem essa
-            // checagem, o keydown seguinte em qualquer lugar da página seria
-            // engolido e salvo como atalho novo por um botão que não existe mais
-            if (!capturing.btn.isConnected) { stopCapture(); return; }
-            event.preventDefault();
-            event.stopPropagation();
-            if (event.key === 'Escape') { shortcutError.textContent = ''; stopCapture(); return; }
-            const combo = PokemonHelperShortcutUtils.comboFromEvent(event);
-            if (!combo) return; // modificador sozinho: continua capturando
-            const action = capturing.action;
-            PokemonHelperStorage.getUiPreferences().then((prefs) => {
-                const inUse = Object.keys(prefs.shortcuts)
-                    .find((name) => name !== action && prefs.shortcuts[name] === combo);
-                if (inUse) {
-                    const label = SHORTCUT_ACTIONS.find(([name]) => name === inUse)[1];
-                    shortcutError.textContent = `${fmt(combo)} JÁ É USADO POR: ${label.toUpperCase()}`;
-                    return; // segue capturando pra tentar outra
-                }
-                shortcutError.textContent = '';
-                return PokemonHelperStorage.setUiPreferences({ shortcuts: { [action]: combo } })
-                    .then(() => stopCapture());
-            }).catch((error) => {
-                console.warn('[Pokemon Helper] Não foi possível salvar o atalho:', error);
-                stopCapture();
-            });
-        }
-
-        shortcutGrid.addEventListener('click', (event) => {
-            const btn = event.target.closest('.ph-key-btn');
-            if (!btn) return;
-            if (capturing) stopCapture();
-            captureToken++; // invalida o re-render pendente da stopCapture acima antes de abrir a captura nova
-            capturing = { action: btn.dataset.action, btn };
-            btn.classList.add('capturing');
-            btn.textContent = '...';
-            shortcutError.textContent = '';
-            document.addEventListener('keydown', onCaptureKey, true);
-            document.addEventListener('pointerdown', onCapturePointerDown, true);
-        });
-
-        panel.querySelector('#ph-shortcut-reset').addEventListener('click', () => {
-            shortcutError.textContent = '';
-            PokemonHelperStorage.setUiPreferences({
-                shortcuts: Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES.shortcuts)
-            }).then(() => PokemonHelperStorage.getUiPreferences())
-              .then((prefs) => renderShortcutGrid(prefs.shortcuts))
-              .catch((error) => console.warn('[Pokemon Helper] Não foi possível restaurar os atalhos:', error));
-        });
 
         const dataFeedback = panel.querySelector('#ph-data-feedback');
         function showDataFeedback(message, ok) {
@@ -241,7 +133,7 @@ function buildSettingsPanel(shell) {
                 showDataFeedback('CONFIGURAÇÕES EXPORTADAS', true);
             } catch (error) {
                 showDataFeedback('FALHA AO EXPORTAR', false);
-                console.warn('[Pokemon Helper] Falha ao exportar configurações:', error);
+                console.warn('[Infinity Dex Helper] Falha ao exportar configurações:', error);
             }
         });
 
@@ -253,7 +145,11 @@ function buildSettingsPanel(shell) {
             Object.keys(defaults).forEach((key) => {
                 if (!(key in source)) return;
                 const def = defaults[key];
-                if (def !== null && typeof def === 'object') {
+                if (Array.isArray(def)) {
+                    // arrays (ex.: ordem das seções) são copiados inteiros, não
+                    // fundidos por índice — só quando o valor importado também é array
+                    if (Array.isArray(source[key])) out[key] = source[key].slice();
+                } else if (def !== null && typeof def === 'object') {
                     const nested = pickKnown(def, source[key]);
                     if (nested) out[key] = nested;
                 } else if (source[key] === null || def === null || typeof source[key] === typeof def) {
@@ -263,32 +159,18 @@ function buildSettingsPanel(shell) {
             return out;
         }
 
-        const START_VIEW_VALUES = ['last', 'battle', 'calc', 'myPokemons'];
+        const START_VIEW_VALUES = ['last', 'battle', 'myPokemons'];
         const START_COLLAPSED_VALUES = ['remember', 'collapsed', 'open'];
 
         // pickKnown só garante tipo — não garante que o valor seja um dos
         // válidos pro enum (deixaria o cycle button sem opção que bata, e
-        // setActiveView() sem view pra mostrar) nem que os atalhos importados
-        // sejam únicos entre si (o guard de duplicata só existe na UI de
-        // captura). Roda depois do pickKnown, antes de qualquer gravação;
-        // campos removidos aqui mantêm o valor atual via merge do storage.
+        // setActiveView() sem view pra mostrar). Roda depois do pickKnown,
+        // antes de qualquer gravação; campos removidos aqui mantêm o valor
+        // atual via merge do storage.
         function sanitizeUiPreferences(ui) {
             if (!ui) return ui;
             if ('startView' in ui && !START_VIEW_VALUES.includes(ui.startView)) delete ui.startView;
             if ('startCollapsed' in ui && !START_COLLAPSED_VALUES.includes(ui.startCollapsed)) delete ui.startCollapsed;
-            if ('panelZoom' in ui) ui.panelZoom = PokemonHelperZoom.snap(ui.panelZoom);
-            if (ui.shortcuts) {
-                const seenCombos = new Set();
-                const cleanShortcuts = {};
-                SHORTCUT_ACTIONS.forEach(([action]) => {
-                    const combo = ui.shortcuts[action];
-                    if (typeof combo !== 'string' || !combo) return; // vazio/tipo errado: dropa
-                    if (seenCombos.has(combo)) return; // duplicata: mantém só a primeira na ordem canônica
-                    seenCombos.add(combo);
-                    cleanShortcuts[action] = combo;
-                });
-                ui.shortcuts = cleanShortcuts;
-            }
             return ui;
         }
 
@@ -328,8 +210,6 @@ function buildSettingsPanel(shell) {
                     shell.updateStatus(container, container.__phSettings);
                     shell.persist(shell.currentSettings(container));
                 }
-                const prefs = await PokemonHelperStorage.getUiPreferences();
-                renderShortcutGrid(prefs.shortcuts);
                 showDataFeedback('CONFIGURAÇÕES IMPORTADAS', true);
             } catch (error) {
                 // antes de qualquer gravação (JSON inválido ou marcador ausente):
@@ -341,12 +221,12 @@ function buildSettingsPanel(shell) {
                         : 'ARQUIVO INVÁLIDO — NADA FOI APLICADO',
                     false
                 );
-                console.warn('[Pokemon Helper] Falha ao importar configurações:', error);
+                console.warn('[Infinity Dex Helper] Falha ao importar configurações:', error);
             }
         });
 
         panel.querySelector('#ph-reset-all').addEventListener('click', async () => {
-            if (!window.confirm('Restaurar TODAS as configurações do Pokemon Helper para o padrão?')) return;
+            if (!window.confirm('Restaurar TODAS as configurações do Infinity Dex Helper para o padrão?')) return;
             try {
                 await PokemonHelperStorage.setUiPreferences(Object.assign({}, PokemonHelperStorage.DEFAULT_UI_PREFERENCES));
                 await PokemonHelperStorage.setUpdatePreferences(Object.assign({}, PokemonHelperStorage.DEFAULT_UPDATE_PREFERENCES));
@@ -363,12 +243,10 @@ function buildSettingsPanel(shell) {
                     shell.updateStatus(container, container.__phSettings);
                     shell.persist(shell.currentSettings(container));
                 }
-                const prefs = await PokemonHelperStorage.getUiPreferences();
-                renderShortcutGrid(prefs.shortcuts);
                 showDataFeedback('TUDO RESTAURADO PARA O PADRÃO', true);
             } catch (error) {
                 showDataFeedback('FALHA AO RESTAURAR', false);
-                console.warn('[Pokemon Helper] Falha ao restaurar configurações:', error);
+                console.warn('[Infinity Dex Helper] Falha ao restaurar configurações:', error);
             }
         });
 
@@ -393,7 +271,7 @@ function buildSettingsPanel(shell) {
                 save(options[index].value).catch((error) => {
                     index = previousIndex;
                     paint();
-                    console.warn('[Pokemon Helper] Não foi possível salvar a preferência:', error);
+                    console.warn('[Infinity Dex Helper] Não foi possível salvar a preferência:', error);
                 });
             });
         }
@@ -406,7 +284,7 @@ function buildSettingsPanel(shell) {
                 setToggleState(toggle, enabled);
                 save(enabled).catch((error) => {
                     setToggleState(toggle, !enabled);
-                    console.warn('[Pokemon Helper] Não foi possível salvar a preferência:', error);
+                    console.warn('[Infinity Dex Helper] Não foi possível salvar a preferência:', error);
                 });
             });
         }
@@ -419,7 +297,7 @@ function buildSettingsPanel(shell) {
 
         PokemonHelperStorage.getUpdatePreferences()
             .then(applyUpdatePreferences)
-            .catch((error) => console.warn('[Pokemon Helper] Não foi possível carregar preferências de atualização:', error));
+            .catch((error) => console.warn('[Infinity Dex Helper] Não foi possível carregar preferências de atualização:', error));
 
         notificationsToggle.addEventListener('click', () => {
             const notificationsEnabled = notificationsToggle.getAttribute('aria-checked') !== 'true';
@@ -428,7 +306,7 @@ function buildSettingsPanel(shell) {
             PokemonHelperStorage.setUpdatePreferences({ notificationsEnabled }).catch((error) => {
                 setToggleState(notificationsToggle, !notificationsEnabled);
                 betaRow.hidden = notificationsEnabled;
-                console.warn('[Pokemon Helper] Não foi possível salvar a preferência de atualização:', error);
+                console.warn('[Infinity Dex Helper] Não foi possível salvar a preferência de atualização:', error);
             });
         });
 
@@ -437,7 +315,7 @@ function buildSettingsPanel(shell) {
             setToggleState(betaToggle, betaChannelEnabled);
             PokemonHelperStorage.setUpdatePreferences({ betaChannelEnabled }).catch((error) => {
                 setToggleState(betaToggle, !betaChannelEnabled);
-                console.warn('[Pokemon Helper] Não foi possível salvar a preferência do beta:', error);
+                console.warn('[Infinity Dex Helper] Não foi possível salvar a preferência do beta:', error);
             });
         });
 
@@ -471,49 +349,6 @@ function buildSettingsPanel(shell) {
             if (settings) widthValue.textContent = `${shell.dockedWidth(settings)}px`;
         });
 
-        const zoomRow = panel.querySelector('#ph-zoom-row');
-        const zoomValue = panel.querySelector('#ph-zoom-value');
-        const zoomMinus = panel.querySelector('#ph-zoom-minus');
-        const zoomPlus = panel.querySelector('#ph-zoom-plus');
-        if (!PokemonHelperZoom.supported) {
-            // Firefox < 126 não tem a propriedade zoom; some com o controle em
-            // vez de deixar um botão que não faz nada
-            zoomRow.hidden = true;
-        } else {
-            const levels = PokemonHelperZoom.LEVELS;
-            // pintado por subscribe (não pelo retorno do clique) pra acompanhar
-            // também mudanças vindas de importar config e de "Restaurar tudo".
-            //
-            // O overlay é REINJETADO (não recriado do zero) a cada toggle de
-            // fechar/abrir — background.js roda buildSettingsPanel() de novo,
-            // mas PokemonHelperZoom é um singleton cacheado em globalThis, cujo
-            // Set de listeners sobrevive à reinjeção. Sem essa auto-limpeza,
-            // cada ciclo fechar/reabrir deixaria mais uma closure presa nesse
-            // Set, apontando pra nós de DOM já removidos do painel anterior —
-            // crescimento sem limite e escrita em nós mortos a cada step/set.
-            // unsubscribeZoom só existe depois que subscribe() retorna;
-            // subscribe() chama o callback de forma síncrona durante o próprio
-            // registro, então a checagem abaixo precisa exigir unsubscribeZoom
-            // definido antes de tratar o painel como desconectado — senão essa
-            // primeira chamada (painel ainda nem anexado ao documento) tentaria
-            // invocar uma função que ainda não existe.
-            let unsubscribeZoom;
-            unsubscribeZoom = PokemonHelperZoom.subscribe((factor) => {
-                if (unsubscribeZoom && !zoomRow.isConnected) {
-                    unsubscribeZoom();
-                    return;
-                }
-                zoomValue.textContent = `${Math.round(factor * 100)}%`;
-                zoomMinus.disabled = factor === levels[0];
-                zoomPlus.disabled = factor === levels[levels.length - 1];
-            });
-            const stepZoom = (delta) => PokemonHelperZoom.step(delta).catch((error) => {
-                console.warn('[Pokemon Helper] Não foi possível salvar o zoom:', error);
-            });
-            zoomMinus.addEventListener('click', () => stepZoom(-1));
-            zoomPlus.addEventListener('click', () => stepZoom(1));
-        }
-
         const tooltipsToggle = panel.querySelector('#ph-tooltips');
         PokemonHelperStorage.getUiPreferences()
             .then((preferences) => setToggleState(tooltipsToggle, preferences.tooltipsEnabled))
@@ -523,15 +358,21 @@ function buildSettingsPanel(shell) {
             setToggleState(tooltipsToggle, tooltipsEnabled);
             PokemonHelperStorage.setUiPreferences({ tooltipsEnabled }).catch((error) => {
                 setToggleState(tooltipsToggle, !tooltipsEnabled);
-                console.warn('[Pokemon Helper] Não foi possível salvar a preferência de tooltips:', error);
+                console.warn('[Infinity Dex Helper] Não foi possível salvar a preferência de tooltips:', error);
             });
         });
 
-        PokemonHelperStorage.getUiPreferences().then((prefs) => {
+        // se a leitura falhar (ex.: contexto da extensão momentaneamente
+        // inválido), cai pros padrões em vez de deixar TODOS os controles
+        // abaixo sem listener nenhum — um erro de storage não pode travar
+        // botões que não dependem de nenhum valor salvo pra funcionar.
+        PokemonHelperStorage.getUiPreferences().catch((error) => {
+            console.warn('[Infinity Dex Helper] Não foi possível carregar preferências, usando padrão:', error);
+            return PokemonHelperStorage.DEFAULT_UI_PREFERENCES;
+        }).then((prefs) => {
             bindCycle('ph-start-view', [
                 { value: 'last', label: 'ÚLTIMA USADA' },
                 { value: 'battle', label: 'ENCONTRO' },
-                { value: 'calc', label: 'CALCULADORA' },
                 { value: 'myPokemons', label: 'MEUS POKÉMON' }
             ], prefs.startView, (startView) => PokemonHelperStorage.setUiPreferences({ startView }));
 
@@ -544,42 +385,95 @@ function buildSettingsPanel(shell) {
             bindPrefToggle('ph-auto-battle', prefs.autoSwitchToBattle,
                 (autoSwitchToBattle) => PokemonHelperStorage.setUiPreferences({ autoSwitchToBattle }));
 
-            const evaluationToggles = [
-                ['ph-eval-enabled', 'enabled'], ['ph-eval-core', 'showCoreFields'],
-                ['ph-eval-confidence', 'showConfidence'], ['ph-eval-nature', 'showNatureFit'],
-                ['ph-eval-moves', 'showMovesetFit'], ['ph-eval-alternative', 'showAlternativeRole'],
-                ['ph-eval-evolution', 'showEvolutionPotential']
-            ];
-            const syncEvaluationDisabled = () => {
-                const enabled = panel.querySelector('#ph-eval-enabled').getAttribute('aria-checked') === 'true';
-                panel.querySelectorAll('.ph-eval-option .ph-toggle').forEach((toggle) => { toggle.disabled = !enabled; });
-            };
-            evaluationToggles.forEach(([id, field]) => {
-                bindPrefToggle(id, prefs.evaluation[field], (value) =>
-                    PokemonHelperStorage.setUiPreferences({ evaluation: { [field]:value } }).then(() => {
-                        if (field === 'enabled') syncEvaluationDisabled();
-                    }));
-            });
-            syncEvaluationDisabled();
+            bindPrefToggle('ph-min-after', prefs.minimizeAfterBattle === true,
+                (minimizeAfterBattle) => PokemonHelperStorage.setUiPreferences({ minimizeAfterBattle }));
+
+            bindPrefToggle('ph-min-leave', prefs.minimizeOnLeave !== false,
+                (minimizeOnLeave) => PokemonHelperStorage.setUiPreferences({ minimizeOnLeave }));
+
+            bindPrefToggle('ph-dock-gap', prefs.dockToGameGap !== false,
+                (dockToGameGap) => PokemonHelperStorage.setUiPreferences({ dockToGameGap }));
 
             bindPrefToggle('ph-mp-groups', prefs.screens.myPokemons.expandGroupsByDefault,
                 (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { expandGroupsByDefault: v } } }));
             bindPrefToggle('ph-mp-pokemon', prefs.screens.myPokemons.expandPokemonByDefault,
                 (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { expandPokemonByDefault: v } } }));
-            bindPrefToggle('ph-mp-smogon', prefs.screens.myPokemons.showSmogonLink,
-                (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { showSmogonLink: v } } }));
 
             const battleToggles = [
                 ['ph-bt-stats', 'showIvs'], ['ph-bt-weak', 'showWeaknesses'],
                 ['ph-bt-moves', 'showFoeMoves'], ['ph-bt-balls', 'showPokeballs'],
-                ['ph-bt-stages', 'showStatChanges'], ['ph-bt-mymoves', 'showMyMoves'],
-                ['ph-bt-smogon', 'showSmogonLink']
+                ['ph-bt-stages', 'showStatChanges'], ['ph-bt-mymoves', 'showMyMoves']
             ];
             battleToggles.forEach(([id, field]) => {
                 bindPrefToggle(id, prefs.screens.battle[field],
                     (v) => PokemonHelperStorage.setUiPreferences({ screens: { battle: { [field]: v } } }));
             });
-        }).catch((error) => console.warn('[Pokemon Helper] Não foi possível carregar preferências:', error));
+
+            bindBattleOrder(prefs.screens.battle.order);
+        }).catch((error) => console.warn('[Infinity Dex Helper] Não foi possível carregar preferências:', error));
+
+        // lista de reordenação das seções da aba Encontro (▲▼ move a seção
+        // uma posição; salva a ordem inteira em screens.battle.order — o iframe
+        // de batalha reage à mudança de storage e re-renderiza na hora)
+        const orderList = panel.querySelector('#ph-order-list');
+        const sectionLabels = Object.fromEntries(
+            PokemonHelperStorage.BATTLE_SECTIONS.map((section) => [section.key, section.label]));
+
+        function renderOrderList(order) {
+            const clean = PokemonHelperStorage.sanitizeBattleOrder(order);
+            orderList.innerHTML = clean.map((key, index) => `
+                <div class="ph-order-item">
+                    <span class="ph-order-label">${sectionLabels[key] || key}</span>
+                    <button type="button" class="ph-order-btn" data-move="up" data-key="${key}" ${index === 0 ? 'disabled' : ''} aria-label="Mover para cima">▲</button>
+                    <button type="button" class="ph-order-btn" data-move="down" data-key="${key}" ${index === clean.length - 1 ? 'disabled' : ''} aria-label="Mover para baixo">▼</button>
+                </div>`).join('');
+        }
+
+        function bindBattleOrder(order) {
+            renderOrderList(order);
+        }
+
+        orderList.addEventListener('click', (event) => {
+            const btn = event.target.closest('.ph-order-btn');
+            if (!btn || btn.disabled) return;
+            PokemonHelperStorage.getUiPreferences().then((prefs) => {
+                const order = PokemonHelperStorage.sanitizeBattleOrder(prefs.screens.battle.order);
+                const from = order.indexOf(btn.dataset.key);
+                const to = btn.dataset.move === 'up' ? from - 1 : from + 1;
+                if (from < 0 || to < 0 || to >= order.length) return;
+                [order[from], order[to]] = [order[to], order[from]];
+                renderOrderList(order); // feedback imediato antes do storage resolver
+                return PokemonHelperStorage.setUiPreferences({ screens: { battle: { order } } });
+            }).catch((error) => console.warn('[Infinity Dex Helper] Não foi possível salvar a ordem das seções:', error));
+        });
+
+        // ---- Doação: link externo + copiar chave Pix ----
+        // PREENCHA com seus dados de doação:
+        const DONATE_URL = 'https://ko-fi.com/SEU_USUARIO';   // link de doação (Ko-fi, PayPal, etc.) — opcional
+        const PIX_KEY = 'dec6216e-9365-4c69-8780-f0a0301bf39e'; // chave Pix (aleatória)
+
+        const donateBtn = panel.querySelector('#ph-donate');
+        const pixRow = panel.querySelector('#ph-pix-row');
+        const pixCopy = panel.querySelector('#ph-pix-copy');
+        const donateMsg = panel.querySelector('#ph-donate-msg');
+
+        // esconde o link se ainda não foi configurado
+        if (donateBtn && /SEU_USUARIO/.test(DONATE_URL)) donateBtn.style.display = 'none';
+        if (pixRow && /SUA_CHAVE_PIX/.test(PIX_KEY)) pixRow.style.display = 'none';
+
+        if (donateBtn) donateBtn.addEventListener('click', () => {
+            window.open(DONATE_URL, '_blank', 'noopener,noreferrer');
+        });
+        if (pixCopy) pixCopy.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(PIX_KEY);
+                donateMsg.className = 'ph-data-feedback ok';
+                donateMsg.textContent = 'CHAVE PIX COPIADA 💛';
+            } catch (_) {
+                donateMsg.className = 'ph-data-feedback';
+                donateMsg.textContent = PIX_KEY;
+            }
+        });
 
         return panel;
 }

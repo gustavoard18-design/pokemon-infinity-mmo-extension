@@ -1,9 +1,6 @@
 if (typeof PokemonHelperStorage === 'undefined') {
     importScripts('data/extension-storage.js');
 }
-if (typeof PokemonRoleRules === 'undefined') {
-    importScripts('data/pokemon-role-rules.js', 'data/pokemon-species-profiler.js');
-}
 
 const HOST_RE = /^https?:\/\/([^/]*\.)?infinitymmo\.net(\/|$)/;
 const UPDATE_ALARM = 'pkmn-helper-check-updates';
@@ -37,7 +34,7 @@ async function refreshAbilities(force = false) {
             return PokemonHelperStorage.setAbilities({ items, checkedAt: new Date().toISOString(), error: null });
         } catch (error) {
             await PokemonHelperStorage.setAbilities({ ...cached, error: error.message });
-            console.warn('[Pokemon Helper] Não foi possível atualizar habilidades:', error);
+            console.warn('[Infinity Dex Helper] Não foi possível atualizar habilidades:', error);
             return cached;
         }
     })().finally(() => { abilityCheckPromise = null; });
@@ -49,13 +46,7 @@ async function refreshPokedex(force = false) {
     pokedexCheckPromise = (async () => {
         const cached = await PokemonHelperStorage.getPokedex();
         const age = Date.now() - new Date(cached.checkedAt || 0).getTime();
-        if (!force && cached.items.length && age < POKEDEX_MAX_AGE) {
-            if (!PokemonSpeciesProfiler.needsReprofile(cached)) return cached;
-            if (PokemonSpeciesProfiler.canReprofile(cached.items)) {
-                const items = PokemonSpeciesProfiler.preparePokedexItems(cached.items, new Date().toISOString());
-                return PokemonHelperStorage.setPokedex({ ...cached, items, error:null });
-            }
-        }
+        if (!force && cached.items.length && age < POKEDEX_MAX_AGE) return cached;
         try {
             const response = await fetch(POKEDEX_URL, { cache: 'no-store' });
             if (!response.ok) throw new Error(`InfinityMMO respondeu com status ${response.status}`);
@@ -64,15 +55,22 @@ async function refreshPokedex(force = false) {
             if (!Array.isArray(remoteItems)) {
                 throw new Error('Pokédex remota inválida');
             }
-            const items = PokemonSpeciesProfiler.preparePokedexItems(
-                remoteItems.filter((item) => item?.slug && Number.isFinite(Number(item.catchRate))),
-                new Date().toISOString()
-            );
+            const items = remoteItems.filter((item) => item?.slug && Number.isFinite(Number(item.catchRate))).map((item) => ({
+                slug: item.slug,
+                name: item.name,
+                dex: Number(item.dex),
+                types: Array.isArray(item.types) ? item.types : [],
+                catchRate: Number(item.catchRate),
+                base: item.base || null,
+                levelMoves: Array.isArray(item.levelMoves)
+                    ? item.levelMoves.filter((move) => move?.slug && Number.isFinite(Number(move.lv))).map((move) => ({ lv: Number(move.lv), slug: move.slug }))
+                    : []
+            }));
             if (!items.length) throw new Error('Pokédex remota sem catch rates válidos');
             return PokemonHelperStorage.setPokedex({ items, checkedAt: new Date().toISOString(), error: null });
         } catch (error) {
             await PokemonHelperStorage.setPokedex({ ...cached, error: error.message });
-            console.warn('[Pokemon Helper] Não foi possível atualizar a Pokédex:', error);
+            console.warn('[Infinity Dex Helper] Não foi possível atualizar a Pokédex:', error);
             return cached;
         }
     })().finally(() => { pokedexCheckPromise = null; });
@@ -114,7 +112,7 @@ async function refreshTrainerMoves(force = false) {
             return PokemonHelperStorage.setTrainerMoves({ items, checkedAt: new Date().toISOString(), error: null });
         } catch (error) {
             await PokemonHelperStorage.setTrainerMoves({ ...cached, error: error.message });
-            console.warn('[Pokemon Helper] Não foi possível atualizar golpes de treinadores:', error);
+            console.warn('[Infinity Dex Helper] Não foi possível atualizar golpes de treinadores:', error);
             return cached;
         }
     })().finally(() => { trainerMovesCheckPromise = null; });
@@ -159,7 +157,7 @@ async function checkForUpdates() {
         const manifestName = installedManifest.browser_specific_settings
             ? 'manifest.firefox.json'
             : 'manifest.json';
-        const manifestUrl = `https://raw.githubusercontent.com/andaraGui/pokemon-infinity-mmo-extension/${branch}/${manifestName}`;
+        const manifestUrl = `https://raw.githubusercontent.com/gustavoard18-design/infinity-dex-helper/${branch}/${manifestName}`;
 
         try {
             const response = await fetch(manifestUrl, { cache: 'no-store' });
@@ -189,7 +187,7 @@ async function checkForUpdates() {
                 checkedAt: new Date().toISOString(),
                 error: error.message
             });
-            console.warn('[Pokemon Helper] Não foi possível verificar atualizações:', error);
+            console.warn('[Infinity Dex Helper] Não foi possível verificar atualizações:', error);
         }
     })().finally(() => {
         updateCheckPromise = null;
@@ -223,7 +221,7 @@ function runContentScripts(tabId, mode) {
         .then(() => {
             chrome.scripting.executeScript({
                 target: { tabId },
-                files: ['data/extension-storage.js', 'components/pixel-icon.js', 'components/panel-zoom.js', 'components/tooltip.js', 'components/header-buttons.js', 'components/shortcut-utils.js', 'components/settings-panel.js', 'content.js']
+                files: ['data/extension-storage.js', 'components/pixel-icon.js', 'components/tooltip.js', 'components/header-buttons.js', 'components/settings-panel.js', 'content.js']
             });
             // MAIN world: só ali dá pra sobrescrever o window.fetch que o jogo usa.
             chrome.scripting.executeScript({
@@ -237,10 +235,6 @@ function runContentScripts(tabId, mode) {
 
 chrome.action.onClicked.addListener((tab) => runContentScripts(tab.id, 'toggle'));
 
-chrome.commands.onCommand.addListener((command, tab) => {
-    if (command === 'toggle-overlay') runContentScripts(tab.id, 'toggle');
-});
-
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url && HOST_RE.test(tab.url)) {
         runContentScripts(tabId, 'ensure');
@@ -248,13 +242,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 chrome.runtime.onMessage.addListener((msg) => {
-    if (msg && msg.type === 'pkmn-helper-open-shortcuts') {
-        // Chrome ≥136 também define o namespace `browser`, então só `typeof browser`
-        // não distingue mais o Firefox; `runtime.getBrowserInfo` existe só no Firefox.
-        const isFirefox = typeof browser !== 'undefined'
-            && browser.runtime && typeof browser.runtime.getBrowserInfo === 'function';
-        chrome.tabs.create({ url: isFirefox ? 'about:addons' : 'chrome://extensions/shortcuts' });
-    }
     if (msg && msg.type === 'pkmn-helper-refresh-abilities') refreshAbilities();
     if (msg && msg.type === 'pkmn-helper-refresh-pokedex') refreshPokedex();
     if (msg && msg.type === 'pkmn-helper-refresh-trainer-moves') refreshTrainerMoves();
@@ -280,5 +267,6 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 initializeUpdateChecks().catch((error) => {
-    console.warn('[Pokemon Helper] Falha ao iniciar verificação de atualizações:', error);
+    console.warn('[Infinity Dex Helper] Falha ao iniciar verificação de atualizações:', error);
 });
+

@@ -33,12 +33,13 @@ var PokemonHelperTooltip = globalThis.PokemonHelperTooltip || (() => {
         style.textContent = `
             #px-tooltip {
                 position: fixed; z-index: 2147483647; max-width: 260px;
-                padding: 6px 9px; background: #08080d; border: 1px solid #3a3a4c;
-                box-shadow: 2px 2px 0 rgba(0,0,0,.5);
-                font-family: 'Silkscreen', monospace; font-size: 12px; line-height: 1.35;
-                color: #e6e6f0; pointer-events: none; display: none; white-space: pre-line;
+                padding: 6px 9px; background: #1a1a1a; border: 2px solid #1a1a1a;
+                border-radius: var(--px-radius-sm, 6px);
+                box-shadow: 0 4px 12px rgba(0,0,0,.3);
+                font-family: var(--px-font-mono, sans-serif); font-size: 12px; font-weight: 600; line-height: 1.35;
+                color: #faf7ef; pointer-events: none; display: none; white-space: pre-line;
             }
-            .px-tip-icon { color: var(--px-info, #79b8ff); cursor: help; outline: none; }`;
+            .px-tip-icon { color: var(--px-info, #e3350d); cursor: help; outline: none; }`;
         doc.head.appendChild(style);
     }
 
@@ -56,33 +57,17 @@ var PokemonHelperTooltip = globalThis.PokemonHelperTooltip || (() => {
         return box;
     }
 
-    // A caixa mora em documentElement, FORA da árvore com zoom (que vai no
-    // body) — por isso ela não escala sozinha e precisa do zoom aplicado aqui.
-    // Com zoom no próprio elemento, style.left/top passam a ser interpretados
-    // em unidades já escaladas, enquanto o rect do alvo vem em coordenada
-    // visual: daí a divisão pelo fator na hora de escrever.
-    function zoomFactor() {
-        const zoom = globalThis.PokemonHelperZoom;
-        const factor = zoom && zoom.factor();
-        return Number.isFinite(factor) && factor > 0 ? factor : 1;
-    }
-
     function position(box, rect, win) {
-        const zoom = zoomFactor();
-        box.style.zoom = zoom === 1 ? '' : String(zoom);
         // zera a posição antes de medir: um left herdado perto da borda direita
         // comprimiria a caixa (shrink-to-fit) e a medida sairia errada
         box.style.left = '0px';
         box.style.top = '0px';
-        // getBoundingClientRect (e não offsetWidth) porque só ele devolve o
-        // tamanho visual já com o zoom aplicado, que é a unidade de win.inner*
-        const boxRect = box.getBoundingClientRect();
-        const width = boxRect.width, height = boxRect.height;
+        const width = box.offsetWidth, height = box.offsetHeight;
         const left = Math.max(4, Math.min(rect.left, win.innerWidth - width - 4));
         let top = rect.bottom + 5;
         if (top + height > win.innerHeight - 4) top = Math.max(4, rect.top - height - 5);
-        box.style.left = `${left / zoom}px`;
-        box.style.top = `${top / zoom}px`;
+        box.style.left = `${left}px`;
+        box.style.top = `${top}px`;
     }
 
     function attach(doc) {

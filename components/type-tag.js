@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // Componente de tipo de Pokémon: dados compartilhados (nomes, abreviações,
-// ícones) e o template de tag/pill usado tanto na calculadora (index.html)
+// ícones) e o template de tag/pill usado nas telas de tipo (chart, batalha)
 // quanto na tela de Meus Pokémons (myPokemons.html).
 // ---------------------------------------------------------------------------
 
@@ -40,9 +40,9 @@ function typeIconHTML(type, opts = {}) {
     return `<span class="type-icon-px"${title}>${PokemonPixelIcons.typeIcon(type, color)}</span>`;
 }
 
-// pill do design system v2: fundo na cor do tipo, ícone pixel + abreviação em
-// Silkscreen, texto na cor de maior contraste. Dois tipos = gradiente 50/50
-// com os dois ícones/abreviações (contraste calculado pela cor do 1º tipo).
+// pílula "Quadro de Tipos": fundo na cor do tipo, texto em negrito na cor de
+// maior contraste, sem ícone (o próprio nome/abreviação + a cor identificam o
+// tipo). Dois tipos = gradiente 50/50 (contraste calculado pela cor do 1º tipo).
 function typeTagHTML(types, opts = {}) {
     if (!Array.isArray(types)) types = [types];
     const stacked = !!opts.stack;
@@ -53,9 +53,15 @@ function typeTagHTML(types, opts = {}) {
         : `var(--t-${types[0]})`;
     const fg = PokemonPixelIcons.onColor(PokemonPixelIcons.typeColor(types[0]));
     const title = opts.title ?? types.map((type) => LABELS[type]).join(' / ');
-    const icons = types.map((type) => PokemonPixelIcons.typeIcon(type, fg)).join('');
-    const label = opts.label ?? types.map((type) => dict[type]).join('/');
+    // pílula de tipo único (encontro, fraquezas) usa o nome completo em caixa
+    // alta, como no mockup; combinações de 2 tipos e chips empilhados (grades
+    // densas: tabela, cards, batalha) ficam com a abreviação de 3 letras.
+    const label = opts.label ?? (
+        (!stacked && types.length === 1)
+            ? LABELS[types[0]].toUpperCase()
+            : types.map((type) => dict[type]).join('/')
+    );
     return `<span class="${cls}" style="background:${background};color:${fg}" data-tip="${title}">` +
-        `${icons}<span class="abbr">${label}</span>` +
+        `<span class="abbr">${label}</span>` +
         `</span>`;
 }

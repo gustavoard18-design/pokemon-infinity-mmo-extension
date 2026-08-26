@@ -1,4 +1,8 @@
+# empacotamento / temporários
 dist/
-.superpowers/
-.claude/worktrees/
-.worktrees/
+*.zip
+node_modules/
+.DS_Store
+Thumbs.db
+# nada de chave privada de licença (mora fora do repo)
+*.pem

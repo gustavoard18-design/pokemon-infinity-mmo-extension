@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // Tabela de efetividade de tipos: dados e helpers compartilhados entre a
-// calculadora (app.js) e a tabela completa de referência (chart.js).
+// telas de tipo (chart.js) e o cálculo de dano/eficácia (battle.js).
 // ---------------------------------------------------------------------------
 
 const CHART = {
