@@ -21,6 +21,10 @@
         .fm-field { display: flex; flex-direction: column; gap: 2px; }
         .fm-field label { font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--px-text-dim); letter-spacing: .5px; }
         .fm-field select { width: 100%; font-family: var(--px-font-body); font-size: 12px; padding: 3px 5px; background: var(--px-bg-btn, #fff); color: var(--px-text-val, #2b2820); border: 2px solid var(--px-border-btn, #1a1a1a); border-radius: 6px; }
+        .fm-sort-row { display: flex; gap: 5px; }
+        .fm-sort-row select { flex: 1; min-width: 0; }
+        .fm-dir-btn { flex: 0 0 auto; width: 30px; font-family: var(--px-font-mono); font-size: 13px; font-weight: 800; padding: 0; background: var(--px-bg-btn, #fff); color: var(--px-text-val, #2b2820); border: 2px solid var(--px-border-btn, #1a1a1a); border-radius: 6px; cursor: pointer; }
+        .fm-dir-btn:hover { background: var(--px-bg-cell, #f4f1e4); }
         .fm-summary { font-family: var(--px-font-mono); font-size: 11px; font-weight: 700; color: var(--px-text-hi); margin: 4px 0 8px; padding: 5px 8px; background: var(--px-bg-bar, #f2efe4); border: 2px solid var(--px-border-panel, #1a1a1a); border-radius: 6px; }
         .fm-summary b { color: var(--px-accent, #e3350d); }
         .fm-region-head { display: flex; align-items: baseline; gap: 8px; margin: 12px 0 5px; padding-bottom: 3px; border-bottom: 2px solid var(--px-border-panel, #1a1a1a); }
@@ -63,12 +67,17 @@
         <label class="fm-timer-rep"><input type="checkbox" id="fm-timer-rep"> repetir</label>
     </div>
     <div class="fm-tools">
-        <div class="fm-field"><label>Ordenar por</label><select id="fm-sort">
-            <option value="per">💎 Custo-benefício (¥/inimigo)</option>
-            <option value="total">Dinheiro total</option>
-            <option value="npcs">Nº de inimigos</option>
-            <option value="name">Nome (A-Z)</option>
-        </select></div>
+        <div class="fm-field"><label>Ordenar por</label>
+            <div class="fm-sort-row">
+                <select id="fm-sort">
+                    <option value="per">💎 Custo-benefício (¥/inimigo)</option>
+                    <option value="total">Dinheiro total</option>
+                    <option value="npcs">Nº de inimigos</option>
+                    <option value="name">Nome (A-Z)</option>
+                </select>
+                <button type="button" class="fm-dir-btn" id="fm-dir" title="Inverter ordem">▼</button>
+            </div>
+        </div>
     </div>
     <div class="fm-summary" id="fm-summary"></div>
     <div id="fm-body"><div class="fm-wait">Carregando dados de treinadores…</div></div>

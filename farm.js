@@ -10,6 +10,8 @@
     const body = document.getElementById('fm-body');
     const summaryEl = document.getElementById('fm-summary');
     const sortSel = document.getElementById('fm-sort');
+    const dirBtn = document.getElementById('fm-dir');
+    let desc = true;   // true = decrescente (maior primeiro); false = crescente
 
     const ENC_URL = 'https://infinitymmo.net/assets/data/wiki-encounters.json';
     const normMap = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -80,12 +82,14 @@
         summaryEl.innerHTML = `${LOCS.length} locais · ${sumN} inimigos · <b>${money(sumT)}</b>` +
             (sumN ? ` · ${money(Math.round(sumT / sumN))}/inimigo` : '');
 
-        const cmp = {
+        const base = {
             per: (a, b) => b.avg - a.avg,
             total: (a, b) => b.total - a.total,
             npcs: (a, b) => b.npcs - a.npcs,
             name: (a, b) => a.base.localeCompare(b.base)
         }[sort] || ((a, b) => b.avg - a.avg);
+        // comparadores já são decrescentes (nome = A→Z); inverte se quiser crescente
+        const cmp = desc ? base : (a, b) => -base(a, b);
 
         const list = LOCS.slice().sort(cmp);
         body.innerHTML = '';
@@ -139,6 +143,12 @@
     }
 
     sortSel.addEventListener('change', render);
+    if (dirBtn) dirBtn.addEventListener('click', () => {
+        desc = !desc;
+        dirBtn.textContent = desc ? '▼' : '▲';
+        dirBtn.title = desc ? 'Decrescente (maior primeiro)' : 'Crescente (menor primeiro)';
+        render();
+    });
 
     window.addEventListener('message', (event) => {
         const msg = event.data;
