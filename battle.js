@@ -180,10 +180,10 @@ function bestPlay(foe) {
 
     return `<div class="section"><div class="section-head"><span class="px-label">MELHOR JOGADA</span>${PokemonHelperTooltip.iconHTML('Melhor combinação de Pokémon e golpe do seu time contra este oponente (potência × precisão × eficácia × STAB × ataque).')}</div>
         <div class="best-two">
-            <div class="best-r1"><span class="best-star" data-tip="Pokémon do seu time recomendado (slot ${best.index + 1}).">★</span> ${escapeHtml(best.pokemon.name || best.pokemon.species)}·${best.index + 1}</div>
+            <div class="best-r1"><span class="best-star" data-tip="Pokémon do seu time recomendado.">★</span> ${escapeHtml(best.pokemon.name || best.pokemon.species)}</div>
             <div class="best-r2">
-                <span class="type-tag" style="background:${typeBg};color:${fg}" data-tip="${escapeHtml(best.move.name)} está no slot ${best.moveIndex + 1} de golpes">
-                    <span class="abbr">${escapeHtml(best.move.name)}</span><span class="slot-num" style="color:${fg}">${best.moveIndex + 1}</span>
+                <span class="type-tag" style="background:${typeBg};color:${fg}" data-tip="${escapeHtml(best.move.name)}">
+                    <span class="abbr">${escapeHtml(best.move.name)}</span>
                 </span>
                 ${koBadge}${multBadge}
             </div>
