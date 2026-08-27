@@ -39,7 +39,10 @@
 
     function ingest(payload) {
         const party = Array.isArray(payload && payload.party) ? payload.party : [];
-        const pc = Array.isArray(payload && payload.pc) ? payload.pc : [];
+        // `pc` é um array de CAIXAS ({name, pokemon:[...]}), não de Pokémon —
+        // então achatamos os pokémon de todas as caixas antes de juntar à party.
+        const pcBoxes = Array.isArray(payload && payload.pc) ? payload.pc : [];
+        const pc = pcBoxes.reduce((acc, box) => acc.concat(Array.isArray(box?.pokemon) ? box.pokemon : []), []);
         const all = party.concat(pc);
         if (!all.length) return false;
         MON = all.filter(Boolean).map((p) => ({
