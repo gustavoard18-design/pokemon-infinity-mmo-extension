@@ -28,13 +28,41 @@
         .isl-posts { display: inline-flex; gap: 2px; flex: 0 0 auto; font-size: 14px; line-height: 1; }
         .isl-post-badge { cursor: default; }
         .isl-empty { padding: 8px; font-size: 11px; color: var(--px-text-dim); }
+        /* expedições */
+        .isl-exped { border-color: var(--px-accent, #e3350d); }
+        .isl-exped .isl-post-head { background: rgba(227, 53, 13, .10); }
+        .isl-timer { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--px-line, #e6e0cf); }
+        .isl-timer.ready { background: rgba(79,168,74,.14); }
+        .isl-timer-emoji { font-size: 14px; }
+        .isl-timer-clock { font-family: var(--px-font-mono); font-size: 15px; font-weight: 800; color: var(--px-text-hi); font-variant-numeric: tabular-nums; min-width: 58px; }
+        .isl-timer.ready .isl-timer-clock { color: var(--px-good, #2e8b2e); }
+        .isl-timer-min { margin-left: auto; font-size: 10px; color: var(--px-text-dim); display: inline-flex; align-items: center; gap: 3px; }
+        .isl-timer-min input { width: 46px; font-family: var(--px-font-mono); font-size: 11px; padding: 2px 4px; background: var(--px-bg-btn, #fff); color: var(--px-text-val, #2b2820); border: 2px solid var(--px-border-btn, #1a1a1a); border-radius: 5px; }
+        .isl-timer-btn { font-family: var(--px-font-mono); font-size: 10px; font-weight: 700; padding: 3px 10px; background: var(--px-accent, #e3350d); color: #fff; border: 2px solid var(--px-border-btn, #1a1a1a); border-radius: 5px; cursor: pointer; }
+        .isl-dest { border-bottom: 1px solid var(--px-line, #e6e0cf); }
+        .isl-dest:last-child { border-bottom: none; }
+        .isl-dest-head { display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer; }
+        .isl-dest-head:hover { background: var(--px-bg-cell, #f4f1e4); }
+        .isl-dest-emoji { font-size: 15px; flex: 0 0 auto; }
+        .isl-dest-info { flex: 1; min-width: 0; }
+        .isl-dest-name { display: block; font-family: var(--px-font-mono); font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--px-text-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .isl-dest-sub { display: block; font-size: 10px; color: var(--px-text-dim); }
+        .isl-dest-chance { font-family: var(--px-font-mono); font-size: 14px; font-weight: 800; flex: 0 0 auto; }
+        .isl-dest-chance.ok { color: var(--px-good, #2e8b2e); }
+        .isl-dest-chance.mid { color: var(--px-mid, #d9a200); }
+        .isl-dest-chance.bad { color: var(--px-bad, #c0392b); }
+        .isl-caret { flex: 0 0 auto; color: var(--px-text-dim); font-size: 11px; width: 12px; text-align: center; }
+        .isl-team { display: none; background: var(--px-bg-bar, #f6f3e9); }
+        .isl-dest.open .isl-team { display: block; }
+        .isl-rank { font-family: var(--px-font-mono); font-size: 10px; font-weight: 800; color: var(--px-text-dim); width: 16px; flex: 0 0 auto; }
+        .isl-pow { font-family: var(--px-font-mono); font-size: 11px; font-weight: 700; color: var(--px-accent, #e3350d); flex: 0 0 auto; }
         .isl-shiny { color: var(--px-mid, #f5cd35); }
         .isl-wait { color: var(--px-text-dim); text-align: center; padding: 24px 10px; line-height: 1.6; }
     </style>
 </head>
 <body>
     <div class="isl-head">🏝️ ASSISTENTE DA ILHA</div>
-    <div class="isl-sub">Pokémon do seu box ideais para cada posto (bônus de tipo +50%). Abra "Meus Pokémon" uma vez pra sincronizar o box.</div>
+    <div class="isl-sub">Expedições (poder do seu time + chance) e postos da ilha por tipo. Abra "Meus Pokémon" uma vez pra sincronizar o box.</div>
     <div id="isl-body"><div class="isl-wait">Aguardando seu box…<br>Abra a aba "Meus Pokémon" no jogo pra sincronizar.</div></div>
 
     <script src="components/pixel-icon.js"></script>
