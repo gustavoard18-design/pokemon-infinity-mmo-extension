@@ -66,6 +66,54 @@
             return;
         }
         body.innerHTML = '';
+
+        // ---- versáteis: Pokémon que se encaixam em mais de um posto ----------
+        const versatile = MON
+            .map((m) => ({ m, posts: POSTS.filter((p) => m.typeKeys.some((t) => p.types.includes(t))) }))
+            .filter((x) => x.posts.length > 1)
+            .sort((a, b) => (b.posts.length - a.posts.length) || (b.m.level - a.m.level));
+
+        if (versatile.length) {
+            const box = document.createElement('div');
+            box.className = 'isl-post isl-versatile';
+            const head = document.createElement('div');
+            head.className = 'isl-post-head';
+            head.innerHTML = `<span class="isl-post-emoji">🎯</span>` +
+                `<span><span class="isl-post-name">Versáteis</span> ` +
+                `<span class="isl-post-desc">— servem em vários postos</span></span>` +
+                `<span class="isl-post-n">${versatile.length}</span>`;
+            box.appendChild(head);
+            versatile.slice(0, 30).forEach(({ m, posts }) => {
+                const row = document.createElement('div');
+                row.className = 'isl-row';
+                if (m.dex) {
+                    const img = document.createElement('img');
+                    img.className = 'isl-spr';
+                    img.onerror = () => { img.style.display = 'none'; };
+                    img.src = gifUrl(m.dex);
+                    row.appendChild(img);
+                }
+                const nm = document.createElement('span');
+                nm.className = 'isl-nm';
+                nm.innerHTML = `${escapeHtml(m.name)}${m.shiny ? ' <span class="isl-shiny">★</span>' : ''}`;
+                const badges = document.createElement('span');
+                badges.className = 'isl-posts';
+                badges.innerHTML = posts.map((p) => `<span class="isl-post-badge" title="${escapeHtml(p.name)}">${p.emoji}</span>`).join('');
+                const lv = document.createElement('span');
+                lv.className = 'isl-lv';
+                lv.textContent = m.level ? `Nv${m.level}` : '';
+                row.append(nm, badges, lv);
+                box.appendChild(row);
+            });
+            if (versatile.length > 30) {
+                const more = document.createElement('div');
+                more.className = 'isl-empty';
+                more.textContent = `+${versatile.length - 30} outros…`;
+                box.appendChild(more);
+            }
+            body.appendChild(box);
+        }
+
         POSTS.forEach((post) => {
             const matches = MON
                 .filter((m) => m.typeKeys.some((t) => post.types.includes(t)))
