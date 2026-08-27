@@ -207,6 +207,16 @@
             });
         });
 
+        // Ilha/Meus Pokémon: ao (re)carregar o iframe, reenvia o último box
+        // guardado, senão a aba abre vazia até o jogo emitir party/pc de novo.
+        [islandFrame, myPokemonsFrame].forEach((frame) => {
+            frame.addEventListener('load', () => {
+                if (window.__phLastCharData) {
+                    frame.contentWindow?.postMessage({ type: 'character-data', payload: window.__phLastCharData }, '*');
+                }
+            });
+        });
+
         // repasse da Pokédex do jogo pro iframe: o interceptor publica os
         // capturados/vistos em data-pkmn-dex; aqui lemos e mandamos pro frame,
         // no load dele e sempre que o atributo mudar (novo Pokémon capturado).
@@ -514,6 +524,10 @@
                 if (islandFrame) islandFrame.contentWindow.postMessage({ type: 'character-data', payload: data }, '*');
 
                 const isCharacterPayload = !!(data.party || data.pc);
+                // guarda o último box (party/pc) pra reenviar quando a aba Ilha
+                // (ou Meus Pokémon) for aberta depois — senão elas ficam vazias
+                // porque o jogo só emite esse payload ao abrir o box no jogo.
+                if (isCharacterPayload) window.__phLastCharData = data;
                 // sinal real de fim de luta: só usado aqui pra saber quando voltar
                 // pra aba anterior — battle.js ignora isso de propósito (ele só olha
                 // pra presença de `foe`), esse "over" não deve virar estado de tela lá.
@@ -1012,6 +1026,13 @@
         settingsPanel.style.display = view === 'settings' ? 'block' : 'none';
 
         paintHeaderButtons(container, view);
+
+        // reenvia o último box guardado pra aba que acabou de abrir (Ilha/Meus
+        // Pokémon), pois o jogo só emite party/pc ao abrir o box lá dentro.
+        if ((view === 'island' || view === 'myPokemons') && window.__phLastCharData) {
+            const frame = view === 'island' ? island : myPokemons;
+            try { frame.contentWindow.postMessage({ type: 'character-data', payload: window.__phLastCharData }, '*'); } catch (_) {}
+        }
 
         persist(currentSettings(container));
     }
