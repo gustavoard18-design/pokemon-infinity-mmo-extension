@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Infinity Dex Helper",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Companion do InfinityMMO: dados de batalha ao vivo, melhor jogada e dano estimado, Pokédex e Meus Pokémon.",
   "action": {},
   "background": {
@@ -20,7 +20,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["battle.html", "battle.js", "chart.html", "chart.js", "pixel-theme.css", "myPokemons.html", "myPokemons.js", "pokedex.html", "pokedex.js", "spawns.html", "spawns.js", "island.html", "island.js", "farm.html", "farm.js", "components/*.js", "components/*.css", "data/*.js", "icons/types/*.png", "icons/types/colored/*.png"],
+      "resources": ["battle.html", "battle.js", "chart.html", "chart.js", "pixel-theme.css", "myPokemons.html", "myPokemons.js", "pokedex.html", "pokedex.js", "spawns.html", "spawns.js", "farm.html", "farm.js", "components/*.js", "components/*.css", "data/*.js", "icons/types/*.png", "icons/types/colored/*.png"],
       "matches": ["<all_urls>"]
     }
   ],

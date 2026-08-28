@@ -138,7 +138,6 @@
             { icon: 'team', tip: 'Meus Pokémon', view: 'myPokemons' },
             { icon: 'dex', tip: 'Pokédex (capturados)', view: 'pokedex' },
             { icon: 'grass', tip: 'Neste mapa (selvagens)', view: 'spawns' },
-            { icon: 'island', tip: 'Ilha (postos)', view: 'island' },
             { icon: 'money', tip: 'Farm de dinheiro', view: 'farm' },
             { icon: 'cfg', tip: 'Configurações', view: 'settings' },
         ], { tip: 'Minimizar' }, { tip: 'Expandir' });
@@ -173,11 +172,6 @@
         spawnsFrame.className = 'ph-frame';
         spawnsFrame.src = chrome.runtime.getURL('spawns.html');
 
-        const islandFrame = document.createElement('iframe');
-        islandFrame.id = 'pokemon-island-frame';
-        islandFrame.className = 'ph-frame';
-        islandFrame.src = chrome.runtime.getURL('island.html');
-
         const farmFrame = document.createElement('iframe');
         farmFrame.id = 'pokemon-farm-frame';
         farmFrame.className = 'ph-frame';
@@ -201,20 +195,18 @@
         // caminho. Cada frame recebe seu próprio postMessage direto assim que
         // carrega, sem passar pela guarda, com o estado atual lido do MESMO
         // objeto `settings` que o resto do build() usa.
-        [battleFrame, myPokemonsFrame, pokedexFrame, spawnsFrame, islandFrame, farmFrame, chartFrame].forEach((frame) => {
+        [battleFrame, myPokemonsFrame, pokedexFrame, spawnsFrame, farmFrame, chartFrame].forEach((frame) => {
             frame.addEventListener('load', () => {
                 frame.contentWindow?.postMessage({ type: 'panel-mode', full: settings.maximized === true }, '*');
             });
         });
 
-        // Ilha/Meus Pokémon: ao (re)carregar o iframe, reenvia o último box
-        // guardado, senão a aba abre vazia até o jogo emitir party/pc de novo.
-        [islandFrame, myPokemonsFrame].forEach((frame) => {
-            frame.addEventListener('load', () => {
-                if (window.__phLastCharData) {
-                    frame.contentWindow?.postMessage({ type: 'character-data', payload: window.__phLastCharData }, '*');
-                }
-            });
+        // Meus Pokémon: ao (re)carregar o iframe, reenvia o último box guardado,
+        // senão a aba abre vazia até o jogo emitir party/pc de novo.
+        myPokemonsFrame.addEventListener('load', () => {
+            if (window.__phLastCharData) {
+                myPokemonsFrame.contentWindow?.postMessage({ type: 'character-data', payload: window.__phLastCharData }, '*');
+            }
         });
 
         // repasse da Pokédex do jogo pro iframe: o interceptor publica os
@@ -264,7 +256,6 @@
         body.appendChild(myPokemonsFrame);
         body.appendChild(pokedexFrame);
         body.appendChild(spawnsFrame);
-        body.appendChild(islandFrame);
         body.appendChild(farmFrame);
         body.appendChild(chartFrame);
         body.appendChild(settingsPanel);
@@ -532,15 +523,13 @@
                 if (!data || typeof data !== 'object') return;
                 const battleFrame = document.getElementById('pokemon-battle-frame');
                 const myPokemonsFrame = document.getElementById('pokemon-myPokemons-frame');
-                const islandFrame = document.getElementById('pokemon-island-frame');
                 if (battleFrame) battleFrame.contentWindow.postMessage({ type: 'battle-data', payload: data }, '*');
                 if (myPokemonsFrame) myPokemonsFrame.contentWindow.postMessage({ type: 'character-data', payload: data }, '*');
-                if (islandFrame) islandFrame.contentWindow.postMessage({ type: 'character-data', payload: data }, '*');
 
                 const isCharacterPayload = !!(data.party || data.pc);
-                // guarda o último box (party/pc) pra reenviar quando a aba Ilha
-                // (ou Meus Pokémon) for aberta depois — senão elas ficam vazias
-                // porque o jogo só emite esse payload ao abrir o box no jogo.
+                // guarda o último box (party/pc) pra reenviar quando Meus Pokémon
+                // for aberta depois — senão abre vazia, porque o jogo só emite
+                // esse payload ao abrir o box no jogo.
                 if (isCharacterPayload) window.__phLastCharData = data;
                 // sinal real de fim de luta: só usado aqui pra saber quando voltar
                 // pra aba anterior — battle.js ignora isso de propósito (ele só olha
@@ -1015,11 +1004,10 @@
         const myPokemons = container.querySelector('#pokemon-myPokemons-frame');
         const pokedex = container.querySelector('#pokemon-pokedex-frame');
         const spawns = container.querySelector('#pokemon-spawns-frame');
-        const island = container.querySelector('#pokemon-island-frame');
         const farm = container.querySelector('#pokemon-farm-frame');
         const chart = container.querySelector('#pokemon-chart-frame');
         const settingsPanel = container.querySelector('#pokemon-settings-panel');
-        if (!battle || !myPokemons || !pokedex || !spawns || !island || !farm || !chart || !settingsPanel) return;
+        if (!battle || !myPokemons || !pokedex || !spawns || !farm || !chart || !settingsPanel) return;
 
         container.dataset.activeView = view;
         syncFullSide(container, currentSettings(container));
@@ -1032,7 +1020,7 @@
         // sempre que não são a view ativa "sozinha": assim a folha de estilo
         // decide sozinha (nada de display:none preso de uma navegação anterior
         // sobrevivendo até o próximo toggle de F, que não passa por este laço).
-        [battle, myPokemons, pokedex, spawns, island, farm, chart].forEach((frame) => {
+        [battle, myPokemons, pokedex, spawns, farm, chart].forEach((frame) => {
             const active = frame.id === `pokemon-${view}-frame`;
             const cssManaged = frame === chart || frame.classList.contains('side-active');
             frame.style.display = active ? 'block' : (cssManaged ? '' : 'none');
@@ -1041,11 +1029,10 @@
 
         paintHeaderButtons(container, view);
 
-        // reenvia o último box guardado pra aba que acabou de abrir (Ilha/Meus
-        // Pokémon), pois o jogo só emite party/pc ao abrir o box lá dentro.
-        if ((view === 'island' || view === 'myPokemons') && window.__phLastCharData) {
-            const frame = view === 'island' ? island : myPokemons;
-            try { frame.contentWindow.postMessage({ type: 'character-data', payload: window.__phLastCharData }, '*'); } catch (_) {}
+        // reenvia o último box guardado pra Meus Pokémon ao abrir, pois o jogo
+        // só emite party/pc ao abrir o box lá dentro.
+        if (view === 'myPokemons' && window.__phLastCharData) {
+            try { myPokemons.contentWindow.postMessage({ type: 'character-data', payload: window.__phLastCharData }, '*'); } catch (_) {}
         }
 
         persist(currentSettings(container));
