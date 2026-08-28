@@ -165,7 +165,7 @@
         } catch (_) { return null; }
     }
 
-    let last = null, lastRect = '', lastDex = '', lastMapKey = '';
+    let last = null, lastRect = '', lastDex = '', lastMapKey = '', lastTypeChart = '';
     const tick = () => {
         try {
             const g = findGame();
@@ -190,6 +190,14 @@
                 if (gg && typeof gg.mapKey === 'string' && gg.mapKey && gg.mapKey !== lastMapKey) {
                     lastMapKey = gg.mapKey;
                     document.documentElement.dataset.pkmnMapKey = gg.mapKey;
+                }
+                // tabela de efetividade de tipos REAL do jogo (G.dex.types) — o
+                // battle usa calcDamage com essa matriz; publicamos pra estimar o
+                // dano com os mesmos multiplicadores (o jogo pode ter matchups
+                // custom). Só publica uma vez (é estática) e se ainda não foi.
+                if (!lastTypeChart && gg && gg.dex && gg.dex.types) {
+                    const tc = JSON.stringify(gg.dex.types);
+                    if (tc && tc.length > 2) { lastTypeChart = tc; document.documentElement.dataset.pkmnTypeChart = tc; }
                 }
             } catch (_) {}
             const nameEl = document.querySelector('#pokemon-type-matchup-overlay .ph-map-name');

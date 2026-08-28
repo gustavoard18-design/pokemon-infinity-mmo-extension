@@ -233,11 +233,25 @@
         };
         pokedexFrame.addEventListener('load', () => { relayDex(); });
         spawnsFrame.addEventListener('load', () => { relayDex(); });
+
+        // repassa a tabela de tipos real do jogo (G.dex.types) pro battle, pra o
+        // dano estimado usar os multiplicadores exatos do jogo.
+        const relayTypeChart = () => {
+            const raw = document.documentElement.dataset.pkmnTypeChart;
+            if (!raw) return;
+            const f = document.getElementById('pokemon-battle-frame');
+            try { f && f.contentWindow?.postMessage({ type: 'type-chart', raw }, '*'); } catch (_) {}
+        };
+        battleFrame.addEventListener('load', relayTypeChart);
+        [600, 2000, 4000].forEach((ms) => setTimeout(relayTypeChart, ms));
         if (!window.__phDexObserver) {
-            window.__phDexObserver = new MutationObserver(relayDex);
+            window.__phDexObserver = new MutationObserver((records) => {
+                relayDex();
+                if (records.some((r) => r.attributeName === 'data-pkmn-type-chart')) relayTypeChart();
+            });
             try {
                 window.__phDexObserver.observe(document.documentElement, {
-                    attributes: true, attributeFilter: ['data-pkmn-dex', 'data-pkmn-map-key']
+                    attributes: true, attributeFilter: ['data-pkmn-dex', 'data-pkmn-map-key', 'data-pkmn-type-chart']
                 });
             } catch (_) {}
         }

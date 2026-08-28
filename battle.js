@@ -83,6 +83,37 @@ function effectiveStat(mon, key) {
     return Math.floor((2 * base + iv) * level / 100 + 5);
 }
 
+// ---- tabela de efetividade REAL do jogo (G.dex.types) --------------------
+// O interceptor publica G.dex.types cru; aqui guardamos e consultamos com os
+// MESMOS tokens crus que o jogo usa em mon.types / move.type (índices). O jogo
+// pode ter matchups custom — usar a matriz dele deixa o dano estimado fiel.
+// Se qualquer lookup falhar, quem chama cai na tabela estática (CHART).
+let LIVE_TYPES = null;
+function setLiveTypeChart(raw) {
+    try { const v = JSON.parse(raw); if (v && typeof v === 'object') { LIVE_TYPES = v; if (typeof render === 'function') render(); } } catch (_) {}
+}
+// multiplicador via matriz do jogo: mt = token cru do tipo do golpe,
+// defTypes = tokens crus dos tipos do defensor. Devolve null se não resolver.
+function liveMultiplier(mt, defTypes) {
+    if (!LIVE_TYPES || mt == null || !Array.isArray(defTypes) || !defTypes.length) return null;
+    const uniq = [...new Set(defTypes)];
+    // a matriz pode ser o próprio objeto ou estar numa sub-propriedade dele
+    const roots = [LIVE_TYPES];
+    for (const v of Object.values(LIVE_TYPES)) if (v && typeof v === 'object') roots.push(v);
+    for (const root of roots) {
+        const row = root[mt];
+        if (!row || typeof row !== 'object') continue;
+        let prod = 1, ok = true;
+        for (const dt of uniq) {
+            const val = row[dt];
+            if (typeof val !== 'number' || !isFinite(val)) { ok = false; break; }
+            prod *= val;
+        }
+        if (ok) return prod;
+    }
+    return null;
+}
+
 // estimativa de dano (fórmula padrão de jogos Pokémon). Inclui os atributos
 // alterados: `atkStage` é o estágio ofensivo de quem ataca e `defStage` o
 // defensivo de quem defende (quem chama escolhe atk/spa vs def/spd). Continua
@@ -118,7 +149,7 @@ function bestPlay(foe) {
         (pokemon.moves || []).forEach((move, moveIndex) => {
             if (Number(move.pp) <= 0 || Number(move.power) <= 0) return;
             const moveType = TYPE_MAPPER[move.type];
-            const multiplier = defMultiplier(moveType, defenders);
+            const multiplier = liveMultiplier(move.type, foe.types) ?? defMultiplier(moveType, defenders);
             const stab = typeNames(pokemon.types).includes(moveType) ? 1.5 : 1;
             const attack = move.category === 'special' ? Number(pokemon.stats?.spa || 1) : Number(pokemon.stats?.atk || 1);
             candidates.push({ pokemon, index, move, moveIndex, moveType, multiplier, score:Number(move.power) * (Number(move.accuracy) || 100) / 100 * multiplier * stab * attack });
@@ -137,7 +168,7 @@ function bestPlay(foe) {
             const details = MOVE_DETAILS[slug];
             const moveType = MOVE_TYPES[slug];
             if (!details || !moveType || Number(move.pp) <= 0 || Number(details.power) <= 0) return;
-            const multiplier = defMultiplier(moveType, defenders);
+            const multiplier = liveMultiplier(move.type, foe.types) ?? defMultiplier(moveType, defenders);
             const stab = typeNames(activePokemon.types).includes(moveType) ? 1.5 : 1;
             const attack = details.category === 'special' ? Number(activePokemon.stats?.spa || 1) : Number(activePokemon.stats?.atk || 1);
             candidates.push({
@@ -206,7 +237,7 @@ function renderMyMoves(foe) {
         let score = -1;
         let dmgChip = '';
         if (details && moveType && Number(move.pp) > 0 && Number(details.power) > 0) {
-            const multiplier = defMultiplier(moveType, defenders);
+            const multiplier = liveMultiplier(move.type, foe.types) ?? defMultiplier(moveType, defenders);
             const isSpecial = details.category === 'special';
             const stab = activePokemon ? (typeNames(activePokemon.types).includes(moveType) ? 1.5 : 1) : 1;
             // atributos alterados: você ataca → seu estágio ofensivo (atk/spa) e
@@ -747,7 +778,9 @@ async function saveDiscoveredMoves() {
 }
 
 window.addEventListener('message', (event) => {
-    if (!event.data || event.data.type !== 'battle-data') return;
+    if (!event.data) return;
+    if (event.data.type === 'type-chart') { setLiveTypeChart(event.data.raw); return; }
+    if (event.data.type !== 'battle-data') return;
     updateBattle(event.data.payload);
     render();
 });
