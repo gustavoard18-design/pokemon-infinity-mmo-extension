@@ -47,8 +47,11 @@
         .fm-caret { flex: 0 0 auto; color: var(--px-text-dim); font-size: 11px; width: 14px; text-align: center; }
         .fm-trainers { display: none; border-top: 1px solid var(--px-line, #e6e0cf); }
         .fm-map.open .fm-trainers { display: block; }
-        .fm-floor { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 26px 3px 8px; background: var(--px-bg-bar, #f2efe4); font-family: var(--px-font-mono); font-size: 9px; font-weight: 800; text-transform: uppercase; color: var(--px-text-dim); }
-        .fm-floor-tot { color: var(--px-good, #2e8b2e); }
+        .fm-floor { display: flex; align-items: center; gap: 6px; padding: 4px 26px 4px 8px; background: var(--px-accent, #e3350d); color: #fff; border-top: 2px solid var(--px-border-panel, #1a1a1a); font-family: var(--px-font-mono); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+        .fm-floor:first-child { border-top: none; }
+        .fm-floor .fm-floor-label { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; }
+        .fm-floor .fm-floor-label::before { content: '🏢'; font-size: 11px; }
+        .fm-floor-tot { flex: 0 0 auto; color: #fff; font-weight: 800; }
         .fm-tr-wrap { border-bottom: 1px solid var(--px-line, #f0ead8); }
         .fm-tr-wrap:last-child { border-bottom: none; }
         .fm-tr { display: flex; align-items: center; gap: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer; }

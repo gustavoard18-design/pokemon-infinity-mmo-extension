@@ -133,7 +133,7 @@
                 if (loc.maps.length > 1) {
                     const fh = document.createElement('div');
                     fh.className = 'fm-floor';
-                    fh.innerHTML = `<span>${escapeHtml(mp.floor)}</span><span class="fm-floor-tot">${money(mp.total)}</span>`;
+                    fh.innerHTML = `<span class="fm-floor-label">${escapeHtml(mp.floor)}</span><span class="fm-floor-tot">${money(mp.total)}</span>`;
                     trBox.appendChild(fh);
                 }
                 mp.trainers.slice().sort((a, b) => b.prize - a.prize).forEach((t) => {
