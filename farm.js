@@ -68,9 +68,12 @@
                         name: p.name || p.slug || '?', dex: Number(p.dex) || 0, level: Number(p.level) || 0,
                         boss: Number(p.boss) || 0   // nº de barras de vida extras (chefe)
                     }));
+                    // barras de vida a vencer: chefe = N barras, normal = 1 barra.
+                    // reflete o TEMPO real da batalha melhor que "nº de inimigos".
+                    const bars = party.reduce((s, p) => s + (p.boss || 1), 0);
                     return {
                         name: t.name || t.id || '?', cls: t.cls || '', prize: Number(t.prize) || 0,
-                        count: party.length, party,
+                        count: party.length, party, bars,
                         maxLv: Math.max(0, ...party.map((p) => p.level))
                     };
                 });
@@ -82,13 +85,15 @@
             if (!byBase.has(groupKey)) byBase.set(groupKey, { base: groupKey, isle: !!isl, key: normMap(m.id) || normMap(name), maps: [] });
             const g = byBase.get(groupKey);
             const floor = isl ? islandFloor(name) : floorLabel(name, groupKey);
-            g.maps.push({ name, floor, key: normMap(m.id) || normMap(name), npcs: tr.length, total, trainers: tr });
+            const bars = tr.reduce((s, t) => s + t.bars, 0);
+            g.maps.push({ name, floor, key: normMap(m.id) || normMap(name), npcs: tr.length, bars, total, trainers: tr });
         });
         LOCS = [...byBase.values()].map((g) => {
             const npcs = g.maps.reduce((s, m) => s + m.npcs, 0);
+            const bars = g.maps.reduce((s, m) => s + m.bars, 0);
             const total = g.maps.reduce((s, m) => s + m.total, 0);
             g.maps.sort((a, b) => b.total - a.total);
-            return { ...g, npcs, total, avg: npcs ? Math.round(total / npcs) : 0 };
+            return { ...g, npcs, bars, total, avg: npcs ? Math.round(total / npcs) : 0, perBar: bars ? Math.round(total / bars) : 0 };
         });
     }
 
@@ -100,8 +105,9 @@
 
         const sumT = shown.reduce((s, m) => s + m.total, 0);
         const sumN = shown.reduce((s, m) => s + m.npcs, 0);
+        const sumB = shown.reduce((s, m) => s + m.bars, 0);
         summaryEl.innerHTML = `${shown.length} locais · ${sumN} inimigos · <b>${money(sumT)}</b>` +
-            (sumN ? ` · ${money(Math.round(sumT / sumN))}/inimigo` : '');
+            (sumB ? ` · ${money(Math.round(sumT / sumB))}/barra` : '');
 
         if (onlySel && !shown.length) {
             body.innerHTML = '<div class="fm-wait">Nenhum local marcado.<br>Desmarque "Só selecionados" e clique na ★ dos locais que quiser acompanhar.</div>';
@@ -109,11 +115,12 @@
         }
 
         const base = {
-            per: (a, b) => b.avg - a.avg,
+            per: (a, b) => b.perBar - a.perBar,     // custo-benefício = ¥/barra
+            pernpc: (a, b) => b.avg - a.avg,          // ¥/inimigo
             total: (a, b) => b.total - a.total,
             npcs: (a, b) => b.npcs - a.npcs,
             name: (a, b) => a.base.localeCompare(b.base)
-        }[sort] || ((a, b) => b.avg - a.avg);
+        }[sort] || ((a, b) => b.perBar - a.perBar);
         // comparadores já são decrescentes (nome = A→Z); inverte se quiser crescente
         const cmp = desc ? base : (a, b) => -base(a, b);
 
@@ -135,7 +142,7 @@
                 `<span class="fm-rank">${i + 1}</span>` +
                 `<span class="fm-map-info">` +
                     `<span class="fm-map-name">${escapeHtml(nameTxt)}${here ? ' 📍' : ''}</span>` +
-                    `<span class="fm-map-sub">${loc.npcs} inimigos · ${money(loc.avg)}/inimigo${floorsTxt}</span>` +
+                    `<span class="fm-map-sub">${money(loc.perBar)}/barra · ${loc.bars} barras${loc.bars !== loc.npcs ? ` (${loc.npcs} inim.)` : ''}${floorsTxt}</span>` +
                 `</span>` +
                 `<span class="fm-map-money"><div class="fm-total">${money(loc.total)}</div></span>` +
                 `<span class="fm-caret">▸</span>`;
