@@ -65,7 +65,8 @@
                 .filter((t) => String(t.cls || '').trim().toLowerCase() !== 'líder')
                 .map((t) => {
                     const party = (Array.isArray(t.party) ? t.party : []).map((p) => ({
-                        name: p.name || p.slug || '?', dex: Number(p.dex) || 0, level: Number(p.level) || 0
+                        name: p.name || p.slug || '?', dex: Number(p.dex) || 0, level: Number(p.level) || 0,
+                        boss: Number(p.boss) || 0   // nº de barras de vida extras (chefe)
                     }));
                     return {
                         name: t.name || t.id || '?', cls: t.cls || '', prize: Number(t.prize) || 0,
@@ -167,8 +168,9 @@
                     tr.className = 'fm-tr-wrap';
                     const row = document.createElement('div');
                     row.className = 'fm-tr';
+                    const bossN = t.party.filter((p) => p.boss).length;
                     row.innerHTML =
-                        `<span class="fm-tr-nm"><span class="fm-tr-name">${escapeHtml(t.name)}</span> <span class="fm-tr-count">${t.count} Pokémon</span></span>` +
+                        `<span class="fm-tr-nm"><span class="fm-tr-name">${escapeHtml(t.name)}</span> <span class="fm-tr-count">${t.count} Pokémon</span>${bossN ? ` <span class="fm-tr-boss" title="${bossN} chefe(s) com várias barras de vida">👑${bossN}</span>` : ''}</span>` +
                         `<span class="fm-tr-lv">${t.maxLv ? 'Nv' + t.maxLv : ''}</span>` +
                         `<span class="fm-tr-money">${money(t.prize)}</span>` +
                         `<span class="fm-tr-caret">${t.party.length ? '▸' : ''}</span>`;
@@ -182,7 +184,7 @@
                             mon.className = 'fm-mon';
                             mon.innerHTML =
                                 (p.dex ? `<img class="fm-mon-spr" src="https://infinitymmo.net/assets/pokemon-bw/${p.dex}/front.gif" onerror="this.style.display='none'">` : '') +
-                                `<span class="fm-mon-nm">${escapeHtml(p.name)}</span>` +
+                                `<span class="fm-mon-nm">${escapeHtml(p.name)}${p.boss ? ` <span class="fm-mon-boss" title="Chefe: ${p.boss} barras de vida">👑${p.boss}</span>` : ''}</span>` +
                                 `<span class="fm-mon-lv">${p.level ? 'Nv' + p.level : ''}</span>`;
                             mons.appendChild(mon);
                         });
