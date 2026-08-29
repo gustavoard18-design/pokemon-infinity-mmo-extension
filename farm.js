@@ -57,6 +57,7 @@
                 .filter((t) => String(t.cls || '').trim().toLowerCase() !== 'líder')
                 .map((t) => ({
                     name: t.name || t.id || '?', cls: t.cls || '', prize: Number(t.prize) || 0,
+                    count: Array.isArray(t.party) ? t.party.length : 0,
                     maxLv: Math.max(0, ...((t.party || []).map((p) => Number(p.level) || 0)))
                 }));
             if (!tr.length) return;
@@ -134,7 +135,7 @@
                     const row = document.createElement('div');
                     row.className = 'fm-tr';
                     row.innerHTML =
-                        `<span class="fm-tr-nm">${escapeHtml(t.name)} <span class="fm-tr-cls">${escapeHtml(t.cls)}</span></span>` +
+                        `<span class="fm-tr-nm">${t.count} Pokémon</span>` +
                         `<span class="fm-tr-lv">${t.maxLv ? 'Nv' + t.maxLv : ''}</span>` +
                         `<span class="fm-tr-money">${money(t.prize)}</span>`;
                     trBox.appendChild(row);
