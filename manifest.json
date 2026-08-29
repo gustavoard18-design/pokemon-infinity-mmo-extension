@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Infinity Dex Helper",
-  "version": "1.8.5",
+  "version": "1.8.6",
   "description": "Companion do InfinityMMO: dados de batalha ao vivo, melhor jogada e dano estimado, Pokédex e Meus Pokémon.",
   "action": {},
   "background": {
