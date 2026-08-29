@@ -11,7 +11,15 @@
     const summaryEl = document.getElementById('fm-summary');
     const sortSel = document.getElementById('fm-sort');
     const dirBtn = document.getElementById('fm-dir');
+    const onlyChk = document.getElementById('fm-only');
+    const onlyNEl = document.getElementById('fm-only-n');
     let desc = true;   // true = decrescente (maior primeiro); false = crescente
+
+    // locais marcados (★) — persistidos; "só selecionados" filtra por eles
+    const SEL_KEY = 'idh_farm_selected';
+    let SELECTED = (() => { try { return new Set(JSON.parse(localStorage.getItem(SEL_KEY)) || []); } catch (_) { return new Set(); } })();
+    const saveSel = () => { try { localStorage.setItem(SEL_KEY, JSON.stringify([...SELECTED])); } catch (_) {} };
+    const updateOnlyN = () => { if (onlyNEl) onlyNEl.textContent = SELECTED.size ? `${SELECTED.size} marcado${SELECTED.size > 1 ? 's' : ''}` : ''; };
 
     const ENC_URL = 'https://infinitymmo.net/assets/data/wiki-encounters.json';
     const normMap = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -86,11 +94,18 @@
     function render() {
         if (!LOCS.length) { body.innerHTML = '<div class="fm-wait">Não foi possível carregar os dados. Abra o jogo e recarregue.</div>'; summaryEl.textContent = ''; return; }
         const sort = sortSel.value;
+        const onlySel = onlyChk && onlyChk.checked;
+        const shown = onlySel ? LOCS.filter((m) => SELECTED.has(m.base)) : LOCS;
 
-        const sumT = LOCS.reduce((s, m) => s + m.total, 0);
-        const sumN = LOCS.reduce((s, m) => s + m.npcs, 0);
-        summaryEl.innerHTML = `${LOCS.length} locais · ${sumN} inimigos · <b>${money(sumT)}</b>` +
+        const sumT = shown.reduce((s, m) => s + m.total, 0);
+        const sumN = shown.reduce((s, m) => s + m.npcs, 0);
+        summaryEl.innerHTML = `${shown.length} locais · ${sumN} inimigos · <b>${money(sumT)}</b>` +
             (sumN ? ` · ${money(Math.round(sumT / sumN))}/inimigo` : '');
+
+        if (onlySel && !shown.length) {
+            body.innerHTML = '<div class="fm-wait">Nenhum local marcado.<br>Desmarque "Só selecionados" e clique na ★ dos locais que quiser acompanhar.</div>';
+            return;
+        }
 
         const base = {
             per: (a, b) => b.avg - a.avg,
@@ -101,7 +116,7 @@
         // comparadores já são decrescentes (nome = A→Z); inverte se quiser crescente
         const cmp = desc ? base : (a, b) => -base(a, b);
 
-        const list = LOCS.slice().sort(cmp);
+        const list = shown.slice().sort(cmp);
         body.innerHTML = '';
         const wrap = document.createElement('div');
         wrap.className = 'fm-list';
@@ -113,7 +128,9 @@
             mhead.className = 'fm-map-head';
             const floorsTxt = loc.maps.length > 1 ? ` · ${loc.maps.length} ${loc.isle ? 'mapas' : 'andares'}` : '';
             const nameTxt = (loc.isle ? '🏝️ ' : '') + loc.base;
+            const on = SELECTED.has(loc.base);
             mhead.innerHTML =
+                `<button type="button" class="fm-star${on ? ' on' : ''}" title="Marcar este local">${on ? '★' : '☆'}</button>` +
                 `<span class="fm-rank">${i + 1}</span>` +
                 `<span class="fm-map-info">` +
                     `<span class="fm-map-name">${escapeHtml(nameTxt)}${here ? ' 📍' : ''}</span>` +
@@ -121,6 +138,15 @@
                 `</span>` +
                 `<span class="fm-map-money"><div class="fm-total">${money(loc.total)}</div></span>` +
                 `<span class="fm-caret">▸</span>`;
+            const star = mhead.querySelector('.fm-star');
+            star.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (SELECTED.has(loc.base)) SELECTED.delete(loc.base); else SELECTED.add(loc.base);
+                saveSel(); updateOnlyN();
+                star.classList.toggle('on');
+                star.textContent = star.classList.contains('on') ? '★' : '☆';
+                if (onlyChk && onlyChk.checked) render();   // some da lista se desmarcado no modo filtrado
+            });
             mhead.addEventListener('click', () => {
                 card.classList.toggle('open');
                 mhead.querySelector('.fm-caret').textContent = card.classList.contains('open') ? '▾' : '▸';
@@ -176,6 +202,8 @@
     }
 
     sortSel.addEventListener('change', render);
+    if (onlyChk) onlyChk.addEventListener('change', render);
+    updateOnlyN();
     if (dirBtn) dirBtn.addEventListener('click', () => {
         desc = !desc;
         dirBtn.textContent = desc ? '▼' : '▲';

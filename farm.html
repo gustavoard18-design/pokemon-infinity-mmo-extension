@@ -25,6 +25,11 @@
         .fm-sort-row select { flex: 1; min-width: 0; }
         .fm-dir-btn { flex: 0 0 auto; width: 30px; font-family: var(--px-font-mono); font-size: 13px; font-weight: 800; padding: 0; background: var(--px-bg-btn, #fff); color: var(--px-text-val, #2b2820); border: 2px solid var(--px-border-btn, #1a1a1a); border-radius: 6px; cursor: pointer; }
         .fm-dir-btn:hover { background: var(--px-bg-cell, #f4f1e4); }
+        .fm-only { display: flex; align-items: center; gap: 5px; margin-top: 6px; font-size: 11px; font-weight: 700; color: var(--px-text-dim); cursor: pointer; user-select: none; }
+        .fm-only input { cursor: pointer; }
+        .fm-only-n { margin-left: auto; font-family: var(--px-font-mono); font-size: 10px; color: var(--px-text-dim); }
+        .fm-star { flex: 0 0 auto; width: 20px; font-size: 14px; line-height: 1; text-align: center; cursor: pointer; color: var(--px-line, #cbb); background: none; border: none; padding: 0; }
+        .fm-star.on { color: var(--px-mid, #f5cd35); }
         .fm-summary { font-family: var(--px-font-mono); font-size: 11px; font-weight: 700; color: var(--px-text-hi); margin: 4px 0 8px; padding: 5px 8px; background: var(--px-bg-bar, #f2efe4); border: 2px solid var(--px-border-panel, #1a1a1a); border-radius: 6px; }
         .fm-summary b { color: var(--px-accent, #e3350d); }
         .fm-region-head { display: flex; align-items: baseline; gap: 8px; margin: 12px 0 5px; padding-bottom: 3px; border-bottom: 2px solid var(--px-border-panel, #1a1a1a); }
@@ -92,6 +97,7 @@
                 <button type="button" class="fm-dir-btn" id="fm-dir" title="Inverter ordem">▼</button>
             </div>
         </div>
+        <label class="fm-only"><input type="checkbox" id="fm-only"> <span>★ Só selecionados</span> <span class="fm-only-n" id="fm-only-n"></span></label>
     </div>
     <div class="fm-summary" id="fm-summary"></div>
     <div id="fm-body"><div class="fm-wait">Carregando dados de treinadores…</div></div>
