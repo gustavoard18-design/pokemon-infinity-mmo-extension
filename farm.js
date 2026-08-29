@@ -51,10 +51,14 @@
     function buildLocs(data) {
         const byBase = new Map();
         (data.maps || []).forEach((m) => {
-            const tr = (Array.isArray(m.trainers) ? m.trainers : []).map((t) => ({
-                name: t.name || t.id || '?', cls: t.cls || '', prize: Number(t.prize) || 0,
-                maxLv: Math.max(0, ...((t.party || []).map((p) => Number(p.level) || 0)))
-            }));
+            const tr = (Array.isArray(m.trainers) ? m.trainers : [])
+                // líderes de ginásio são batalha única (não re-batalháveis a cada
+                // 15 min), então não entram no farm de dinheiro.
+                .filter((t) => String(t.cls || '').trim().toLowerCase() !== 'líder')
+                .map((t) => ({
+                    name: t.name || t.id || '?', cls: t.cls || '', prize: Number(t.prize) || 0,
+                    maxLv: Math.max(0, ...((t.party || []).map((p) => Number(p.level) || 0)))
+                }));
             if (!tr.length) return;
             const name = m.name || m.id;
             const isl = islandOf(name);
