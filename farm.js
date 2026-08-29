@@ -55,11 +55,16 @@
                 // líderes de ginásio são batalha única (não re-batalháveis a cada
                 // 15 min), então não entram no farm de dinheiro.
                 .filter((t) => String(t.cls || '').trim().toLowerCase() !== 'líder')
-                .map((t) => ({
-                    name: t.name || t.id || '?', cls: t.cls || '', prize: Number(t.prize) || 0,
-                    count: Array.isArray(t.party) ? t.party.length : 0,
-                    maxLv: Math.max(0, ...((t.party || []).map((p) => Number(p.level) || 0)))
-                }));
+                .map((t) => {
+                    const party = (Array.isArray(t.party) ? t.party : []).map((p) => ({
+                        name: p.name || p.slug || '?', dex: Number(p.dex) || 0, level: Number(p.level) || 0
+                    }));
+                    return {
+                        name: t.name || t.id || '?', cls: t.cls || '', prize: Number(t.prize) || 0,
+                        count: party.length, party,
+                        maxLv: Math.max(0, ...party.map((p) => p.level))
+                    };
+                });
             if (!tr.length) return;
             const name = m.name || m.id;
             const isl = islandOf(name);
@@ -132,13 +137,36 @@
                     trBox.appendChild(fh);
                 }
                 mp.trainers.slice().sort((a, b) => b.prize - a.prize).forEach((t) => {
+                    const tr = document.createElement('div');
+                    tr.className = 'fm-tr-wrap';
                     const row = document.createElement('div');
                     row.className = 'fm-tr';
                     row.innerHTML =
-                        `<span class="fm-tr-nm">${t.count} Pokémon</span>` +
+                        `<span class="fm-tr-nm"><span class="fm-tr-name">${escapeHtml(t.name)}</span> <span class="fm-tr-count">${t.count} Pokémon</span></span>` +
                         `<span class="fm-tr-lv">${t.maxLv ? 'Nv' + t.maxLv : ''}</span>` +
-                        `<span class="fm-tr-money">${money(t.prize)}</span>`;
-                    trBox.appendChild(row);
+                        `<span class="fm-tr-money">${money(t.prize)}</span>` +
+                        `<span class="fm-tr-caret">${t.party.length ? '▸' : ''}</span>`;
+                    tr.appendChild(row);
+
+                    if (t.party.length) {
+                        const mons = document.createElement('div');
+                        mons.className = 'fm-mons';
+                        t.party.slice().sort((a, b) => b.level - a.level).forEach((p) => {
+                            const mon = document.createElement('div');
+                            mon.className = 'fm-mon';
+                            mon.innerHTML =
+                                (p.dex ? `<img class="fm-mon-spr" src="https://infinitymmo.net/assets/pokemon-bw/${p.dex}/front.gif" onerror="this.style.display='none'">` : '') +
+                                `<span class="fm-mon-nm">${escapeHtml(p.name)}</span>` +
+                                `<span class="fm-mon-lv">${p.level ? 'Nv' + p.level : ''}</span>`;
+                            mons.appendChild(mon);
+                        });
+                        tr.appendChild(mons);
+                        row.addEventListener('click', () => {
+                            tr.classList.toggle('open');
+                            row.querySelector('.fm-tr-caret').textContent = tr.classList.contains('open') ? '▾' : '▸';
+                        });
+                    }
+                    trBox.appendChild(tr);
                 });
             });
             card.appendChild(trBox);
