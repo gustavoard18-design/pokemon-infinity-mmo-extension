@@ -15,6 +15,17 @@
     window.fetch = async function (...args) {
         const input = args[0];
         const url = typeof input === 'string' ? input : (input && input.url) || '';
+        // captura o token de autenticação das chamadas /api do jogo — usado
+        // depois pra ler o Mercado (mesma origem, header Authorization).
+        try {
+            if (/\/api\//.test(url)) {
+                let a = null;
+                const h = args[1] && args[1].headers;
+                if (h) { a = (typeof h.get === 'function') ? h.get('authorization') : (h.Authorization || h.authorization); }
+                if (!a && input && input.headers && typeof input.headers.get === 'function') a = input.headers.get('authorization');
+                if (a) window.__phAuthz = a;
+            }
+        } catch (_) {}
         let requestActionPromise = Promise.resolve(null);
         if (window.__pkmnHelperBattleUrlRe.test(url)) {
             const initBody = args[1] && args[1].body;
@@ -211,4 +222,95 @@
     };
     setInterval(tick, 1000);
     tick();
+})();
+
+// ---- Mercado: busca e agrega os anúncios (roda no MAIN world, usa o token) --
+// A aba Mercado da extensão pede os dados setando data-pkmn-market-req; aqui
+// buscamos /api/market/* (mesma origem, header Authorization capturado acima),
+// agregamos e publicamos o resumo em data-pkmn-market. Só leitura — nunca
+// compra/vende nada.
+(function () {
+    if (window.__phMarketRpc) return;
+    window.__phMarketRpc = true;
+
+    const med = (a) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+    const r2 = (n) => Math.round(n * 100) / 100;
+
+    async function api(u) {
+        const r = await fetch(u, { headers: { Authorization: window.__phAuthz || '' }, credentials: 'include' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    }
+    async function allPages(kind) {
+        const out = []; let page = 1, pages = 1;
+        do {
+            const d = await api(`/api/market/browse?tab=browse&kind=${kind}&page=${page}&sort=new`);
+            if (!d || !d.listings) break; pages = d.pages || 1;
+            for (const L of d.listings) {
+                const s = L.snapshot || {};
+                out.push({
+                    kind: L.kind, slug: L.slug || s.slug || s.species || null, name: s.name || null,
+                    shiny: !!s.shiny, ivTotal: s.ivTotal ?? null, level: s.level ?? null,
+                    price: (L.price_cents || 0) / 100, qty: Number(L.qty_total || s.qty || 1),
+                    unidade: Number(L.unidade || 1), seller: L.seller_id
+                });
+            }
+            page++;
+        } while (page <= pages && page <= 60);
+        return out;
+    }
+
+    async function build() {
+        const stats = await api('/api/market/stats').catch(() => null);
+        const mons = await allPages('mon');
+        const items = await allPages('item');
+        const gold = await allPages('gold');
+        const skins = await allPages('skin');
+
+        // itens: agrupa por slug
+        const iBy = {};
+        for (const L of items) { const k = L.slug || L.name || '?'; (iBy[k] = iBy[k] || { name: L.name, unit: [], sellers: new Set(), qty: 0, n: 0 }); iBy[k].unit.push(L.price / (L.unidade || 1)); iBy[k].sellers.add(L.seller); iBy[k].qty += L.qty; iBy[k].n++; }
+        const itemsAgg = Object.entries(iBy).map(([slug, o]) => ({ slug, name: o.name, n: o.n, sellers: o.sellers.size, qty: o.qty, min: r2(Math.min(...o.unit)), med: r2(med(o.unit)), max: r2(Math.max(...o.unit)) })).sort((a, b) => b.med - a.med);
+
+        // mons: agrupa por espécie
+        const mBy = {};
+        for (const L of mons) { const k = L.slug || L.name || '?'; (mBy[k] = mBy[k] || { name: L.name, prices: [], shiny: 0, n: 0 }); mBy[k].prices.push(L.price); if (L.shiny) mBy[k].shiny++; mBy[k].n++; }
+        const monsAgg = Object.entries(mBy).map(([sp, o]) => ({ sp, name: o.name, n: o.n, shiny: o.shiny, min: r2(Math.min(...o.prices)), med: r2(med(o.prices)), max: r2(Math.max(...o.prices)) }));
+        const allP = mons.map((l) => l.price);
+        const perfP = mons.filter((l) => l.ivTotal === 186).map((l) => l.price);
+        const shinyP = mons.filter((l) => l.shiny).map((l) => l.price);
+
+        // gold: R$ por 1M
+        const goldRates = gold.map((L) => r2(L.price / ((L.unidade || 1) / 1000000))).sort((a, b) => a - b);
+
+        return {
+            ts: Date.now(),
+            stats: stats ? { vendas: stats.vendas, volume: (stats.volumeCents || 0) / 100, vip: stats.vip } : null,
+            totals: { mon: mons.length, item: items.length, gold: gold.length, skin: skins.length },
+            gold: { min: goldRates[0] || 0, med: r2(med(goldRates)), max: goldRates[goldRates.length - 1] || 0, n: goldRates.length },
+            monBands: { min: r2(Math.min(...allP)), med: r2(med(allP)), max: r2(Math.max(...allP)), perfMed: r2(med(perfP)), shinyMed: r2(med(shinyP)),
+                u10: allP.filter((p) => p < 10).length, b1030: allP.filter((p) => p >= 10 && p < 30).length, b3060: allP.filter((p) => p >= 30 && p < 60).length, o60: allP.filter((p) => p >= 60).length },
+            monsAgg, itemsAgg,
+            skins: skins.map((s) => ({ name: s.name, price: s.price })).sort((a, b) => a.price - b.price)
+        };
+    }
+
+    let busy = false;
+    async function handle() {
+        if (busy) return; busy = true;
+        try {
+            if (!window.__phAuthz) { document.documentElement.dataset.pkmnMarket = JSON.stringify({ error: 'no-auth' }); return; }
+            const data = await build();
+            document.documentElement.dataset.pkmnMarket = JSON.stringify(data);
+        } catch (e) {
+            document.documentElement.dataset.pkmnMarket = JSON.stringify({ error: String(e && e.message || e) });
+        } finally { busy = false; }
+    }
+
+    // pedido vindo da extensão: muda data-pkmn-market-req
+    try {
+        new MutationObserver((recs) => {
+            if (recs.some((r) => r.attributeName === 'data-pkmn-market-req')) handle();
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-pkmn-market-req'] });
+    } catch (_) {}
 })();

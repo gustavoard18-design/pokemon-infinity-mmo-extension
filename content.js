@@ -139,6 +139,7 @@
             { icon: 'dex', tip: 'Pokédex (capturados)', view: 'pokedex' },
             { icon: 'grass', tip: 'Neste mapa (selvagens)', view: 'spawns' },
             { icon: 'money', tip: 'Farm de dinheiro', view: 'farm' },
+            { icon: 'tbl', tip: 'Mercado (preços)', view: 'market' },
             { icon: 'cfg', tip: 'Configurações', view: 'settings' },
         ], { tip: 'Minimizar' }, { tip: 'Expandir' });
 
@@ -177,6 +178,11 @@
         farmFrame.className = 'ph-frame';
         farmFrame.src = chrome.runtime.getURL('farm.html');
 
+        const marketFrame = document.createElement('iframe');
+        marketFrame.id = 'pokemon-market-frame';
+        marketFrame.className = 'ph-frame';
+        marketFrame.src = chrome.runtime.getURL('market.html');
+
         const chartFrame = document.createElement('iframe');
         chartFrame.id = 'pokemon-chart-frame';
         chartFrame.className = 'ph-frame';
@@ -195,10 +201,32 @@
         // caminho. Cada frame recebe seu próprio postMessage direto assim que
         // carrega, sem passar pela guarda, com o estado atual lido do MESMO
         // objeto `settings` que o resto do build() usa.
-        [battleFrame, myPokemonsFrame, pokedexFrame, spawnsFrame, farmFrame, chartFrame].forEach((frame) => {
+        [battleFrame, myPokemonsFrame, pokedexFrame, spawnsFrame, farmFrame, marketFrame, chartFrame].forEach((frame) => {
             frame.addEventListener('load', () => {
                 frame.contentWindow?.postMessage({ type: 'panel-mode', full: settings.maximized === true }, '*');
             });
+        });
+
+        // ---- Mercado: ponte com o MAIN world (interceptor) --------------------
+        // market.js pede dados -> setamos data-pkmn-market-req; o interceptor
+        // busca a API do mercado (com o token) e publica em data-pkmn-market;
+        // aqui observamos e repassamos pro iframe do mercado.
+        const relayMarket = () => {
+            const raw = document.documentElement.dataset.pkmnMarket;
+            if (!raw) return;
+            const f = document.getElementById('pokemon-market-frame');
+            try { f && f.contentWindow?.postMessage({ type: 'market-data', raw }, '*'); } catch (_) {}
+        };
+        if (!window.__phMarketObserver) {
+            window.__phMarketObserver = new MutationObserver((recs) => {
+                if (recs.some((r) => r.attributeName === 'data-pkmn-market')) relayMarket();
+            });
+            try { window.__phMarketObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-pkmn-market'] }); } catch (_) {}
+        }
+        window.addEventListener('message', (ev) => {
+            if (ev && ev.data && ev.data.type === 'market-req') {
+                document.documentElement.dataset.pkmnMarketReq = String(Date.now());
+            }
         });
 
         // Meus Pokémon: ao (re)carregar o iframe, reenvia o último box guardado,
@@ -257,6 +285,7 @@
         body.appendChild(pokedexFrame);
         body.appendChild(spawnsFrame);
         body.appendChild(farmFrame);
+        body.appendChild(marketFrame);
         body.appendChild(chartFrame);
         body.appendChild(settingsPanel);
 
@@ -1005,9 +1034,10 @@
         const pokedex = container.querySelector('#pokemon-pokedex-frame');
         const spawns = container.querySelector('#pokemon-spawns-frame');
         const farm = container.querySelector('#pokemon-farm-frame');
+        const market = container.querySelector('#pokemon-market-frame');
         const chart = container.querySelector('#pokemon-chart-frame');
         const settingsPanel = container.querySelector('#pokemon-settings-panel');
-        if (!battle || !myPokemons || !pokedex || !spawns || !farm || !chart || !settingsPanel) return;
+        if (!battle || !myPokemons || !pokedex || !spawns || !farm || !market || !chart || !settingsPanel) return;
 
         container.dataset.activeView = view;
         syncFullSide(container, currentSettings(container));
@@ -1020,7 +1050,7 @@
         // sempre que não são a view ativa "sozinha": assim a folha de estilo
         // decide sozinha (nada de display:none preso de uma navegação anterior
         // sobrevivendo até o próximo toggle de F, que não passa por este laço).
-        [battle, myPokemons, pokedex, spawns, farm, chart].forEach((frame) => {
+        [battle, myPokemons, pokedex, spawns, farm, market, chart].forEach((frame) => {
             const active = frame.id === `pokemon-${view}-frame`;
             const cssManaged = frame === chart || frame.classList.contains('side-active');
             frame.style.display = active ? 'block' : (cssManaged ? '' : 'none');

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Infinity Dex Helper",
-  "version": "1.9.2",
+  "version": "1.10.0",
   "description": "Companion do InfinityMMO: dados de batalha ao vivo, melhor jogada e dano estimado, Pokédex e Meus Pokémon.",
   "action": {},
   "background": {
@@ -34,6 +34,8 @@
         "spawns.js",
         "farm.html",
         "farm.js",
+        "market.html",
+        "market.js",
         "components/*.js",
         "components/*.css",
         "data/*.js",

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mercado</title>
+    <link rel="stylesheet" href="pixel-theme.css">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 9px 10px 14px; background: var(--px-bg); color: var(--px-text); font-family: var(--px-font-body); font-size: 12px; }
+        .mk-head { display: flex; align-items: center; gap: 6px; font-family: var(--px-font-mono); font-size: 12px; font-weight: 800; color: var(--px-accent); letter-spacing: .5px; margin-bottom: 6px; }
+        .mk-refresh { margin-left: auto; font-family: var(--px-font-mono); font-size: 10px; font-weight: 700; padding: 3px 9px; background: var(--px-accent, #e3350d); color: #fff; border: 2px solid var(--px-border-btn, #1a1a1a); border-radius: 6px; cursor: pointer; }
+        .mk-ts { font-size: 9px; color: var(--px-text-dim); margin-bottom: 8px; }
+        .mk-card { border: 2px solid var(--px-border-panel, #1a1a1a); border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+        .mk-card-head { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--px-bg-bar, #f2efe4); border-bottom: 2px solid var(--px-border-panel, #1a1a1a); font-family: var(--px-font-mono); font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--px-text-hi); }
+        .mk-gold { display: flex; align-items: baseline; gap: 8px; padding: 8px; }
+        .mk-gold-big { font-family: var(--px-font-mono); font-size: 20px; font-weight: 800; color: var(--px-good, #2e8b2e); }
+        .mk-gold-sub { font-size: 10px; color: var(--px-text-dim); }
+        .mk-bands { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--px-line, #e6e0cf); }
+        .mk-band { background: var(--px-bg, #fff); padding: 5px 4px; text-align: center; }
+        .mk-band-n { font-family: var(--px-font-mono); font-size: 14px; font-weight: 800; color: var(--px-text-hi); }
+        .mk-band-l { font-size: 8px; color: var(--px-text-dim); text-transform: uppercase; }
+        .mk-kpis { display: flex; gap: 8px; padding: 6px 8px; font-size: 10px; color: var(--px-text-dim); flex-wrap: wrap; }
+        .mk-kpis b { color: var(--px-text-hi); font-family: var(--px-font-mono); }
+        .mk-search { width: 100%; font-family: var(--px-font-body); font-size: 12px; padding: 5px 8px; margin-bottom: 8px; background: var(--px-bg-btn, #fff); color: var(--px-text-val, #2b2820); border: 2px solid var(--px-border-btn, #1a1a1a); border-radius: 6px; }
+        .mk-row { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-bottom: 1px solid var(--px-line, #f0ead8); font-size: 11px; }
+        .mk-row:last-child { border-bottom: none; }
+        .mk-nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--px-text-hi); }
+        .mk-tag { font-size: 8px; font-weight: 700; text-transform: uppercase; padding: 0 4px; border-radius: 7px; flex: 0 0 auto; }
+        .mk-tag.hot { background: rgba(227,53,13,.15); color: var(--px-accent, #e3350d); border: 1px solid var(--px-accent, #e3350d); }
+        .mk-tag.glut { background: var(--px-bg-cell, #eee); color: var(--px-text-dim); border: 1px solid var(--px-line, #ddd); }
+        .mk-n { font-family: var(--px-font-mono); font-size: 9px; color: var(--px-text-dim); flex: 0 0 auto; width: 46px; text-align: right; }
+        .mk-price { font-family: var(--px-font-mono); font-size: 10px; flex: 0 0 auto; width: 118px; text-align: right; color: var(--px-text-dim); }
+        .mk-price b { color: var(--px-good, #2e8b2e); font-size: 11px; }
+        .mk-wait { color: var(--px-text-dim); text-align: center; padding: 24px 10px; line-height: 1.6; }
+        .mk-note { font-size: 9px; color: var(--px-text-dim); padding: 4px 8px; line-height: 1.4; }
+    </style>
+</head>
+<body>
+    <div class="mk-head">💹 MERCADO <button type="button" class="mk-refresh" id="mk-refresh">Atualizar</button></div>
+    <div class="mk-ts" id="mk-ts"></div>
+    <div id="mk-body"><div class="mk-wait">Carregando o mercado…<br>(precisa estar logado no jogo)</div></div>
+
+    <script src="components/panel-interaction-forwarder.js"></script>
+    <script src="market.js"></script>
+</body>
+</html>
