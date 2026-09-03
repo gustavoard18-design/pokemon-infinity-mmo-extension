@@ -10,6 +10,16 @@ function buildSettingsPanel(shell) {
         panel.className = 'ph-settings';
         panel.id = 'pokemon-settings-panel';
         panel.innerHTML = `
+            <div class="ph-donate-box">
+                <div class="ph-donate-title">APOIE O PROJETO 💛</div>
+                <p class="ph-donate-text">A extensão é <b>gratuita</b>. Curtiu? Faça um Pix de qualquer valor — escaneie o QR ou copie o código. Ajuda a manter e melhorar o Infinity Dex Helper. Obrigado! 💛</p>
+                <div class="ph-donate-qr"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 47 47" shape-rendering="crispEdges"><path fill="#ffffff" d="M0 0h47v47H0z"/><path stroke="#1a1a1a" d="M1 1.5h7m5 0h1m1 0h1m2 0h2m1 0h6m1 0h1m1 0h3m4 0h1m1 0h7M1 2.5h1m5 0h1m2 0h4m6 0h1m5 0h1m1 0h1m1 0h1m3 0h1m1 0h1m2 0h1m5 0h1M1 3.5h1m1 0h3m1 0h1m1 0h2m2 0h1m5 0h1m2 0h6m1 0h1m2 0h3m1 0h1m2 0h1m1 0h3m1 0h1M1 4.5h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h1m6 0h1m1 0h1m4 0h2m1 0h2m1 0h2m1 0h2m1 0h1m1 0h3m1 0h1M1 5.5h1m1 0h3m1 0h1m1 0h2m3 0h2m1 0h2m2 0h7m1 0h2m1 0h1m1 0h4m1 0h1m1 0h3m1 0h1M1 6.5h1m5 0h1m1 0h1m2 0h1m4 0h1m1 0h1m1 0h1m3 0h1m2 0h2m1 0h2m1 0h1m4 0h1m5 0h1M1 7.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M9 8.5h3m1 0h3m2 0h4m3 0h1m2 0h1m4 0h2m1 0h1M1 9.5h1m1 0h5m4 0h1m1 0h4m1 0h11m1 0h1m1 0h1m1 0h1m1 0h1m1 0h5M3 10.5h2m4 0h2m2 0h2m1 0h1m1 0h2m1 0h1m3 0h2m2 0h1m1 0h5m4 0h1M3 11.5h1m1 0h6m1 0h1m9 0h1m1 0h1m3 0h1m1 0h2m5 0h1m2 0h4M3 12.5h2m4 0h1m3 0h1m1 0h8m8 0h1m1 0h5m1 0h3M1 13.5h3m2 0h2m1 0h6m1 0h1m4 0h1m1 0h2m1 0h1m1 0h1m1 0h3m5 0h1m2 0h2M4 14.5h1m1 0h1m1 0h2m4 0h2m2 0h1m1 0h3m4 0h1m3 0h2m1 0h4m1 0h2m2 0h2M2 15.5h1m1 0h2m1 0h4m3 0h2m1 0h1m3 0h1m2 0h2m2 0h1m2 0h1m1 0h6m5 0h2M1 16.5h1m1 0h2m3 0h1m1 0h1m1 0h1m1 0h1m1 0h5m1 0h1m1 0h1m1 0h1m4 0h5m4 0h1m1 0h2m1 0h1M4 17.5h5m1 0h4m3 0h2m1 0h2m2 0h3m2 0h2m2 0h2m1 0h2m1 0h2m1 0h1m2 0h1M3 18.5h2m1 0h1m1 0h1m1 0h1m1 0h2m1 0h1m3 0h7m1 0h2m2 0h3m3 0h1m1 0h2m1 0h1M1 19.5h1m1 0h1m2 0h5m1 0h5m3 0h2m5 0h1m2 0h2m1 0h2m1 0h1m2 0h2m2 0h1m1 0h1M2 20.5h1m1 0h1m1 0h1m2 0h3m1 0h1m1 0h1m2 0h2m2 0h4m2 0h2m1 0h3m3 0h4m2 0h1M2 21.5h9m4 0h2m2 0h8m3 0h5m2 0h6m2 0h1M1 22.5h1m2 0h2m3 0h2m2 0h1m1 0h2m1 0h4m3 0h1m8 0h1m1 0h2m3 0h1m1 0h1M1 23.5h1m1 0h1m1 0h1m1 0h1m1 0h2m1 0h2m4 0h1m2 0h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h6m1 0h1m1 0h2m2 0h1M1 24.5h1m2 0h2m3 0h1m1 0h2m1 0h1m6 0h1m3 0h1m1 0h1m1 0h3m2 0h1m1 0h2m3 0h1m1 0h2M3 25.5h10m1 0h2m1 0h2m2 0h7m2 0h1m1 0h1m4 0h5M1 26.5h1m1 0h1m1 0h1m2 0h3m1 0h6m1 0h2m2 0h1m1 0h3m2 0h1m1 0h1m3 0h2m3 0h1m1 0h1M1 27.5h1m1 0h2m2 0h1m2 0h1m4 0h1m1 0h2m2 0h2m2 0h1m2 0h1m2 0h1m3 0h2m1 0h1m3 0h1m2 0h1M1 28.5h6m6 0h2m2 0h4m7 0h1m1 0h1m3 0h1m3 0h4m1 0h3M1 29.5h1m1 0h3m1 0h1m3 0h2m1 0h5m2 0h7m1 0h1m2 0h2m1 0h4m1 0h1M1 30.5h3m1 0h2m4 0h2m4 0h1m1 0h1m2 0h1m2 0h1m2 0h3m1 0h1m1 0h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h1M1 31.5h8m4 0h2m1 0h2m3 0h5m3 0h1m1 0h1m4 0h2m5 0h3M3 32.5h1m1 0h2m1 0h1m3 0h3m2 0h2m3 0h1m2 0h5m1 0h3m2 0h2m1 0h7M2 33.5h1m2 0h1m1 0h4m2 0h1m1 0h1m1 0h1m1 0h1m2 0h1m1 0h2m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1m2 0h2m2 0h1m1 0h1M3 34.5h1m1 0h1m2 0h2m1 0h1m1 0h1m1 0h3m3 0h2m2 0h1m3 0h1m1 0h4m2 0h2m3 0h1m2 0h1M5 35.5h1m1 0h4m1 0h2m2 0h3m1 0h1m2 0h1m2 0h1m3 0h2m1 0h3m3 0h1m1 0h1M2 36.5h4m2 0h5m1 0h1m1 0h1m2 0h1m1 0h3m2 0h3m4 0h2m1 0h6m1 0h3M1 37.5h1m2 0h2m1 0h2m3 0h3m1 0h2m1 0h1m1 0h5m1 0h8m1 0h6m1 0h1m1 0h1M9 38.5h1m3 0h1m1 0h1m4 0h2m3 0h3m2 0h1m5 0h2m3 0h4M1 39.5h7m7 0h1m3 0h1m1 0h1m1 0h1m1 0h1m2 0h1m2 0h2m1 0h1m2 0h1m1 0h1m1 0h3m1 0h1M1 40.5h1m5 0h1m1 0h4m1 0h1m1 0h3m2 0h1m3 0h1m4 0h2m2 0h1m2 0h1m3 0h1m1 0h2M1 41.5h1m1 0h3m1 0h1m1 0h4m2 0h3m1 0h1m1 0h6m1 0h1m1 0h1m1 0h1m2 0h1m1 0h5m1 0h1M1 42.5h1m1 0h3m1 0h1m1 0h3m1 0h1m2 0h2m1 0h3m1 0h3m1 0h1m1 0h2m2 0h2m2 0h2m1 0h2M1 43.5h1m1 0h3m1 0h1m1 0h3m4 0h1m4 0h2m1 0h1m3 0h4m1 0h1m1 0h1m2 0h1m1 0h1m1 0h2M1 44.5h1m5 0h1m4 0h4m2 0h2m1 0h2m2 0h1m1 0h1m3 0h5m1 0h3m1 0h4M1 45.5h7m1 0h1m6 0h2m5 0h1m2 0h1m1 0h1m1 0h2m1 0h1m3 0h4"/></svg></div>
+                <div class="ph-setting-row" id="ph-pix-row" data-tip="Código Pix copia e cola — clique pra copiar.">
+                    <span class="ph-setting-label">Pix copia e cola</span>
+                    <button type="button" class="ph-step" id="ph-pix-copy" style="width:auto;padding:0 10px;">Copiar código</button>
+                </div>
+                <p class="ph-data-feedback" id="ph-donate-msg"></p>
+            </div>
             <div class="ph-set-head" data-tip="Ajustes do painel">PAINEL</div>
             <div class="ph-setting-row" data-tip="Largura do painel encaixado, de 250 a 380 px.">
                 <span class="ph-setting-label">Largura</span>
@@ -92,14 +102,6 @@ function buildSettingsPanel(shell) {
             <div class="ph-subhead">ORDEM DAS SEÇÕES</div>
             <p class="ph-hint">Use ▲▼ pra reordenar as seções da aba Encontro.</p>
             <div class="ph-order-list" id="ph-order-list"></div>
-            <div class="ph-set-head">APOIE O PROJETO 💛</div>
-            <p class="ph-hint">A extensão é <b>gratuita</b>. Se ela te ajuda, considere uma doação — ajuda a manter e melhorar o Infinity Dex Helper. Obrigado!</p>
-            <button type="button" class="ph-btn-shortcut px-btn" id="ph-donate">💛 Fazer uma doação</button>
-            <div class="ph-setting-row" id="ph-pix-row" data-tip="Chave Pix para doação — clique pra copiar.">
-                <span class="ph-setting-label">Chave Pix</span>
-                <button type="button" class="ph-step" id="ph-pix-copy" style="width:auto;padding:0 10px;">Copiar</button>
-            </div>
-            <p class="ph-data-feedback" id="ph-donate-msg"></p>
             <div class="ph-set-head">DADOS</div>
             <button type="button" class="ph-btn-shortcut px-btn" id="ph-export">Exportar configurações</button>
             <p class="ph-hint">Baixa um .json só com preferências (nada de pokédex ou golpes descobertos).</p>
@@ -447,31 +449,24 @@ function buildSettingsPanel(shell) {
             }).catch((error) => console.warn('[Infinity Dex Helper] Não foi possível salvar a ordem das seções:', error));
         });
 
-        // ---- Doação: link externo + copiar chave Pix ----
-        // PREENCHA com seus dados de doação:
-        const DONATE_URL = 'https://ko-fi.com/SEU_USUARIO';   // link de doação (Ko-fi, PayPal, etc.) — opcional
-        const PIX_KEY = 'dec6216e-9365-4c69-8780-f0a0301bf39e'; // chave Pix (aleatória)
+        // ---- Doação: copiar o "Pix copia e cola" (BR Code) ----
+        // BR Code estático gerado a partir da chave aleatória
+        // dec6216e-9365-4c69-8780-f0a0301bf39e, com nome genérico "POKEINFINITY"
+        // (nenhum dado pessoal no código nem na tela). É o MESMO valor do QR
+        // exibido acima — mantenha os dois em sincronia se trocar a chave.
+        const PIX_PAYLOAD = '00020126580014br.gov.bcb.pix0136dec6216e-9365-4c69-8780-f0a0301bf39e5204000053039865802BR5912POKEINFINITY6009SAO PAULO62070503***63049149';
 
-        const donateBtn = panel.querySelector('#ph-donate');
-        const pixRow = panel.querySelector('#ph-pix-row');
         const pixCopy = panel.querySelector('#ph-pix-copy');
         const donateMsg = panel.querySelector('#ph-donate-msg');
 
-        // esconde o link se ainda não foi configurado
-        if (donateBtn && /SEU_USUARIO/.test(DONATE_URL)) donateBtn.style.display = 'none';
-        if (pixRow && /SUA_CHAVE_PIX/.test(PIX_KEY)) pixRow.style.display = 'none';
-
-        if (donateBtn) donateBtn.addEventListener('click', () => {
-            window.open(DONATE_URL, '_blank', 'noopener,noreferrer');
-        });
         if (pixCopy) pixCopy.addEventListener('click', async () => {
             try {
-                await navigator.clipboard.writeText(PIX_KEY);
+                await navigator.clipboard.writeText(PIX_PAYLOAD);
                 donateMsg.className = 'ph-data-feedback ok';
-                donateMsg.textContent = 'CHAVE PIX COPIADA 💛';
+                donateMsg.textContent = 'CÓDIGO PIX COPIADO 💛';
             } catch (_) {
                 donateMsg.className = 'ph-data-feedback';
-                donateMsg.textContent = PIX_KEY;
+                donateMsg.textContent = PIX_PAYLOAD;
             }
         });
 

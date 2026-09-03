@@ -263,32 +263,6 @@
             if (window.__phLastCharData) bagFrame.contentWindow?.postMessage({ type: 'character-data', payload: window.__phLastCharData }, '*');
         });
 
-        // ---- Mercado: ponte com o MAIN world (interceptor) --------------------
-        // market.js pede dados -> setamos data-pkmn-market-req; o interceptor
-        // busca a API do mercado (com o token) e publica em data-pkmn-market;
-        // aqui observamos e repassamos pro iframe do mercado.
-        const relayMarket = () => {
-            const raw = document.documentElement.dataset.pkmnMarket;
-            if (!raw) return;
-            // mercado vai pro painel de preços E pra Meus Pokémon (preço estimado)
-            ['pokemon-myPokemons-frame'].forEach((id) => {
-                const f = document.getElementById(id);
-                try { f && f.contentWindow?.postMessage({ type: 'market-data', raw }, '*'); } catch (_) {}
-            });
-        };
-        // Meus Pokémon ao carregar: já manda o mercado se houver
-        myPokemonsFrame.addEventListener('load', relayMarket);
-        if (!window.__phMarketObserver) {
-            window.__phMarketObserver = new MutationObserver((recs) => {
-                if (recs.some((r) => r.attributeName === 'data-pkmn-market')) relayMarket();
-            });
-            try { window.__phMarketObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-pkmn-market'] }); } catch (_) {}
-        }
-        window.addEventListener('message', (ev) => {
-            if (ev && ev.data && ev.data.type === 'market-req') {
-                document.documentElement.dataset.pkmnMarketReq = String(Date.now());
-            }
-        });
 
         // Meus Pokémon: ao (re)carregar o iframe, reenvia o último box guardado,
         // senão a aba abre vazia até o jogo emitir party/pc de novo.
@@ -849,6 +823,16 @@
             #${ID} .ph-data-feedback { font-family: var(--px-font-mono); font-size: 11px; font-weight: 700; min-height: 13px; margin: 6px 0 0; }
             #${ID} .ph-data-feedback.ok { color: var(--px-good, #4fa84a); }
             #${ID} .ph-data-feedback.err { color: var(--px-bad, #d62839); }
+            #${ID} .ph-donate-box {
+                margin: 0 0 14px; padding: 11px 12px; border: 2px solid var(--px-mid, #f0c419); border-radius: var(--px-radius, 8px);
+                background: linear-gradient(180deg, rgba(240,196,25,.18), rgba(240,196,25,.06)); box-shadow: 0 2px 0 rgba(240,196,25,.35);
+            }
+            #${ID} .ph-donate-title { font-family: var(--px-font-mono); font-size: 12px; font-weight: 800; color: var(--px-text-val, #2b2820); letter-spacing: .6px; margin-bottom: 5px; }
+            #${ID} .ph-donate-text { color: var(--px-text-val, #2b2820); font-size: 11px; line-height: 1.35; margin: 0 0 9px; }
+            #${ID} .ph-donate-btn { background: var(--px-mid, #f0c419); border: 2px solid var(--px-border-btn, #1a1a1a); font-weight: 800; }
+            #${ID} .ph-donate-box .ph-setting-row { margin-bottom: 0; margin-top: 8px; }
+            #${ID} .ph-donate-qr { width: 154px; margin: 4px auto 2px; padding: 7px; background: #fff; border: 2px solid var(--px-border, #1a1a1a); border-radius: var(--px-radius-sm, 6px); box-sizing: border-box; }
+            #${ID} .ph-donate-qr svg { display: block; width: 100%; height: auto; }
             #${ID} .ph-resize-handle {
                 position: absolute;
                 z-index: 10;
@@ -1127,13 +1111,6 @@
         // Mochila ao abrir, pois o jogo só emite esses dados em certos momentos.
         if ((view === 'myPokemons' || view === 'bag') && window.__phLastCharData) {
             try { (view === 'bag' ? bag : myPokemons).contentWindow.postMessage({ type: 'character-data', payload: window.__phLastCharData }, '*'); } catch (_) {}
-        }
-        // ao abrir Meus Pokémon: se ainda não temos os preços do mercado, busca-os
-        // (o preço estimado dos Pokémon usa esses dados).
-        if (view === 'myPokemons') {
-            const cached = document.documentElement.dataset.pkmnMarket;
-            if (cached) { try { myPokemons.contentWindow.postMessage({ type: 'market-data', raw: cached }, '*'); } catch (_) {} }
-            else { document.documentElement.dataset.pkmnMarketReq = String(Date.now()); }
         }
 
         persist(currentSettings(container));
