@@ -36,6 +36,10 @@ function getNatureEffect(nature) {
     return NATURE_EFFECTS[String(nature).trim().toLowerCase()] || null;
 }
 
+// abreviações dos atributos em português
+const STAT_PT = { ATK: 'Atq', DEF: 'Def', SPA: 'At.Esp', SPD: 'Def.Esp', SPE: 'Vel' };
+const statPT = (s) => STAT_PT[s] || s;
+
 function natureEffectHTML(nature) {
     if (!nature) return '-';
 
@@ -44,8 +48,8 @@ function natureEffectHTML(nature) {
 
     const effectHTML = effect.increases === effect.decreases
         ? '<span class="nature-neutral">Neutra</span>'
-        : `<span class="nature-increase">${effect.increases}⬆</span>
-           <span class="nature-decrease">${effect.decreases}⬇</span>`;
+        : `<span class="nature-increase">${statPT(effect.increases)}⬆</span>
+           <span class="nature-decrease">${statPT(effect.decreases)}⬇</span>`;
 
     return `
         <span class="nature-name">${nature}</span>

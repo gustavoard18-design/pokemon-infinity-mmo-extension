@@ -24,7 +24,15 @@ var PokemonPixelIcons = globalThis.PokemonPixelIcons || (() => {
         // ilha (palmeira + solo) — aba Ilha
         island: '<path d="M11 9c-3 0-5.5 1.2-7 3 2-.6 3.6-.4 5 .5-2 .6-3.4 2-4 4 1.4-1.4 3-2 5-1.8-1 1.4-1.4 3-1 5h4c-.4-3 .2-8.4 2-11l-.2-.2c-1 .3-2 .8-2.8 1.5.2-1.4 1-2.6 2-3.5C15.4 9.4 13.4 9 11 9zM3 20h18v2H3z"/>',
         // moeda com cifrão — aba Farm de dinheiro
-        money: '<path d="M12 1a11 11 0 100 22 11 11 0 000-22zm.9 16.5v1.4h-1.6v-1.4c-1.5-.2-2.7-1-3-2.6l1.8-.5c.2.9.9 1.4 1.9 1.4.9 0 1.5-.4 1.5-1.1 0-.7-.6-1-2-1.4-1.7-.4-3-1-3-2.8 0-1.4 1-2.3 2.3-2.6V6.6h1.6V8c1.3.2 2.3 1 2.6 2.3l-1.8.6c-.2-.7-.7-1.2-1.6-1.2-.8 0-1.3.4-1.3 1 0 .6.6.9 1.9 1.2 1.8.4 3.1 1.1 3.1 3 0 1.4-1 2.3-2.3 2.6z"/>'
+        money: '<path d="M12 1a11 11 0 100 22 11 11 0 000-22zm.9 16.5v1.4h-1.6v-1.4c-1.5-.2-2.7-1-3-2.6l1.8-.5c.2.9.9 1.4 1.9 1.4.9 0 1.5-.4 1.5-1.1 0-.7-.6-1-2-1.4-1.7-.4-3-1-3-2.8 0-1.4 1-2.3 2.3-2.6V6.6h1.6V8c1.3.2 2.3 1 2.6 2.3l-1.8.6c-.2-.7-.7-1.2-1.6-1.2-.8 0-1.3.4-1.3 1 0 .6.6.9 1.9 1.2 1.8.4 3.1 1.1 3.1 3 0 1.4-1 2.3-2.3 2.6z"/>',
+        // mochila (corpo + alça + bolso) — aba Mochila
+        bag: '<path d="M9 2h6a1 1 0 011 1v2h1.5A2.5 2.5 0 0120 7.5V19a2 2 0 01-2 2H6a2 2 0 01-2-2V7.5A2.5 2.5 0 016.5 5H8V3a1 1 0 011-1zm1 3h4V4h-4v1zM7 11h10v2H7v-2z"/>',
+        // martelo de leilão (cabeça grossa + cabo + base) — aba Mercado
+        auction: '<path d="M4 3.5h16a1.5 1.5 0 011.5 1.5v2A1.5 1.5 0 0120 8.5H4A1.5 1.5 0 012.5 7v-2A1.5 1.5 0 014 3.5zm6.5 5h3v9h-3v-9zM4.5 18.5h15a1 1 0 011 1v1.5a.5.5 0 01-.5.5h-16a.5.5 0 01-.5-.5v-1.5a1 1 0 011-1z"/>',
+        // balão de fala contornado — chat do jogo VISÍVEL (clique p/ ocultar)
+        chat: '<path fill-rule="evenodd" d="M4 3h16a2 2 0 012 2v9a2 2 0 01-2 2h-8l-4 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2zm0 2v9h6v2.2l2.2-2.2H20V5H4z"/>',
+        // balão de fala contornado + barra diagonal — chat OCULTO (clique p/ mostrar)
+        chatoff: '<path fill-rule="evenodd" d="M4 3h16a2 2 0 012 2v9a2 2 0 01-2 2h-8l-4 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2zm0 2v9h6v2.2l2.2-2.2H20V5H4z"/><path d="M3.3 18.9L18.9 3.3l1.9 1.9L5.2 20.8z"/>'
     };
     const TYPE_COLORS = {
         normal: '#9a9a80', fire: '#f0803c', water: '#4a90e2', electric: '#f5cd35',

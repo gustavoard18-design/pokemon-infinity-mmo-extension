@@ -28,6 +28,10 @@
         .sp-time.night { background: #2e3350; color: #cdd6ff; }
         .sp-time.always { background: var(--px-bg-cell, #eee); color: var(--px-text-dim); }
         .sp-lv { color: var(--px-text-dim); }
+        .sp-item { border-radius: 8px; padding: 0 5px; font-weight: 700; cursor: help; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+        .sp-item.on { color: #8a6a00; background: rgba(245,205,53,.35); border: 1px solid var(--px-mid, #f5cd35); }
+        .sp-item.ref { color: var(--px-text-dim); background: var(--px-bg-cell, #eee); border: 1px dashed var(--px-line, #ccc); }
+        .sp-item-img { width: 14px; height: 14px; vertical-align: middle; margin-right: 2px; image-rendering: pixelated; object-fit: contain; }
         .sp-wait { color: var(--px-text-dim); text-align: center; padding: 24px 10px; line-height: 1.6; }
     </style>
 </head>
@@ -39,6 +43,7 @@
     <div id="sp-body"><div class="sp-wait">Aguardando o mapa…</div></div>
 
     <script src="data/extension-storage.js"></script>
+    <script src="data/wild-held-items.js"></script>
     <script src="components/panel-interaction-forwarder.js"></script>
     <script src="spawns.js"></script>
 </body>

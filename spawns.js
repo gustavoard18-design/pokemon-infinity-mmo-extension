@@ -8,6 +8,8 @@
     let MAPS = [];               // maps do wiki-encounters.json
     let caught = new Set();
     let mapKey = '';
+    let WILD_ITEMS = new Map();   // species(normalizado) -> [itemSlug] (aprendido)
+    let ITEM_NAMES = {};          // itemSlug -> nome legível
 
     const body = document.getElementById('sp-body');
     const countEl = document.getElementById('sp-count');
@@ -15,8 +17,53 @@
     const ENC_URL = 'https://infinitymmo.net/assets/data/wiki-encounters.json';
     const gifUrl = (dex) => `https://infinitymmo.net/assets/pokemon-bw/${dex}/front.gif`;
     const pngUrl = (slug) => `https://infinitymmo.net/assets/pokemon/${slug}.png`;
+    const itemSprite = (slug) => `https://infinitymmo.net/assets/items/${slug}.png`;
 
     const normMap = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    // mesma normalização de espécie usada no battle.js (pra casar as chaves)
+    const normSpecies = (s) => String(s || '').trim().toLowerCase().replace(/[.'’]/g, '').replace(/[\s-]+/g, '_');
+    const titleCase = (s) => String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const itemName = (slug) => ITEM_NAMES[slug] || titleCase(slug);
+
+    // selo de item da espécie: mescla o que VOCÊ já viu (confirmado, prioridade)
+    // com a tabela-semente do FireRed (referência, mostra a chance).
+    function itemBadgeFor(e) {
+        const key = normSpecies(e.slug), key2 = normSpecies(e.name);
+        const learned = WILD_ITEMS.get(key) || WILD_ITEMS.get(key2) || [];
+        const seed = (typeof WILD_HELD_SEED !== 'undefined' && (WILD_HELD_SEED[key] || WILD_HELD_SEED[key2])) || [];
+        if (!learned.length && !seed.length) return '';
+        const learnedSet = new Set(learned);
+        // confirmados (vistos por você) primeiro; depois os da referência ainda não vistos
+        const confirmed = learned.map((s) => itemName(s));
+        const refOnly = seed.filter((x) => !learnedSet.has(x.item)).map((x) => `${itemName(x.item)} ${x.chance}%`);
+        const cls = confirmed.length ? 'sp-item on' : 'sp-item ref';
+        // imagem real de cada item (confirmados primeiro; ref com a %)
+        const img = (slug) => `<img class="sp-item-img" src="${itemSprite(slug)}" onerror="this.replaceWith(document.createTextNode('🎁'))">`;
+        const confHtml = learned.map((s) => `${img(s)}${itemName(s)}`);
+        const refHtml = seed.filter((x) => !learnedSet.has(x.item)).map((x) => `${img(x.item)}${itemName(x.item)} ${x.chance}%`);
+        const parts = [...confHtml, ...refHtml];
+        // efeito de cada item (o que a planilha "Held Itens" agrega)
+        const allSlugs = [...new Set([...learned, ...seed.map((x) => x.item)])];
+        const fx = (typeof WILD_ITEM_EFFECTS !== 'undefined') ? WILD_ITEM_EFFECTS : {};
+        const effLines = allSlugs.filter((s) => fx[s]).map((s) => `• ${itemName(s)}: ${fx[s]}`);
+        const tip = (confirmed.length ? `Você já viu segurando: ${confirmed.join(', ')}. ` : '') +
+            (refOnly.length ? `Referência (FireRed, pode diferir): ${refOnly.join(', ')}. ` : '') +
+            (effLines.length ? `\n${effLines.join('\n')}` : '');
+        return ` <span class="${cls}" title="${tip.replace(/"/g, '&quot;')}">${parts.join(' · ')}</span>`;
+    }
+
+    // carrega os itens aprendidos (storage) e o catálogo de nomes (items.json)
+    async function loadWildItems() {
+        try {
+            const cached = await PokemonHelperStorage.getWildItems();
+            WILD_ITEMS = new Map((cached.items || []).map((it) => [normSpecies(it.species), it.items || []]));
+        } catch (_) {}
+    }
+    function loadItemNames() {
+        return fetch('https://infinitymmo.net/assets/data/items.json').then((r) => r.json())
+            .then((d) => { (d && d.items ? Object.values(d.items) : []).forEach((it) => { if (it && it.slug) ITEM_NAMES[it.slug] = it.name || it.slug; }); })
+            .catch(() => {});
+    }
     const inCaught = (e) => caught.has(e.dex) || caught.has(String(e.dex)) || caught.has(e.slug);
     const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -112,7 +159,7 @@
                 nm.textContent = e.name;
                 const meta2 = document.createElement('span');
                 meta2.className = 'sp-meta';
-                meta2.innerHTML = `${timeBadge(e.time)} <span class="sp-lv">${lvl} · ${pct}</span>`;
+                meta2.innerHTML = `${timeBadge(e.time)} <span class="sp-lv">${lvl} · ${pct}</span>${itemBadgeFor(e)}`;
                 row.append(img, nm, meta2);
                 listEl.appendChild(row);
             });
@@ -133,5 +180,15 @@
         render();
     });
 
-    loadEncounters().then(render).catch(() => render());
+    // re-renderiza quando novos itens de selvagem forem aprendidos em batalha
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.onChanged.addListener((changes, area) => {
+            if (area === 'local' && changes[PokemonHelperStorage.KEYS.wildItems]) {
+                WILD_ITEMS = new Map((changes[PokemonHelperStorage.KEYS.wildItems].newValue?.items || []).map((it) => [normSpecies(it.species), it.items || []]));
+                render();
+            }
+        });
+    }
+
+    Promise.all([loadEncounters(), loadWildItems(), loadItemNames()]).then(render).catch(() => render());
 })();

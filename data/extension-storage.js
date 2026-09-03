@@ -9,6 +9,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         pokedex: 'pkmnHelperPokedex',
         trainerMoves: 'pkmnHelperTrainerMoves',
         discoveredMoves: 'pkmnHelperDiscoveredMoves',
+        wildItems: 'pkmnHelperWildItems',
         uiPreferences: 'pkmnHelperUiPreferences'
     });
 
@@ -178,7 +179,10 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         getTrainerMoves: () => read(KEYS.trainerMoves, { items: [], checkedAt: null, error: null }),
         setTrainerMoves: (value) => write(KEYS.trainerMoves, value),
         getDiscoveredMoves: () => read(KEYS.discoveredMoves, { items: [] }),
-        setDiscoveredMoves: (value) => write(KEYS.discoveredMoves, value)
+        setDiscoveredMoves: (value) => write(KEYS.discoveredMoves, value),
+        // itens vistos em Pokémon selvagens: { items: [{ species, items:[slug] }] }
+        getWildItems: () => read(KEYS.wildItems, { items: [] }),
+        setWildItems: (value) => write(KEYS.wildItems, value)
     });
 })();
 

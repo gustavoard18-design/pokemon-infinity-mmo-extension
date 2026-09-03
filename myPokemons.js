@@ -1,5 +1,42 @@
 let LOCAL_PAYLOAD = { party: [], pc: [] };
 
+// ---- preço estimado (dados do Mercado PIX) --------------------------------
+// MARKET_BY_SPECIES: species(lower) -> { med, min, max, n } em R$ (mediana da
+// espécie no mercado PIX). Preenchido quando o interceptor publica o mercado.
+let MARKET_BY_SPECIES = null;
+let MARKET_GOLD_RATE = 10;   // R$ por 1M de ouro (cotação PIX do ouro)
+function setMarketData(raw) {
+    try {
+        const d = JSON.parse(raw);
+        if (!d || !Array.isArray(d.monsAgg)) return;
+        const map = {};
+        for (const m of d.monsAgg) { const k = String(m.sp || m.name || '').toLowerCase(); if (k) map[k] = { med: m.med, min: m.min, max: m.max, n: m.n }; }
+        MARKET_BY_SPECIES = map;
+        MARKET_GOLD_RATE = (d.gold && d.gold.med) || (d.auction && d.auction.goldRate) || 10;
+        applyAndRender();
+    } catch (_) {}
+}
+// R$ -> ouro (equivalente pela cotação) e formatação curta (1.5M / 500k)
+function reaisToGold(r) { return (r / MARKET_GOLD_RATE) * 1e6; }
+function fmtGold(g) {
+    if (g >= 1e6) return (g / 1e6).toFixed(g >= 1e7 ? 0 : 1).replace('.', ',').replace(',0', '') + 'M';
+    if (g >= 1e3) return Math.round(g / 1e3) + 'k';
+    return String(Math.round(g));
+}
+// estima o preço de UM Pokémon pela mediana da espécie no mercado.
+// Ajusta um pouco por qualidade: IV perfeito puxa pro topo da faixa.
+function estimatePrice(viewModel) {
+    if (!MARKET_BY_SPECIES) return null;
+    const sp = String((viewModel.pokemon && viewModel.pokemon.species) || viewModel.name || '').toLowerCase();
+    const e = MARKET_BY_SPECIES[sp];
+    if (!e || !e.med) return null;
+    let val = e.med;
+    if (viewModel.ivPercent >= 98) val = Math.max(e.med, (e.med + e.max) / 2);   // 6×31 / quase perfeito
+    else if (viewModel.ivPercent < 40) val = Math.min(e.med, (e.med + e.min) / 2);
+    return { val, min: e.min, max: e.max, n: e.n };
+}
+const fmtBRL = (n) => 'R$' + Number(n || 0).toFixed(n >= 100 ? 0 : 2).replace('.', ',');
+
 const ICON_URL = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/dream-world/';
 const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 
@@ -94,6 +131,32 @@ function normalizeSearch(value) {
 
 function getPokemonId(name) {
     return POKEMON_NAME_TO_ID[name.toLowerCase()] || null;
+}
+
+// dados de golpe EM PT do jogo (wiki-meta.json → moves): slug -> {name,type,cat,pow,acc,pp,desc}
+let MOVE_WIKI_PT = null;
+fetch('https://infinitymmo.net/assets/data/wiki-meta.json')
+    .then((r) => r.json())
+    .then((d) => { MOVE_WIKI_PT = (d && d.moves) || {}; applyAndRender(); })
+    .catch(() => {});
+const moveSlug = (name) => String(name || '').trim().toLowerCase().replace(/[.'’]/g, '').replace(/[\s-]+/g, '_');
+const escAttr = (h) => String(h).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+const MOVE_CAT_PT = { physical: 'Físico', special: 'Especial', status: 'Status' };
+// banner rico (data-tip-html) do golpe, igual ao da aba de batalha
+function moveBannerPT(name) {
+    const w = MOVE_WIKI_PT && MOVE_WIKI_PT[moveSlug(name)];
+    if (!w) return '';
+    const typeName = w.type ? String(w.type).toLowerCase() : null;
+    const bg = typeName ? PokemonPixelIcons.typeColor(typeName) : '#777';
+    const fg = PokemonPixelIcons.onColor(bg);
+    const typeLabel = (typeName && typeof LABELS !== 'undefined' && LABELS[typeName]) || typeName || '—';
+    const cat = MOVE_CAT_PT[w.cat] || w.cat || '—';
+    const pow = (w.pow == null || w.pow === 0) ? '—' : w.pow;
+    const acc = (w.acc == null || w.acc === 0) ? '—' : `${w.acc}%`;
+    const badge = typeName ? `<span class="mv-badge" style="background:${bg};color:${fg}">${escapeHtml(typeLabel)}</span>` : '';
+    const eff = w.desc ? `<div class="mv-tip-eff">${escapeHtml(w.desc)}</div>` : '';
+    return `<div class="mv-tip-head"><span class="mv-tip-name">${escapeHtml(w.name || name)}</span>${badge}<span class="mv-cat">${escapeHtml(cat)}</span></div>` +
+        `<div class="mv-tip-stats">Pot <b>${pow}</b> · Prec <b>${acc}</b> · PP <b>${w.pp ?? '—'}</b></div>` + eff;
 }
 
 function normalizeMoves(moves) {
@@ -382,8 +445,10 @@ function renderMoveDetails(viewModel) {
     const rows = viewModel.moves.map((move) => {
         const category = moveCategoryInfo(move.category);
         const typeBg = move.typeKey ? PokemonPixelIcons.typeColor(move.typeKey) : 'var(--px-bg-track)';
+        const banner = moveBannerPT(move.name);
+        const tip = banner ? ` data-tip-html="${escAttr(banner)}"` : '';
         return `
-            <div class="pokemon-move">
+            <div class="pokemon-move"${tip}>
                 <span class="pokemon-move-type" style="background:${typeBg}"></span>
                 <span class="pokemon-move-name">${escapeHtml(move.name)}</span>
                 <span class="pokemon-move-category" style="color:${category.color}">${category.label}</span>
@@ -408,6 +473,10 @@ function renderPokemonCard(viewModel) {
     const chips = viewModel.typeKeys.map((type) => typeTagHTML(type, { stack: true })).join('');
     const ivColor = ivPercentColor(viewModel.ivPercent);
     const cardStyle = viewModel.typeKeys[0] ? ` style="--card-type-color:${PokemonPixelIcons.typeColor(viewModel.typeKeys[0])}"` : '';
+    const est = estimatePrice(viewModel);
+    const priceHtml = est
+        ? `<span class="pokemon-price" data-tip="Preço estimado pelo mercado PIX (mediana da espécie${viewModel.ivPercent >= 98 ? ', ajustado p/ IV alto' : ''}). Faixa da espécie: ${fmtBRL(est.min)}–${fmtBRL(est.max)} · ${est.n} anúncio(s). Ouro convertido pela cotação 1M = ${fmtBRL(MARKET_GOLD_RATE)}.">≈ ${fmtBRL(est.val)} <span class="pokemon-price-gold">🪙${fmtGold(reaisToGold(est.val))}</span></span>`
+        : '';
 
     return `
         <article class="pokemon-card pokemon-card--${viewModel.location}" data-pokemon-key="${viewModel.key}"${cardStyle}>
@@ -427,6 +496,7 @@ function renderPokemonCard(viewModel) {
                         <span class="px-bar"><span class="px-bar-fill" style="width:${viewModel.ivPercent}%;background:${ivColor}"></span></span>
                         <span class="pokemon-ivbar-label" style="color:${ivColor}">${viewModel.ivPercent}%</span>
                     </span>
+                    ${priceHtml}
                 </span>
             </button>
             <div class="pokemon-details" id="${detailsId}" ${expanded ? '' : 'hidden'}>${renderDetailRows(viewModel)}${renderIvDetails(viewModel)}${renderMoveDetails(viewModel)}</div>
@@ -634,6 +704,7 @@ window.addEventListener('message', (event) => {
 // mas podem ser recolhidos card a card (fullCollapsed); grupos continuam
 // manuais. Cada entrada no modo full zera os recolhidos da sessão anterior.
 window.addEventListener('message', (event) => {
+    if (event.data?.type === 'market-data' && event.data.raw) { setMarketData(event.data.raw); return; }
     if (event.data?.type !== 'panel-mode') return;
     const full = event.data.full === true;
     document.body.classList.toggle('full', full);

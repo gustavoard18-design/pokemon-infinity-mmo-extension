@@ -227,12 +227,12 @@
         if ((p.mapKey || '') !== mapKey) { mapKey = p.mapKey || ''; if (LOCS.length) render(); }
     });
 
-    // ---- Timer de re-batalha (15 min) ----------------------------------------
-    // Você bate os treinadores, clica "Iniciar" e ele avisa quando os 15 min
+    // ---- Timer de re-batalha (30 min) ----------------------------------------
+    // Você bate os treinadores, clica "Iniciar" e ele avisa quando os 30 min
     // passarem (recompensa disponível de novo): apito + notificação + destaque.
     // O estado fica no localStorage, então sobrevive a recolher/reabrir o painel.
     (function setupTimer() {
-        const DURATION = 15 * 60 * 1000;
+        const DURATION = 30 * 60 * 1000;
         const KEY = 'idh_farm_timer';
         const timerEl = document.getElementById('fm-timer');
         const clockEl = document.getElementById('fm-clock');
@@ -267,7 +267,7 @@
         function notify() {
             try {
                 if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-                    new Notification('Infinity Dex Helper', { body: '✅ Recompensa disponível! Bora bater de novo (15 min).' });
+                    new Notification('Infinity Dex Helper', { body: '✅ Recompensa disponível! Bora bater de novo (30 min).' });
                 }
             } catch (_) {}
         }

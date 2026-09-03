@@ -1,4 +1,15 @@
 (function () {
+    // Aplica cedo o "ocultar chat do jogo" (se marcado) pra não piscar o chat
+    // antes do overlay montar. Idempotente: o build() reaproveita o mesmo <style>.
+    try {
+        if (localStorage.getItem('idh_chat_hidden') === '1' && !document.getElementById('ph-hide-gamechat')) {
+            const st = document.createElement('style');
+            st.id = 'ph-hide-gamechat';
+            st.textContent = '#pmk-dock{display:none!important;}';
+            (document.head || document.documentElement).appendChild(st);
+        }
+    } catch (_) {}
+
     const ID = 'pokemon-type-matchup-overlay';
     const DEFAULT_SETTINGS = PokemonHelperStorage.DEFAULT_OVERLAY_SETTINGS;
     const MIN_WIDTH = 220;
@@ -138,10 +149,51 @@
             { icon: 'team', tip: 'Meus Pokémon', view: 'myPokemons' },
             { icon: 'dex', tip: 'Pokédex (capturados)', view: 'pokedex' },
             { icon: 'grass', tip: 'Neste mapa (selvagens)', view: 'spawns' },
+            { icon: 'bag', tip: 'Mochila (itens)', view: 'bag' },
             { icon: 'money', tip: 'Farm de dinheiro', view: 'farm' },
-            { icon: 'tbl', tip: 'Mercado (preços)', view: 'market' },
             { icon: 'cfg', tip: 'Configurações', view: 'settings' },
         ], { tip: 'Minimizar' }, { tip: 'Expandir' });
+
+        // ---- botão dedicado: ocultar/mostrar o chat do jogo (#pmk-dock) ----
+        // O jogo não tem botão nativo pra sumir com o chat (o ⚙ dele só troca
+        // fonte/opacidade). Aqui injetamos um <style> na página escondendo
+        // #pmk-dock; usar CSS (em vez de tirar a classe .on) vence o jogo quando
+        // ele readiciona a classe sozinho (ex.: ao sair de uma batalha).
+        const chatBtn = document.createElement('button');
+        chatBtn.className = 'ph-icon-btn ph-chat-btn';
+        chatBtn.dataset.icon = 'chatoff';
+        chatBtn.innerHTML = PokemonPixelIcons.uiIcon('chatoff', '#1a1a1a');
+        header.insertBefore(chatBtn, header.querySelector('.ph-spacer'));
+
+        const isChatHidden = () => {
+            try { return localStorage.getItem('idh_chat_hidden') === '1'; } catch (_) { return false; }
+        };
+        const applyChatHidden = (hidden) => {
+            let st = document.getElementById('ph-hide-gamechat');
+            if (hidden) {
+                if (!st) {
+                    st = document.createElement('style');
+                    st.id = 'ph-hide-gamechat';
+                    st.textContent = '#pmk-dock{display:none!important;}';
+                    (document.head || document.documentElement).appendChild(st);
+                }
+            } else if (st) {
+                st.remove();
+            }
+            // ícone reflete o estado: balão normal = visível, riscado = oculto
+            const iconKey = hidden ? 'chatoff' : 'chat';
+            chatBtn.dataset.icon = iconKey;
+            chatBtn.innerHTML = PokemonPixelIcons.uiIcon(iconKey, '#1a1a1a');
+            chatBtn.classList.toggle('active', hidden);
+            chatBtn.dataset.tip = hidden ? 'Mostrar chat do jogo' : 'Ocultar chat do jogo';
+            chatBtn.setAttribute('aria-label', chatBtn.dataset.tip);
+        };
+        chatBtn.addEventListener('click', () => {
+            const next = !isChatHidden();
+            try { localStorage.setItem('idh_chat_hidden', next ? '1' : '0'); } catch (_) {}
+            applyChatHidden(next);
+        });
+        applyChatHidden(isChatHidden());
 
         // ---- barra do mapa (nome do mapa atual, lido do jogo) ----
         const mapBar = document.createElement('div');
@@ -178,10 +230,10 @@
         farmFrame.className = 'ph-frame';
         farmFrame.src = chrome.runtime.getURL('farm.html');
 
-        const marketFrame = document.createElement('iframe');
-        marketFrame.id = 'pokemon-market-frame';
-        marketFrame.className = 'ph-frame';
-        marketFrame.src = chrome.runtime.getURL('market.html');
+        const bagFrame = document.createElement('iframe');
+        bagFrame.id = 'pokemon-bag-frame';
+        bagFrame.className = 'ph-frame';
+        bagFrame.src = chrome.runtime.getURL('bag.html');
 
         const chartFrame = document.createElement('iframe');
         chartFrame.id = 'pokemon-chart-frame';
@@ -201,10 +253,14 @@
         // caminho. Cada frame recebe seu próprio postMessage direto assim que
         // carrega, sem passar pela guarda, com o estado atual lido do MESMO
         // objeto `settings` que o resto do build() usa.
-        [battleFrame, myPokemonsFrame, pokedexFrame, spawnsFrame, farmFrame, marketFrame, chartFrame].forEach((frame) => {
+        [battleFrame, myPokemonsFrame, pokedexFrame, spawnsFrame, bagFrame, farmFrame, chartFrame].forEach((frame) => {
             frame.addEventListener('load', () => {
                 frame.contentWindow?.postMessage({ type: 'panel-mode', full: settings.maximized === true }, '*');
             });
+        });
+        // Mochila: ao (re)carregar, reenvia o último payload (traz o bag)
+        bagFrame.addEventListener('load', () => {
+            if (window.__phLastCharData) bagFrame.contentWindow?.postMessage({ type: 'character-data', payload: window.__phLastCharData }, '*');
         });
 
         // ---- Mercado: ponte com o MAIN world (interceptor) --------------------
@@ -214,9 +270,14 @@
         const relayMarket = () => {
             const raw = document.documentElement.dataset.pkmnMarket;
             if (!raw) return;
-            const f = document.getElementById('pokemon-market-frame');
-            try { f && f.contentWindow?.postMessage({ type: 'market-data', raw }, '*'); } catch (_) {}
+            // mercado vai pro painel de preços E pra Meus Pokémon (preço estimado)
+            ['pokemon-myPokemons-frame'].forEach((id) => {
+                const f = document.getElementById(id);
+                try { f && f.contentWindow?.postMessage({ type: 'market-data', raw }, '*'); } catch (_) {}
+            });
         };
+        // Meus Pokémon ao carregar: já manda o mercado se houver
+        myPokemonsFrame.addEventListener('load', relayMarket);
         if (!window.__phMarketObserver) {
             window.__phMarketObserver = new MutationObserver((recs) => {
                 if (recs.some((r) => r.attributeName === 'data-pkmn-market')) relayMarket();
@@ -284,8 +345,8 @@
         body.appendChild(myPokemonsFrame);
         body.appendChild(pokedexFrame);
         body.appendChild(spawnsFrame);
+        body.appendChild(bagFrame);
         body.appendChild(farmFrame);
-        body.appendChild(marketFrame);
         body.appendChild(chartFrame);
         body.appendChild(settingsPanel);
 
@@ -552,10 +613,12 @@
                 if (!data || typeof data !== 'object') return;
                 const battleFrame = document.getElementById('pokemon-battle-frame');
                 const myPokemonsFrame = document.getElementById('pokemon-myPokemons-frame');
+                const bagFrame = document.getElementById('pokemon-bag-frame');
                 if (battleFrame) battleFrame.contentWindow.postMessage({ type: 'battle-data', payload: data }, '*');
                 if (myPokemonsFrame) myPokemonsFrame.contentWindow.postMessage({ type: 'character-data', payload: data }, '*');
+                if (bagFrame) bagFrame.contentWindow.postMessage({ type: 'character-data', payload: data }, '*');
 
-                const isCharacterPayload = !!(data.party || data.pc);
+                const isCharacterPayload = !!(data.party || data.pc || data.bag);
                 // guarda o último box (party/pc) pra reenviar quando Meus Pokémon
                 // for aberta depois — senão abre vazia, porque o jogo só emite
                 // esse payload ao abrir o box no jogo.
@@ -701,6 +764,7 @@
             }
             #${ID} .ph-icon-btn:hover { background: var(--px-bg-cell, #f4f1e4); }
             #${ID} .ph-view-btn.active { background: var(--px-mid, #f0c419); }
+            #${ID} .ph-chat-btn.active { background: var(--px-mid, #f0c419); }
             #${ID} .ph-collapse-btn { width: 26px; }
             #${ID} .ph-spacer { flex: 1; }
             #${ID} .ph-mapbar {
@@ -1033,11 +1097,11 @@
         const myPokemons = container.querySelector('#pokemon-myPokemons-frame');
         const pokedex = container.querySelector('#pokemon-pokedex-frame');
         const spawns = container.querySelector('#pokemon-spawns-frame');
+        const bag = container.querySelector('#pokemon-bag-frame');
         const farm = container.querySelector('#pokemon-farm-frame');
-        const market = container.querySelector('#pokemon-market-frame');
         const chart = container.querySelector('#pokemon-chart-frame');
         const settingsPanel = container.querySelector('#pokemon-settings-panel');
-        if (!battle || !myPokemons || !pokedex || !spawns || !farm || !market || !chart || !settingsPanel) return;
+        if (!battle || !myPokemons || !pokedex || !spawns || !bag || !farm || !chart || !settingsPanel) return;
 
         container.dataset.activeView = view;
         syncFullSide(container, currentSettings(container));
@@ -1050,7 +1114,7 @@
         // sempre que não são a view ativa "sozinha": assim a folha de estilo
         // decide sozinha (nada de display:none preso de uma navegação anterior
         // sobrevivendo até o próximo toggle de F, que não passa por este laço).
-        [battle, myPokemons, pokedex, spawns, farm, market, chart].forEach((frame) => {
+        [battle, myPokemons, pokedex, spawns, bag, farm, chart].forEach((frame) => {
             const active = frame.id === `pokemon-${view}-frame`;
             const cssManaged = frame === chart || frame.classList.contains('side-active');
             frame.style.display = active ? 'block' : (cssManaged ? '' : 'none');
@@ -1059,10 +1123,17 @@
 
         paintHeaderButtons(container, view);
 
-        // reenvia o último box guardado pra Meus Pokémon ao abrir, pois o jogo
-        // só emite party/pc ao abrir o box lá dentro.
-        if (view === 'myPokemons' && window.__phLastCharData) {
-            try { myPokemons.contentWindow.postMessage({ type: 'character-data', payload: window.__phLastCharData }, '*'); } catch (_) {}
+        // reenvia o último payload guardado (party/pc/bag) pra Meus Pokémon ou
+        // Mochila ao abrir, pois o jogo só emite esses dados em certos momentos.
+        if ((view === 'myPokemons' || view === 'bag') && window.__phLastCharData) {
+            try { (view === 'bag' ? bag : myPokemons).contentWindow.postMessage({ type: 'character-data', payload: window.__phLastCharData }, '*'); } catch (_) {}
+        }
+        // ao abrir Meus Pokémon: se ainda não temos os preços do mercado, busca-os
+        // (o preço estimado dos Pokémon usa esses dados).
+        if (view === 'myPokemons') {
+            const cached = document.documentElement.dataset.pkmnMarket;
+            if (cached) { try { myPokemons.contentWindow.postMessage({ type: 'market-data', raw: cached }, '*'); } catch (_) {} }
+            else { document.documentElement.dataset.pkmnMarketReq = String(Date.now()); }
         }
 
         persist(currentSettings(container));

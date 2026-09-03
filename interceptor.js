@@ -260,6 +260,24 @@
         return out;
     }
 
+    // leilão interno (moeda do jogo = ouro). Mesma API/estrutura, campo price em ouro.
+    async function allAuction(kind, maxPages) {
+        const out = []; let page = 1, pages = 1;
+        do {
+            const d = await api(`/api/auction/browse?tab=browse&kind=${kind}&page=${page}&sort=price_asc`).catch(() => null);
+            if (!d || !d.listings) break; pages = d.pages || 1;
+            for (const L of d.listings) {
+                const s = L.snapshot || {};
+                out.push({
+                    kind: L.kind, slug: s.slug || s.species || null, name: s.name || null,
+                    shiny: !!s.shiny, gold: Number(L.price) || 0, qty: Number(s.qty || 1)
+                });
+            }
+            page++;
+        } while (page <= pages && page <= (maxPages || 60));
+        return out;
+    }
+
     async function build() {
         const stats = await api('/api/market/stats').catch(() => null);
         const mons = await allPages('mon');
@@ -282,16 +300,31 @@
 
         // gold: R$ por 1M
         const goldRates = gold.map((L) => r2(L.price / ((L.unidade || 1) / 1000000))).sort((a, b) => a - b);
+        const goldRate = r2(med(goldRates)) || 10;   // R$ por 1M (referência p/ converter o leilão)
+
+        // ---- LEILÃO (ouro) --------------------------------------------------
+        // itens: todas as páginas (poucas). mons: extremos p/ faixa de preço.
+        let auction = null;
+        try {
+            const aItems = await allAuction('item', 60);
+            const aMonAsc = await allAuction('mon', 12);
+            const aItemBy = {};
+            for (const L of aItems) { const k = L.slug || L.name || '?'; (aItemBy[k] = aItemBy[k] || { name: L.name, unit: [], n: 0 }); aItemBy[k].unit.push(L.gold / (L.qty || 1)); aItemBy[k].n++; }
+            const aItemsAgg = Object.entries(aItemBy).map(([slug, o]) => ({ slug, name: o.name, n: o.n, minG: Math.round(Math.min(...o.unit)), medG: Math.round(med(o.unit)), maxG: Math.round(Math.max(...o.unit)) })).sort((a, b) => b.medG - a.medG);
+            const aMonGold = aMonAsc.map((l) => l.gold).sort((a, b) => a - b);
+            auction = { goldRate, itemsAgg: aItemsAgg, monMinGold: aMonGold[0] || 0, monP25Gold: aMonGold[Math.floor(aMonGold.length * 0.25)] || 0, itemsTotal: aItems.length };
+        } catch (_) { auction = { error: true }; }
 
         return {
             ts: Date.now(),
             stats: stats ? { vendas: stats.vendas, volume: (stats.volumeCents || 0) / 100, vip: stats.vip } : null,
             totals: { mon: mons.length, item: items.length, gold: gold.length, skin: skins.length },
-            gold: { min: goldRates[0] || 0, med: r2(med(goldRates)), max: goldRates[goldRates.length - 1] || 0, n: goldRates.length },
+            gold: { min: goldRates[0] || 0, med: goldRate, max: goldRates[goldRates.length - 1] || 0, n: goldRates.length },
             monBands: { min: r2(Math.min(...allP)), med: r2(med(allP)), max: r2(Math.max(...allP)), perfMed: r2(med(perfP)), shinyMed: r2(med(shinyP)),
                 u10: allP.filter((p) => p < 10).length, b1030: allP.filter((p) => p >= 10 && p < 30).length, b3060: allP.filter((p) => p >= 30 && p < 60).length, o60: allP.filter((p) => p >= 60).length },
             monsAgg, itemsAgg,
-            skins: skins.map((s) => ({ name: s.name, price: s.price })).sort((a, b) => a.price - b.price)
+            skins: skins.map((s) => ({ name: s.name, price: s.price })).sort((a, b) => a.price - b.price),
+            auction
         };
     }
 

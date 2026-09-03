@@ -34,7 +34,12 @@ var PokemonAbilityInfo = globalThis.PokemonAbilityInfo || (() => {
                 }
             });
         } catch (error) {
-            console.warn('[Infinity Dex Helper] Não foi possível carregar habilidades:', error);
+            // "Extension context invalidated" é esperado após recarregar a
+            // extensão com a página aberta (a página só normaliza com F5) — não
+            // é erro real, então não polui o console.
+            if (!/context invalidated/i.test(String(error && error.message || error))) {
+                console.warn('[Infinity Dex Helper] Não foi possível carregar habilidades:', error);
+            }
         }
     }
 

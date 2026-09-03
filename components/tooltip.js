@@ -39,7 +39,16 @@ var PokemonHelperTooltip = globalThis.PokemonHelperTooltip || (() => {
                 font-family: var(--px-font-mono, sans-serif); font-size: 12px; font-weight: 600; line-height: 1.35;
                 color: #faf7ef; pointer-events: none; display: none; white-space: pre-line;
             }
-            .px-tip-icon { color: var(--px-info, #e3350d); cursor: help; outline: none; }`;
+            #px-tooltip.rich { white-space: normal; max-width: 230px; padding: 8px 10px; }
+            .px-tip-icon { color: var(--px-info, #e3350d); cursor: help; outline: none; }
+            /* banner rico de golpe (data-tip-html) */
+            .mv-tip-head { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 5px; }
+            .mv-tip-name { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #fff; }
+            .mv-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 1px 6px; border-radius: 8px; }
+            .mv-cat { font-size: 9px; font-weight: 700; color: #cfc9bd; border: 1px solid #55504a; border-radius: 8px; padding: 1px 5px; }
+            .mv-tip-stats { font-size: 11px; color: #d7d2c8; margin-bottom: 4px; }
+            .mv-tip-stats b { color: #fff; }
+            .mv-tip-eff { font-size: 10px; font-weight: 500; color: #b9b3a8; line-height: 1.4; }`;
         doc.head.appendChild(style);
     }
 
@@ -78,17 +87,19 @@ var PokemonHelperTooltip = globalThis.PokemonHelperTooltip || (() => {
         ensureStyle(doc);
         const win = doc.defaultView;
         doc.addEventListener('mouseover', (event) => {
-            const target = event.target.closest && event.target.closest('[data-tip]');
+            const target = event.target.closest && event.target.closest('[data-tip], [data-tip-html]');
             if (!target || !enabled) return;
+            const html = target.getAttribute('data-tip-html');
             const text = target.getAttribute('data-tip');
-            if (!text) return;
+            if (!html && !text) return;
             const box = ensureBox(doc);
-            box.textContent = text;
+            if (html) { box.innerHTML = html; box.classList.add('rich'); }
+            else { box.textContent = text; box.classList.remove('rich'); }
             box.style.display = 'block';
             position(box, target.getBoundingClientRect(), win);
         });
         doc.addEventListener('mouseout', (event) => {
-            if (event.target.closest && event.target.closest('[data-tip]')) {
+            if (event.target.closest && event.target.closest('[data-tip], [data-tip-html]')) {
                 const box = doc.getElementById('px-tooltip');
                 if (box) box.style.display = 'none';
             }

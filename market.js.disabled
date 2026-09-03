@@ -14,6 +14,25 @@
 
     let query = '';
 
+    // catálogo de itens do jogo (imagem + descrição): slug -> {name, desc}
+    let ITEM_CAT = {};
+    const itemSprite = (slug) => `https://infinitymmo.net/assets/items/${slug}.png`;
+    fetch('https://infinitymmo.net/assets/data/items.json')
+        .then((r) => r.json())
+        .then((d) => {
+            const items = d && d.items ? (Array.isArray(d.items) ? d.items : Object.values(d.items)) : [];
+            items.forEach((it) => { if (it && it.slug) ITEM_CAT[it.slug] = { name: it.name || it.slug, desc: (it.desc || '').replace(/\s+/g, ' ').trim() }; });
+            if (DATA) render();
+        })
+        .catch(() => {});
+    // imagem + tooltip de descrição de um item pelo slug
+    function itemImg(slug) {
+        if (!slug) return '';
+        const info = ITEM_CAT[slug];
+        const t = info && info.desc ? ` title="${esc(info.desc)}"` : '';
+        return `<img class="mk-item-img" src="${itemSprite(slug)}"${t} onerror="this.style.display='none'">`;
+    }
+
     function request() {
         body.innerHTML = '<div class="mk-wait">Buscando o mercado ao vivo…<br>(pode levar alguns segundos)</div>';
         try { parent.postMessage({ type: 'market-req' }, '*'); } catch (_) {}
@@ -29,7 +48,7 @@
     refreshBtn.addEventListener('click', request);
 
     function priceCell(o) {
-        return `<span class="mk-price">menor <b>${money(o.min)}</b> · méd ${money(o.med)}</span>`;
+        return `<span class="mk-price" title="menor ${money(o.min)} · mediana ${money(o.med)}"><b>${money(o.min)}</b></span>`;
     }
 
     function render() {
@@ -77,18 +96,22 @@
             const mons = (DATA.monsAgg || []).filter((m) => (m.name || m.sp).toLowerCase().includes(q)).sort((a, b) => b.med - a.med).slice(0, 20);
             const items = (DATA.itemsAgg || []).filter((m) => (m.name || m.slug).toLowerCase().includes(q)).slice(0, 20);
             let rows = '';
-            items.forEach((o) => { rows += `<div class="mk-row"><span class="mk-nm">${esc(cap(o.name || o.slug))}</span><span class="mk-n">${o.n}×</span>${priceCell(o)}</div>`; });
+            items.forEach((o) => { const nm = esc(cap(o.name || o.slug)); const desc = ITEM_CAT[o.slug] && ITEM_CAT[o.slug].desc; rows += `<div class="mk-row">${itemImg(o.slug)}<span class="mk-nm" title="${desc ? esc(desc) : nm}">${nm}</span><span class="mk-n">${o.n}×</span>${priceCell(o)}</div>`; });
             mons.forEach((o) => {
                 const tag = o.n >= 8 ? '<span class="mk-tag glut">saturado</span>' : (o.n <= 2 ? '<span class="mk-tag hot">escasso</span>' : '');
-                rows += `<div class="mk-row"><span class="mk-nm">${esc(cap(o.name || o.sp))}${o.shiny ? ' ✨' : ''}</span>${tag}<span class="mk-n">${o.n}×</span>${priceCell(o)}</div>`;
+                const nm = esc(cap(o.name || o.sp)); rows += `<div class="mk-row"><span class="mk-nm" title="${nm}">${nm}${o.shiny ? ' ✨' : ''}</span>${tag}<span class="mk-n">${o.n}×</span>${priceCell(o)}</div>`;
             });
             parts.push(`<div class="mk-card"><div class="mk-card-head">Resultados</div>${rows || '<div class="mk-note">Nada encontrado.</div>'}</div>`);
         } else {
-            // ---- ITENS (referência) ----
+            // ---- ITENS (referência) — com imagem e descrição ----
             let irows = '';
             (DATA.itemsAgg || []).slice(0, 24).forEach((o) => {
                 const tag = o.n === 1 ? '<span class="mk-tag hot">único</span>' : (o.qty >= 100 ? '<span class="mk-tag glut">estoque alto</span>' : '');
-                irows += `<div class="mk-row"><span class="mk-nm">${esc(cap(o.name || o.slug))}</span>${tag}<span class="mk-n">${o.n}×</span>${priceCell(o)}</div>`;
+                const nm = esc(cap(o.name || o.slug)); const desc = ITEM_CAT[o.slug] && ITEM_CAT[o.slug].desc;
+                irows += `<div class="mk-irow">` +
+                    `<div class="mk-row">${itemImg(o.slug)}<span class="mk-nm">${nm}</span>${tag}<span class="mk-n">${o.n}×</span>${priceCell(o)}</div>` +
+                    (desc ? `<div class="mk-idesc">${esc(desc)}</div>` : '') +
+                `</div>`;
             });
             parts.push(`<div class="mk-card"><div class="mk-card-head">🎒 Itens · preço de referência</div>${irows}</div>`);
 
@@ -96,16 +119,47 @@
             const scarce = (DATA.monsAgg || []).filter((m) => m.n <= 2 && m.med >= 30).sort((a, b) => b.med - a.med).slice(0, 12);
             if (scarce.length) {
                 let rows = '';
-                scarce.forEach((o) => { rows += `<div class="mk-row"><span class="mk-nm">${esc(cap(o.name || o.sp))}${o.shiny ? ' ✨' : ''}</span><span class="mk-tag hot">escasso</span><span class="mk-n">${o.n}×</span>${priceCell(o)}</div>`; });
+                scarce.forEach((o) => { const nm = esc(cap(o.name || o.sp)); rows += `<div class="mk-row"><span class="mk-nm" title="${nm}">${nm}${o.shiny ? ' ✨' : ''}</span><span class="mk-tag hot">escasso</span><span class="mk-n">${o.n}×</span>${priceCell(o)}</div>`; });
                 parts.push(`<div class="mk-card"><div class="mk-card-head">💎 Pokémon escassos e valiosos</div>${rows}<div class="mk-note">Pouca oferta + preço alto = você dita o preço.</div></div>`);
             }
 
             // ---- SATURADOS (evite / desconte) ----
             const glut = (DATA.monsAgg || []).slice().sort((a, b) => b.n - a.n).slice(0, 12);
             let grows = '';
-            glut.forEach((o) => { grows += `<div class="mk-row"><span class="mk-nm">${esc(cap(o.name || o.sp))}${o.shiny ? ' ✨' : ''}</span><span class="mk-tag glut">${o.n}×</span>${priceCell(o)}</div>`; });
+            glut.forEach((o) => { const nm = esc(cap(o.name || o.sp)); grows += `<div class="mk-row"><span class="mk-nm" title="${nm}">${nm}${o.shiny ? ' ✨' : ''}</span><span class="mk-tag glut">${o.n}×</span>${priceCell(o)}</div>`; });
             parts.push(`<div class="mk-card"><div class="mk-card-head">⚠️ Pokémon saturados (muita oferta)</div>${grows}<div class="mk-note">Mercado cheio — só vale se desconto agressivo. Evite pra vender com lucro.</div></div>`);
         }
+
+            // ---- ARBITRAGEM Leilão (ouro) × PIX (R$) ----
+            const a = DATA.auction;
+            if (a && !a.error && a.itemsAgg && a.itemsAgg.length) {
+                const rate = a.goldRate || 10;               // R$ por 1M de ouro
+                const gToR = (g) => (g / 1e6) * rate;         // ouro -> R$ equivalente
+                const pixBy = {}; (DATA.itemsAgg || []).forEach((o) => { pixBy[o.slug] = o; });
+                // casa itens dos dois mercados
+                const rows = [];
+                a.itemsAgg.forEach((ai) => {
+                    const px = pixBy[ai.slug]; if (!px) return;
+                    const aucR = gToR(ai.medG);               // preço leilão em R$-eq
+                    const gap = px.med - aucR;                // >0: comprar leilão, vender PIX
+                    rows.push({ name: ai.name || ai.slug, aucG: ai.medG, aucR, pix: px.med, gap });
+                });
+                rows.sort((x, y) => Math.abs(y.gap) - Math.abs(x.gap));
+                let arb = '';
+                rows.slice(0, 14).forEach((r) => {
+                    const flip = r.gap >= 1 ? `<span class="mk-tag hot">leilão→PIX +${money(r.gap)}</span>`
+                        : (r.gap <= -1 ? `<span class="mk-tag glut">PIX→leilão</span>` : '<span class="mk-tag glut">neutro</span>');
+                    const anm = esc(cap(r.name)); arb += `<div class="mk-row"><span class="mk-nm" title="${anm}">${anm}</span>${flip}` +
+                        `<span class="mk-price">🪙${(r.aucG / 1000).toFixed(0)}k <b>${money(r.pix)}</b></span></div>`;
+                });
+                parts.push(
+                    `<div class="mk-card"><div class="mk-card-head">🏦 Leilão (ouro) × PIX (R$)</div>` +
+                    `<div class="mk-note">Cotação usada: 1M ouro = ${money(rate)}. 🪙 = preço no leilão · R$ = preço no PIX. "leilão→PIX +X" = compre com ouro, revenda por R$.</div>` +
+                    arb +
+                    (a.monMinGold ? `<div class="mk-note">Pokémon no leilão começam em <b>🪙${(a.monMinGold / 1000).toFixed(0)}k</b> (~${money(gToR(a.monMinGold))}) — bem mais barato que no PIX pra completar Pokédex com ouro farmado.</div>` : '') +
+                    `</div>`
+                );
+            }
 
         // ---- rodapé ----
         if (DATA.stats) {
