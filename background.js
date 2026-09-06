@@ -46,7 +46,10 @@ async function refreshPokedex(force = false) {
     pokedexCheckPromise = (async () => {
         const cached = await PokemonHelperStorage.getPokedex();
         const age = Date.now() - new Date(cached.checkedAt || 0).getTime();
-        if (!force && cached.items.length && age < POKEDEX_MAX_AGE) return cached;
+        // re-baixa se o cache for de um schema antigo (sem o campo `abilities`),
+        // pra não esperar 24h após a atualização que passou a guardar habilidades.
+        const hasAbilities = cached.items[0] && 'abilities' in cached.items[0];
+        if (!force && cached.items.length && age < POKEDEX_MAX_AGE && hasAbilities) return cached;
         try {
             const response = await fetch(POKEDEX_URL, { cache: 'no-store' });
             if (!response.ok) throw new Error(`InfinityMMO respondeu com status ${response.status}`);
@@ -62,6 +65,9 @@ async function refreshPokedex(force = false) {
                 types: Array.isArray(item.types) ? item.types : [],
                 catchRate: Number(item.catchRate),
                 base: item.base || null,
+                // habilidades da espécie (slugs). Convenção da wiki/jogo: a ÚLTIMA
+                // é a oculta quando há 2+ (ex.: bidoof [simple,unaware,moody]).
+                abilities: Array.isArray(item.abilities) ? item.abilities.filter(Boolean) : [],
                 levelMoves: Array.isArray(item.levelMoves)
                     ? item.levelMoves.filter((move) => move?.slug && Number.isFinite(Number(move.lv))).map((move) => ({ lv: Number(move.lv), slug: move.slug }))
                     : []

@@ -6,7 +6,8 @@ const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 const state = {
     battleId: null, kind: null, foe: null, foeParty: [], party: [], youMon: null, bag: {}, turn: 1,
     canCatch: false, moves: [], caught: false, over: false, active: { you: null, foe: null },
-    stages: { you: {}, foe: {} }, foeMoveUses: {}
+    stages: { you: {}, foe: {} }, foeMoveUses: {}, faintedYou: new Set(),
+    weather: null, screens: { you: {}, foe: {} }, heldItems: {}
 };
 let pokedexBySlug = new Map();
 let trainerMovesByKey = new Map();
@@ -79,8 +80,108 @@ function resetBattle(battleId) {
     Object.assign(state, {
         battleId: battleId || null, kind: null, foe: null, foeParty: [], youMon: null, turn: 1,
         canCatch: false, moves: [], caught: false, over: false,
-        active: { you: null, foe: null }, stages: { you: {}, foe: {} }, foeMoveUses: {}
+        active: { you: null, foe: null }, stages: { you: {}, foe: {} }, foeMoveUses: {},
+        faintedYou: new Set(), weather: null, screens: { you: {}, foe: {} }
     });
+}
+
+// HP atual de um Pokémon (do time ou ativo), tentando os formatos possíveis do
+// payload do jogo. Retorna null quando não há um campo de HP atual — nesse caso
+// não dá pra afirmar que desmaiou, então o chamador não filtra por HP.
+function monCurrentHp(mon) {
+    if (!mon) return null;
+    for (const v of [mon.hp, mon.curHp, mon.currentHp, mon.hpCur, mon.hp_cur, mon.chp]) {
+        if (typeof v === 'number') return v;
+    }
+    return null;
+}
+
+// um Pokémon do time (pelo índice) está desmaiado? state.party é um snapshot que
+// não aprende os desmaios da luta em si, então marcamos por índice sempre que o
+// HP ao vivo do Pokémon EM CAMPO zera (ver updateBattle). Também respeita um HP
+// atual no próprio snapshot, caso o jogo o envie atualizado.
+function isYouFainted(index) {
+    if (index == null || index < 0) return false;
+    if (state.faintedYou.has(index)) return true;
+    const cur = monCurrentHp(state.party[index]);
+    return cur != null && cur <= 0;
+}
+
+// Guarda Maravilha (Wonder Guard): o Pokémon só sofre dano de golpes SUPER
+// eficazes (multiplicador ≥ 2). Ex.: Shedinja. Aceita o campo de habilidade em
+// qualquer formato (slug ou nome, PT ou EN).
+function hasWonderGuard(mon) {
+    const a = mon && (mon.ability || mon.abilitySlug || mon.hability);
+    if (!a) return false;
+    const n = String(a).toLowerCase().replace(/[^a-z]/g, '');
+    return n.includes('wonderguard') || n.includes('guardamaravilha');
+}
+
+// chave normalizada da habilidade (slug/nome, PT ou EN) e rótulo pra exibir
+function abilityKey(mon) {
+    const a = mon && (mon.ability || mon.abilitySlug || mon.hability);
+    return a ? String(a).toLowerCase().replace(/[^a-z]/g, '') : '';
+}
+function abilityLabelOf(mon) {
+    const raw = mon && (mon.ability || mon.abilitySlug || mon.hability);
+    if (!raw) return '';
+    try { return PokemonAbilityInfo.label(raw) || String(raw); } catch (_) { return String(raw); }
+}
+
+// habilidades defensivas que ANULAM um tipo (dano 0; várias ainda curam, mas o
+// que importa aqui é ser 0). Chave = habilidade normalizada, valor = tipo imune.
+const ABILITY_IMMUNE = {
+    levitate: 'ground', eartheater: 'ground', voar: 'ground', levitacao: 'ground',
+    flashfire: 'fire', absorvercalor: 'fire',
+    voltabsorb: 'electric', lightningrod: 'electric', motordrive: 'electric', pararaios: 'electric',
+    waterabsorb: 'water', stormdrain: 'water', dryskin: 'water', peleseca: 'water',
+    sapsipper: 'grass',
+};
+
+// Ajuste de dano por habilidade (atacante e defensor). Recebe os dois Pokémon,
+// o tipo (nome) e categoria do golpe, a eficácia de tipo (effMult), se é STAB do
+// atacante, e as frações de HP (pra Multiescama e habilidades "em apuros").
+// Devolve { immune, mult, why }. `mult` multiplica o dano final; `immune` = 0.
+function abilityFactor(attacker, defender, moveType, isSpecial, power, effMult, isStab, atkHpFrac, defHpFrac) {
+    const why = [];
+    let mult = 1;
+    const da = abilityKey(attacker), dd = abilityKey(defender);
+
+    // ---- defensor: imunidades ----
+    if (dd === 'wonderguard' && effMult < 2) return { immune: true, mult: 0, why: [abilityLabelOf(defender) || 'Guarda Maravilha'] };
+    if (ABILITY_IMMUNE[dd] === moveType) return { immune: true, mult: 0, why: [abilityLabelOf(defender)] };
+
+    // ---- defensor: reduções / aumentos ----
+    if (dd === 'thickfat' && (moveType === 'fire' || moveType === 'ice')) { mult *= 0.5; why.push(`${abilityLabelOf(defender)} ½`); }
+    if ((dd === 'heatproof' || dd === 'waterbubble') && moveType === 'fire') { mult *= 0.5; why.push(`${abilityLabelOf(defender)} ½`); }
+    if ((dd === 'multiscale' || dd === 'shadowshield') && atkHpFrac !== undefined && defHpFrac != null && defHpFrac >= 0.999) { mult *= 0.5; why.push(`${abilityLabelOf(defender)} ½ (HP cheio)`); }
+    if ((dd === 'filter' || dd === 'solidrock' || dd === 'prismarmor') && effMult > 1) { mult *= 0.75; why.push(`${abilityLabelOf(defender)} reduz super eficaz`); }
+    if (dd === 'furcoat' && !isSpecial) { mult *= 0.5; why.push(`${abilityLabelOf(defender)} ½ físico`); }
+    if (dd === 'icescales' && isSpecial) { mult *= 0.5; why.push(`${abilityLabelOf(defender)} ½ especial`); }
+    if (dd === 'purifyingsalt' && moveType === 'ghost') { mult *= 0.5; why.push(`${abilityLabelOf(defender)} ½ fantasma`); }
+    if (dd === 'dryskin' && moveType === 'fire') { mult *= 1.25; why.push(`${abilityLabelOf(defender)} +25% fogo`); }
+
+    // ---- atacante: boosts ----
+    if ((da === 'hugepower' || da === 'purepower') && !isSpecial) { mult *= 2; why.push(`${abilityLabelOf(attacker)} (dobra Atq)`); }
+    if (da === 'adaptability' && isStab) { mult *= (2 / 1.5); why.push(`${abilityLabelOf(attacker)} (STAB 2×)`); }
+    if (da === 'technician' && power > 0 && power <= 60) { mult *= 1.5; why.push(`${abilityLabelOf(attacker)} +50%`); }
+    if (da === 'tintedlens' && effMult > 0 && effMult < 1) { mult *= 2; why.push(`${abilityLabelOf(attacker)} (pouco eficaz 2×)`); }
+    if (da === 'waterbubble' && moveType === 'water') { mult *= 2; why.push(`${abilityLabelOf(attacker)} (2× água)`); }
+    const PINCH = { overgrow: 'grass', blaze: 'fire', torrent: 'water', swarm: 'bug' };
+    if (PINCH[da] && moveType === PINCH[da] && atkHpFrac != null && atkHpFrac <= 1 / 3) { mult *= 1.5; why.push(`${abilityLabelOf(attacker)} (em apuros +50%)`); }
+    if (da === 'guts' && attacker && attacker.status && !isSpecial) { mult *= 1.5; why.push(`${abilityLabelOf(attacker)} (+50%)`); }
+    const TYPE_BOOST = { transistor: 'electric', dragonsmaw: 'dragon', steelworker: 'steel', rockypayload: 'rock' };
+    if (TYPE_BOOST[da] && moveType === TYPE_BOOST[da]) { mult *= 1.5; why.push(`${abilityLabelOf(attacker)} +50%`); }
+
+    return { immune: false, mult, why };
+}
+
+// fração de HP de um Pokémon (0–1). Usa HP ao vivo quando existir; senão 1.
+function hpFractionOf(mon, liveHp) {
+    const cur = typeof liveHp === 'number' ? liveHp : monCurrentHp(mon);
+    const max = Number(mon?.maxHp) || Number(mon?.stats?.hp) || null;
+    if (cur == null || !max) return null;
+    return Math.max(0, Math.min(1, cur / max));
 }
 
 // acha o Pokémon ativo do time. Prioriza o índice de batalha em state.party;
@@ -143,13 +244,48 @@ const TYPE_BOOST_ITEM = {
     magnet: 'electric', miracle_seed: 'grass', rose_incense: 'grass', never_melt_ice: 'ice', black_belt: 'fighting',
     poison_barb: 'poison', soft_sand: 'ground', sharp_beak: 'flying', twisted_spoon: 'psychic', odd_incense: 'psychic',
     silver_powder: 'bug', hard_stone: 'rock', rock_incense: 'rock', spell_tag: 'ghost', dragon_fang: 'dragon',
-    black_glasses: 'dark', metal_coat: 'steel'
+    black_glasses: 'dark', metal_coat: 'steel',
+    // Placas do Arceus (mesmo bônus de tipo ×1.2, só nomes diferentes)
+    flame_plate: 'fire', splash_plate: 'water', zap_plate: 'electric', meadow_plate: 'grass',
+    icicle_plate: 'ice', fist_plate: 'fighting', toxic_plate: 'poison', earth_plate: 'ground',
+    sky_plate: 'flying', mind_plate: 'psychic', insect_plate: 'bug', stone_plate: 'rock',
+    spooky_plate: 'ghost', draco_plate: 'dragon', dread_plate: 'dark', iron_plate: 'steel',
+    pixie_plate: 'fairy'
+};
+// berries de resistência: metade do dano de um golpe super eficaz do tipo
+// (Chilan reduz qualquer golpe Normal). Chave = prefixo do slug (…_berry).
+const RESIST_BERRY = {
+    occa: 'fire', passho: 'water', wacan: 'electric', rindo: 'grass', yache: 'ice',
+    chople: 'fighting', kebia: 'poison', shuca: 'ground', coba: 'flying', payapa: 'psychic',
+    tanga: 'bug', charti: 'rock', kasib: 'ghost', haban: 'dragon', colbur: 'dark',
+    babiri: 'steel', chilan: 'normal', roseli: 'fairy'
 };
 const itemSlugify = (raw) => String(raw || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-const heldItemOf = (mon) => (mon && mon.heldItem) ? itemSlugify(mon.heldItem) : '';
-// nome bonito do item que afeta o dano (pra mostrar no tooltip), ou null
-function itemDamageInfo(slug, moveTypeName, isSpecial, effMult) {
+// chave estável de um Pokémon (espécie+nível+HP máx) pra guardar/recuperar o item
+const monItemKey = (m) => `${normalizeSpecies(m && (m.species || m.name))}|${(m && m.level) || ''}|${(m && m.maxHp) || ''}`;
+// guarda os itens vistos no time (o payload de BATALHA às vezes reenvia o time
+// sem `heldItem`, sobrescrevendo o do personagem — este cache evita perder o item)
+function recordHeldItems(party) {
+    (party || []).forEach((m) => { if (m && m.heldItem) state.heldItems[monItemKey(m)] = m.heldItem; });
+}
+// item segurado: usa o do próprio Pokémon; se faltar (payload de batalha sem
+// item, ou dados ao vivo do ativo), cai pro cache por espécie/nível/HP.
+const heldItemOf = (mon) => {
+    const raw = (mon && mon.heldItem) || (mon && state.heldItems[monItemKey(mon)]) || '';
+    return raw ? itemSlugify(raw) : '';
+};
+// item OFENSIVO do atacante que afeta o dano (pra mostrar no tooltip), ou null.
+// Recebe o Pokémon (não só o slug) pra tratar dobradores por espécie.
+function itemDamageInfo(mon, moveTypeName, isSpecial, effMult) {
+    const slug = heldItemOf(mon);
     if (!slug) return null;
+    const species = normalizeSpecies(mon && (mon.species || mon.name));
+    // dobradores por espécie
+    if (slug === 'thick_club' && !isSpecial && (species === 'cubone' || species === 'marowak')) return { mult: 2, why: 'Thick Club (dobra Atq)' };
+    if (slug === 'light_ball' && species === 'pikachu') return { mult: 2, why: 'Light Ball (dobra)' };
+    // Gem do tipo (×1.3, uma vez)
+    const gem = slug.match(/^([a-z]+)_gem$/);
+    if (gem && gem[1] === moveTypeName) return { mult: 1.3, why: 'Gem' };
     if (TYPE_BOOST_ITEM[slug] && TYPE_BOOST_ITEM[slug] === moveTypeName) return { mult: 1.2, why: 'item de tipo' };
     if (slug === 'life_orb') return { mult: 1.3, why: 'Life Orb' };
     if (slug === 'choice_band' && !isSpecial) return { mult: 1.5, why: 'Choice Band' };
@@ -159,10 +295,26 @@ function itemDamageInfo(slug, moveTypeName, isSpecial, effMult) {
     if (slug === 'expert_belt' && effMult > 1) return { mult: 1.2, why: 'Expert Belt' };
     return null;
 }
-// multiplicador de dano do item (1 se não afeta)
+// multiplicador de dano do item ofensivo (1 se não afeta)
 function itemDamageMult(mon, moveTypeName, isSpecial, effMult) {
-    const info = itemDamageInfo(heldItemOf(mon), moveTypeName, isSpecial, effMult);
+    const info = itemDamageInfo(mon, moveTypeName, isSpecial, effMult);
     return info ? info.mult : 1;
+}
+
+// item DEFENSIVO do Pokémon que RECEBE o golpe (só dá pra usar quando sabemos o
+// item — ou seja, quando o defensor é o SEU Pokémon). Devolve { immune, mult, why }.
+function defenseItemFactor(mon, moveTypeName, isSpecial, effMult) {
+    const slug = heldItemOf(mon);
+    if (!slug) return { immune: false, mult: 1, why: [] };
+    // Air Balloon: imune a Terra (até ser atingido)
+    if (slug === 'air_balloon' && moveTypeName === 'ground') return { immune: true, mult: 0, why: ['Air Balloon'] };
+    let mult = 1; const why = [];
+    // Berry de resistência: ½ num golpe do tipo (super eficaz; Chilan = qualquer Normal)
+    const berryType = RESIST_BERRY[slug.replace(/_berry$/, '')];
+    if (berryType && berryType === moveTypeName && (berryType === 'normal' || effMult > 1)) { mult *= 0.5; why.push('Berry de resistência ½'); }
+    if (slug === 'eviolite') { mult *= 2 / 3; why.push('Eviolite'); }
+    if (slug === 'assault_vest' && isSpecial) { mult *= 2 / 3; why.push('Assault Vest'); }
+    return { immune: false, mult, why };
 }
 
 // multiplicador via matriz do jogo: mt = token cru do tipo do golpe,
@@ -214,11 +366,91 @@ function estimateDamage(pokemon, move, foe, multiplier, stab = 1, atkStage = 0, 
     return { min: roll(85), max: roll(100) };
 }
 
+// ---- ajustes contextuais do dano (alto impacto) --------------------------
+
+// golpes que batem várias vezes → nº de acertos considerado (2–5 ≈ 3)
+const MULTI_HIT = {
+    double_kick: 2, double_hit: 2, bonemerang: 2, dual_chop: 2, twineedle: 2, gear_grind: 2, dragon_darts: 2, tachyon_cutter: 2,
+    triple_kick: 3, triple_axel: 3, surging_strikes: 3,
+    bullet_seed: 3, rock_blast: 3, pin_missile: 3, icicle_spear: 3, fury_attack: 3, fury_swipes: 3, tail_slap: 3,
+    bone_rush: 3, comet_punch: 3, arm_thrust: 3, water_shuriken: 3, scale_shot: 3, spike_cannon: 3, barrage: 3
+};
+const moveHitCount = (slug) => MULTI_HIT[slug] || 1;
+
+// golpes de dano fixo / OHKO (a fórmula normal não se aplica).
+// Retorna { fixed:n } | { ohko:true } | null.
+const OHKO_MOVES = new Set(['fissure', 'horn_drill', 'guillotine', 'sheer_cold']);
+function fixedDamage(slug, attacker, defender) {
+    if (OHKO_MOVES.has(slug)) return { ohko: true };
+    if (slug === 'seismic_toss' || slug === 'night_shade') { const l = Number(attacker?.level) || 0; return l ? { fixed: l } : null; }
+    if (slug === 'dragon_rage') return { fixed: 40 };
+    if (slug === 'sonic_boom') return { fixed: 20 };
+    if (slug === 'super_fang') { const hp = monCurrentHp(defender); return hp != null ? { fixed: Math.max(1, Math.floor(hp / 2)) } : null; }
+    if (slug === 'endeavor') { const dh = monCurrentHp(defender), ah = monCurrentHp(attacker); return (dh != null && ah != null) ? { fixed: Math.max(0, dh - ah) } : null; }
+    return null;
+}
+
+// clima atual → fator por tipo de golpe.
+// DESATIVADO por ora: o formato do campo de clima no payload não foi confirmado
+// e havia risco de confundir ciclo dia/noite ("sol"/"dia") com clima real,
+// multiplicando o dano errado. Reativar só após verificar o campo numa batalha.
+function weatherFactor(moveType) {
+    return 1;
+}
+
+// queimadura: atacante queimado causa ½ com golpes físicos
+function burnFactor(attacker, isSpecial) {
+    if (isSpecial) return 1;
+    return /burn|brn|queima/.test(String(attacker?.status || '').toLowerCase()) ? 0.5 : 1;
+}
+
+// telas na defesa: Reflect (½ físico), Light Screen (½ especial), Aurora Veil (½ ambos)
+// DESATIVADO por ora (mesmo motivo do clima): a detecção de telas lê o payload de
+// forma não confirmada e podia reduzir o dano por engano. Reativar após verificar.
+function screenFactor(defenderSideKey, isSpecial) {
+    return 1;
+}
+
+// fator contextual combinado (clima × queimadura × telas) pro atacante→defensor
+function contextFactor(attacker, moveType, isSpecial, defenderSideKey) {
+    return weatherFactor(moveType) * burnFactor(attacker, isSpecial) * screenFactor(defenderSideKey, isSpecial);
+}
+
+// leitura defensiva de clima/telas do payload de batalha (o formato não é
+// documentado, então tentamos vários campos; se nada bater, ficam sem efeito).
+const normWeather = (w) => typeof w === 'string' ? w.toLowerCase().replace(/[^a-z]/g, '') : null;
+function readWeather(bs, data) {
+    let w = bs.weather ?? (bs.field && bs.field.weather) ?? (bs.env && bs.env.weather) ?? (data && data.weather);
+    if (w && typeof w === 'object' && typeof w.type === 'string') w = w.type;
+    if (typeof w === 'string') state.weather = normWeather(w) || null;
+    else if (w === null) state.weather = null;
+}
+function screenSetFrom(sideObj) {
+    const out = {};
+    if (!sideObj || typeof sideObj !== 'object') return out;
+    const flags = sideObj.screens || sideObj.sideConditions || sideObj.side || sideObj;
+    const mark = (name) => {
+        const n = String(name).toLowerCase().replace(/[^a-z]/g, '');
+        if (n.includes('auroraveil')) out.auroraveil = true;
+        else if (n.includes('reflect')) out.reflect = true;
+        else if (n.includes('lightscreen')) out.lightscreen = true;
+    };
+    if (Array.isArray(flags)) flags.forEach(mark);
+    else if (flags && typeof flags === 'object') for (const k in flags) { if (flags[k]) mark(k); }
+    return out;
+}
+function readScreens(bs) {
+    state.screens = { you: screenSetFrom(bs.you), foe: screenSetFrom(bs.foe) };
+}
+
 // escolhe a melhor combinação Pokémon+golpe do time contra o oponente atual
 // (potência × precisão × eficácia × STAB × ataque) e monta a caixa de destaque
 function bestPlay(foe) {
     const defenders = typeNames(foe.types), candidates = [];
-    state.party.filter(Boolean).forEach((pokemon, index) => {
+    // varre com o índice REAL do time (sem filter(Boolean), que reindexaria) pra
+    // poder pular quem já desmaiou nesta luta.
+    state.party.forEach((pokemon, index) => {
+        if (!pokemon || isYouFainted(index)) return;
         (pokemon.moves || []).forEach((move, moveIndex) => {
             const ms = moveStats(resolveMoveSlug(move.name), move);   // poder real do jogo
             if (Number(move.pp) <= 0 || ms.power <= 0) return;
@@ -227,8 +459,11 @@ function bestPlay(foe) {
             const stab = typeNames(pokemon.types).includes(moveType) ? 1.5 : 1;
             const attack = ms.category === 'special' ? Number(pokemon.stats?.spa || 1) : Number(pokemon.stats?.atk || 1);
             const itemMult = itemDamageMult(pokemon, moveType, ms.category === 'special', multiplier);
+            const ab = abilityFactor(pokemon, foe, moveType, ms.category === 'special', ms.power, multiplier, stab > 1, hpFractionOf(pokemon), hpFractionOf(foe, foe.hp));
+            if (ab.immune) return;   // o adversário anula esse golpe (ex.: Levitate) — não recomenda
+            const ctxMult = moveHitCount(resolveMoveSlug(move.name)) * contextFactor(pokemon, moveType, ms.category === 'special', 'foe');
             const nmove = { ...move, power: ms.power, accuracy: ms.accuracy, category: ms.category };
-            candidates.push({ pokemon, index, move: nmove, moveIndex, moveType, multiplier, score: ms.power * ((ms.accuracy ?? 100) || 100) / 100 * multiplier * stab * attack * itemMult });
+            candidates.push({ pokemon, index, move: nmove, moveIndex, moveType, multiplier, abMult: ab.mult, ctxMult, score: ms.power * ((ms.accuracy ?? 100) || 100) / 100 * multiplier * stab * attack * itemMult * ab.mult * ctxMult });
         });
     });
 
@@ -237,8 +472,8 @@ function bestPlay(foe) {
     // usa o moveset real desta luta (state.moves — mesma fonte de SEUS GOLPES,
     // que sempre reflete o Pokémon ativo corretamente) pra a caixa não sumir.
     const activePokemon = resolveActivePokemon();
-    if (activePokemon && !candidates.some((c) => c.pokemon === activePokemon)) {
-        const activeIndex = state.party.indexOf(activePokemon);
+    const activeIndex = state.party.indexOf(activePokemon);
+    if (activePokemon && !isYouFainted(activeIndex) && !candidates.some((c) => c.pokemon === activePokemon)) {
         state.moves.forEach((move, moveIndex) => {
             const slug = resolveMoveSlug(move.name);
             const moveType = MOVE_TYPES[slug];
@@ -248,11 +483,14 @@ function bestPlay(foe) {
             const stab = typeNames(activePokemon.types).includes(moveType) ? 1.5 : 1;
             const attack = ms.category === 'special' ? Number(activePokemon.stats?.spa || 1) : Number(activePokemon.stats?.atk || 1);
             const itemMult = itemDamageMult(activePokemon, moveType, ms.category === 'special', multiplier);
+            const ab = abilityFactor(activePokemon, foe, moveType, ms.category === 'special', ms.power, multiplier, stab > 1, hpFractionOf(activePokemon, monCurrentHp(state.youMon)), hpFractionOf(foe, foe.hp));
+            if (ab.immune) return;
+            const ctxMult = moveHitCount(slug) * contextFactor(activePokemon, moveType, ms.category === 'special', 'foe');
             candidates.push({
                 pokemon: activePokemon, index: activeIndex,
                 move: { name: move.name, power: ms.power, accuracy: ms.accuracy, category: ms.category },
-                moveIndex, moveType, multiplier,
-                score: ms.power * ((ms.accuracy ?? 100) || 100) / 100 * multiplier * stab * attack * itemMult
+                moveIndex, moveType, multiplier, abMult: ab.mult, ctxMult,
+                score: ms.power * ((ms.accuracy ?? 100) || 100) / 100 * multiplier * stab * attack * itemMult * ab.mult * ctxMult
             });
         });
     }
@@ -276,7 +514,7 @@ function bestPlay(foe) {
     const bestIsActive = best.pokemon === resolveActivePokemon();
     const atkStage = bestIsActive ? Number(state.stages.you[isSpecial ? 'spa' : 'atk'] || 0) : 0;
     const bestItemMult = itemDamageMult(best.pokemon, best.moveType, isSpecial, best.multiplier);
-    const dmg = estimateDamage(best.pokemon, best.move, foe, best.multiplier, hasStab ? 1.5 : 1, atkStage, defStage, bestItemMult);
+    const dmg = estimateDamage(best.pokemon, best.move, foe, best.multiplier, hasStab ? 1.5 : 1, atkStage, defStage, bestItemMult * (best.abMult || 1) * (best.ctxMult || 1));
     const foeHp = Number(foe.hp) || 0;
     let koBadge = '';
     if (dmg && foeHp > 0) {
@@ -328,9 +566,34 @@ function renderMyMoves(foe) {
             // resolvido e com os stats de defesa dele (ao vivo ou da Pokédex).
             // itemMult inclui o bônus do item que o seu Pokémon está segurando.
             const itemMult = activePokemon ? itemDamageMult(activePokemon, moveType, isSpecial, multiplier) : 1;
-            const dmg = activePokemon
-                ? estimateDamage(activePokemon, { power: ms.power, category: ms.category }, foe, multiplier, stab, atkStage, defStage, itemMult)
+            // habilidades: atacante = seu ativo, defensor = adversário
+            const ab = activePokemon
+                ? abilityFactor(activePokemon, foe, moveType, isSpecial, ms.power, multiplier, stab > 1, hpFractionOf(activePokemon, monCurrentHp(state.youMon)), hpFractionOf(foe, foe.hp))
+                : { immune: false, mult: 1, why: [] };
+            if (ab.immune) {
+                // o adversário anula esse golpe (ex.: Levitate vs Terra) → 0 e não é "melhor"
+                dmgChip = `<span class="move-dmg dmg-normal" data-tip="${escapeHtml(ab.why.join(' '))}: golpe anulado → 0 de dano.">🛡️ 0</span>`;
+                return { move, slug, dmgChip };
+            }
+            // golpes de dano fixo / OHKO (não usam a fórmula normal)
+            const fx = activePokemon ? fixedDamage(slug, activePokemon, foe) : null;
+            if (fx) {
+                if (fx.ohko) {
+                    score = (foeHp || 1e9); if (score > bestScore) { bestScore = score; bestSlug = slug; }
+                    dmgChip = `<span class="move-dmg dmg-ko" data-tip="Nocaute direto: se acertar, derruba (falha se o alvo tiver nível maior).">💀 OHKO</span>`;
+                } else if (fx.fixed != null) {
+                    const d = fx.fixed; score = d; if (score > bestScore) { bestScore = score; bestSlug = slug; }
+                    const koIt = foeHp > 0 && d >= foeHp;
+                    dmgChip = `<span class="move-dmg ${koIt ? 'dmg-ko' : 'dmg-normal'}" data-tip="Dano fixo: ${d}${foeHp > 0 ? ` · HP dele: ${foeHp}` : ''}.">${koIt ? '💀 ' : ''}${d}</span>`;
+                }
+                return { move, slug, dmgChip };
+            }
+            const hits = moveHitCount(slug);
+            const ctx = activePokemon ? contextFactor(activePokemon, moveType, isSpecial, 'foe') : 1;
+            let dmg = activePokemon
+                ? estimateDamage(activePokemon, { power: ms.power, category: ms.category }, foe, multiplier, stab, atkStage, defStage, itemMult * ab.mult * ctx)
                 : null;
+            if (dmg && hits > 1) dmg = { min: dmg.min * hits, max: dmg.max * hits };
             if (dmg) {
                 // ordena pela estimativa de dano de verdade (já com stages)
                 score = dmg.max;
@@ -340,10 +603,13 @@ function renderMyMoves(foe) {
                 if (foeHp > 0 && dmg.min >= foeHp) { cls = 'dmg-ko'; prefix = '💀 '; }
                 else if (foeHp > 0 && dmg.max >= foeHp) { cls = 'dmg-maybe'; prefix = '⚡ '; }
                 const tipParts = [`Dano estimado: ${dmg.min}–${dmg.max}`];
+                if (hits > 1) tipParts.push(`×${hits} golpes`);
                 if (foeHp > 0) tipParts.push(`HP dele: ${foeHp}${pct != null ? ` (até ${pct}%)` : ''}`);
                 if (atkStage || defStage) tipParts.push('inclui atributos alterados');
-                const itemFx = activePokemon ? itemDamageInfo(heldItemOf(activePokemon), moveType, isSpecial, multiplier) : null;
+                if (ctx !== 1) tipParts.push('inclui clima/queimadura/telas');
+                const itemFx = activePokemon ? itemDamageInfo(activePokemon, moveType, isSpecial, multiplier) : null;
                 if (itemFx) tipParts.push(`inclui item (${itemFx.why}, ×${itemFx.mult})`);
+                if (ab.why.length) tipParts.push(`inclui habilidade (${ab.why.join(', ')})`);
                 if (cls === 'dmg-ko') tipParts.push('Mesmo no pior caso, deve nocautear.');
                 else if (cls === 'dmg-maybe') tipParts.push('Pode nocautear, mas não é garantido.');
                 dmgChip = `<span class="move-dmg ${cls}" data-tip="${tipParts.join(' · ')}">${prefix}${dmg.min}–${dmg.max}</span>`;
@@ -432,7 +698,7 @@ function decrementUsedBall(request) {
 }
 
 function updateBattle(data) {
-    if (Array.isArray(data?.party)) state.party = data.party;
+    if (Array.isArray(data?.party)) { recordHeldItems(data.party); state.party = data.party; }
     if (data?.bag && typeof data.bag === 'object') state.bag = { ...data.bag };
     if (!data?.foe && !data?.state?.foe?.mon && !data?.battleId && !data?.__pokemonHelperRequest) return;
 
@@ -463,9 +729,19 @@ function updateBattle(data) {
         // sincronizado nesta sessão — sem isso o dano não aparece.
         const youMon = battleState.you?.mon;
         if (youMon && (youMon.stats || youMon.species || youMon.name)) state.youMon = { ...youMon };
+        // marca o Pokémon em campo como desmaiado quando o HP ao vivo zera, pra
+        // que a "Melhor jogada" pare de recomendá-lo (o snapshot do time não
+        // reflete os desmaios ocorridos durante a própria luta).
+        const youCur = monCurrentHp(youMon);
+        if (youCur != null && youCur <= 0 && Number.isInteger(youActive)) state.faintedYou.add(youActive);
         state.turn = Number(battleState.turn || state.turn);
         state.over = battleState.over === true;
         if (battleState.outcome === 'caught') state.caught = true;
+
+        // clima e telas (formato do payload é incerto — lemos de forma defensiva
+        // em vários nomes de campo prováveis; se nada bater, ficam sem efeito).
+        readWeather(battleState, data);
+        readScreens(battleState);
     }
 
     const allowed = data.next?.allowed;
@@ -547,6 +823,25 @@ function movesWithTypes(slugs) {
     return slugs.map((slug) => ({ slug, type: MOVE_TYPES[slug] })).filter((move) => move.type);
 }
 
+// moveset REAL do adversário, se o payload de batalha já trouxer (foe.moves ou
+// o Pokémon ativo do foeParty). É a fonte mais confiável — usada com prioridade
+// máxima, acima de treinador/heurística. Se o jogo não expõe, fica vazio (no-op).
+function foeActualMoves(foe) {
+    // tenta vários nomes de campo prováveis, no foe e no Pokémon ativo do foeParty
+    const pick = (o) => {
+        if (!o) return null;
+        for (const k of ['moves', 'moveset', 'attacks', 'golpes', 'movesData']) {
+            if (Array.isArray(o[k]) && o[k].length) return o[k];
+        }
+        return null;
+    };
+    const src = pick(foe) || pick(state.foeParty[state.active.foe]) || [];
+    return src.map((m) => {
+        const slug = resolveMoveSlug(typeof m === 'string' ? m : (m && (m.slug || m.name || m.move)));
+        return { slug, type: MOVE_TYPES[slug] };
+    }).filter((m) => m.slug && m.type);
+}
+
 // moveset real de um treinador da wiki (data/trainer-moves.js), casando por
 // espécie+nível — bem mais confiável que a heurística de nível quando existe.
 function trainerMovesFor(foe) {
@@ -595,13 +890,16 @@ function resolveFoeMoves(foe) {
         seen.add(move.slug);
         merged.push({ ...move, source });
     });
+    // 0) moveset real vindo do payload (prioridade máxima quando existe)
+    push(foeActualMoves(foe), 'actual');
     push(movesWithTypes(discovered), 'discovered');
     if (state.kind === 'trainer') push(movesWithTypes(trainerMovesFor(foe) || []), 'trainer');
     push(probableMoves(foe), 'heuristic');
-    return { moves: merged, seenCount: merged.filter((move) => move.source === 'discovered').length };
+    return { moves: merged, seenCount: merged.filter((move) => move.source === 'discovered' || move.source === 'actual').length };
 }
 
 const MOVE_SOURCE_LABELS = {
+    actual: 'Moveset real do adversário, vindo do jogo nesta luta.',
     discovered: 'Visto em batalhas anteriores contra esse mesmo oponente.',
     trainer: 'Confirmado: moveset exato desse treinador, vindo da wiki.',
     heuristic: 'Estimado pelo nível do Pokémon — ainda sem dados exatos.'
@@ -613,6 +911,7 @@ function foeMovesHint(resolved) {
     const sources = new Set(resolved.moves.map((move) => move.source));
     if (sources.size <= 1) return MOVE_SOURCE_LABELS[resolved.moves[0]?.source] || '';
     const parts = [];
+    if (sources.has('actual')) parts.push('moveset real do jogo');
     if (sources.has('discovered')) parts.push(`${resolved.seenCount} confirmado(s) em batalha (selo VISTO)`);
     if (sources.has('trainer')) parts.push('moveset do treinador (wiki)');
     if (sources.has('heuristic')) parts.push('estimados pelo nível');
@@ -709,12 +1008,68 @@ function renderFoeMoves(foe) {
     const resolved = resolveFoeMoves(foe);
     if (!resolved.moves.length) return '';
     const sourceHint = foeMovesHint(resolved);
+    const myActive = resolveActivePokemon();      // quem leva o dano (seu Pokémon em campo)
+    const myLiveHp = monCurrentHp(state.youMon);  // HP ao vivo do seu ativo, se houver
     const items = resolved.moves.map((move) => {
         const isStatus = STATUS_MOVES.has(move.slug);
         const worst = isStatus ? null : moveWorstCase(move.type);
         const multChip = worst === null
             ? '<span class="move-mult mult-1">—</span>'
             : `<span class="move-mult ${multClass(worst)}" data-tip="Pior caso contra o seu time.">${multLabel(worst)}</span>`;
+
+        // dano estimado que ESTE golpe dele causa no SEU Pokémon ativo (o inverso
+        // do "SEUS GOLPES"): o adversário ataca, você defende. Vermelho = nocauteia
+        // no melhor caso; amarelo = pode nocautear dependendo da variação.
+        let dmgChip = '';
+        if (!isStatus && myActive) {
+            const ms = moveStats(move.slug, move);
+            if (ms.power > 0) {
+                const isSpecial = ms.category === 'special';
+                const multiplier = defMultiplier(move.type, typeNames(myActive.types));
+                const isStabFoe = typeNames(foe.types).includes(move.type);
+                // habilidades: atacante = adversário, defensor = seu Pokémon ativo
+                const ab = abilityFactor(foe, myActive, move.type, isSpecial, ms.power, multiplier, isStabFoe, hpFractionOf(foe, foe.hp), hpFractionOf(myActive, myLiveHp));
+                // item DEFENSIVO do seu Pokémon (Eviolite/Assault Vest/berry/Air Balloon)
+                const itemDef = defenseItemFactor(myActive, move.type, isSpecial, multiplier);
+                const whyAll = [...ab.why, ...itemDef.why];
+                const refHp0 = (typeof myLiveHp === 'number' && myLiveHp > 0) ? myLiveHp : (Number(myActive.stats?.hp) || 0);
+                const fx = fixedDamage(move.slug, foe, myActive);
+                if (ab.immune || itemDef.immune) {
+                    dmgChip = `<span class="move-dmg dmg-normal" data-tip="${escapeHtml(whyAll.join(' '))}: golpe anulado → 0 de dano.">🛡️ 0</span>`;
+                } else if (fx && fx.ohko) {
+                    dmgChip = `<span class="move-dmg dmg-ko" data-tip="Nocaute direto: se acertar, seu Pokémon cai (falha se você tiver nível maior).">💀 OHKO</span>`;
+                } else if (fx && fx.fixed != null) {
+                    const d = fx.fixed, koYou = refHp0 > 0 && d >= refHp0;
+                    dmgChip = `<span class="move-dmg ${koYou ? 'dmg-ko' : 'dmg-normal'}" data-tip="Dano fixo: ${d}${refHp0 > 0 ? ` · seu HP: ${refHp0}` : ''}.">${koYou ? '💀 ' : ''}${d}</span>`;
+                } else {
+                    const stab = isStabFoe ? 1.5 : 1;
+                    const atkStage = Number(state.stages.foe[isSpecial ? 'spa' : 'atk'] || 0);
+                    const defStage = Number(state.stages.you[isSpecial ? 'spd' : 'def'] || 0);
+                    const hits = moveHitCount(move.slug);
+                    const ctx = contextFactor(foe, move.type, isSpecial, 'you');   // clima/queimadura/telas (você defende)
+                    // atacante = adversário (foe): item ofensivo dele é desconhecido, então
+                    // entram só ab.mult (habilidades), itemDef.mult (seu item) e ctx.
+                    let dmg = estimateDamage(foe, { power: ms.power, category: ms.category }, myActive, multiplier, stab, atkStage, defStage, ab.mult * itemDef.mult * ctx);
+                    if (dmg && hits > 1) dmg = { min: dmg.min * hits, max: dmg.max * hits };
+                    if (dmg) {
+                        const refHp = refHp0;
+                        let cls = 'dmg-normal', prefix = '';
+                        if (refHp > 0 && dmg.min >= refHp) { cls = 'dmg-ko'; prefix = '💀 '; }
+                        else if (refHp > 0 && dmg.max >= refHp) { cls = 'dmg-maybe'; prefix = '⚠️ '; }
+                        const pct = refHp > 0 ? Math.round(dmg.max / refHp * 100) : null;
+                        const tip = [`Dano que VOCÊ recebe: ${dmg.min}–${dmg.max}`];
+                        if (hits > 1) tip.push(`×${hits} golpes`);
+                        if (refHp > 0) tip.push(`seu HP: ${refHp}${pct != null ? ` (até ${pct}%)` : ''}`);
+                        if (atkStage || defStage) tip.push('inclui atributos alterados');
+                        if (whyAll.length) tip.push(`inclui ${whyAll.join(', ')}`);
+                        if (ctx !== 1) tip.push('inclui clima/queimadura/telas');
+                        if (cls === 'dmg-ko') tip.push('Te nocauteia mesmo no melhor caso.');
+                        else if (cls === 'dmg-maybe') tip.push('Pode te nocautear dependendo da variação aleatória.');
+                        dmgChip = `<span class="move-dmg ${cls}" data-tip="${escapeHtml(tip.join(' · '))}">${prefix}${dmg.min}–${dmg.max}</span>`;
+                    }
+                }
+            }
+        }
         const details = MOVE_DETAILS[move.slug];
         // PP restante é uma estimativa: só contamos usos vistos NESTA troca do
         // oponente (foeMoveUses zera ao trocar de Pokémon) a partir do PP máximo
@@ -727,8 +1082,8 @@ function renderFoeMoves(foe) {
                 : `${details.pp} PP`;
         const ppEmpty = details?.pp != null && used >= details.pp;
         return `<div class="row foe-row" data-tip-html="${tipAttr(moveBanner(move.slug))}">
-                <span class="label">${escapeHtml(moveLabel(move.slug))}${move.source === 'discovered' ? '<span class="move-seen" data-tip="Golpe confirmado: visto em batalha contra esse oponente.">VISTO</span>' : ''}</span>
-                <span class="value">${multChip}<span class="move-pp-mine${ppEmpty ? ' pp-empty' : ''}">${ppLabel}</span></span>
+                <span class="label">${escapeHtml(moveLabel(move.slug))}${move.source === 'actual' ? '<span class="move-seen" data-tip="Moveset real do adversário, vindo do jogo nesta luta.">REAL</span>' : move.source === 'discovered' ? '<span class="move-seen" data-tip="Golpe confirmado: visto em batalha contra esse oponente.">VISTO</span>' : ''}</span>
+                <span class="value">${dmgChip}${multChip}<span class="move-pp-mine${ppEmpty ? ' pp-empty' : ''}">${ppLabel}</span></span>
             </div>`;
     }).join('');
     const struggleStatus = foeStrugglingSoon(resolved);

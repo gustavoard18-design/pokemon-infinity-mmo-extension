@@ -34,7 +34,7 @@
     function mapMons(mons) {
         return (mons || [])
             .filter((m) => m && m.dex != null && m.slug)
-            .map((m) => ({ dex: Number(m.dex), slug: m.slug, name: m.name || m.slug, types: m.types || [], locations: Array.isArray(m.locations) ? m.locations : [] }))
+            .map((m) => ({ dex: Number(m.dex), slug: m.slug, name: m.name || m.slug, types: m.types || [], abilities: Array.isArray(m.abilities) ? m.abilities.filter(Boolean) : [], locations: Array.isArray(m.locations) ? m.locations : [] }))
             .sort((a, b) => a.dex - b.dex);
     }
 
@@ -53,9 +53,19 @@
 
     function locHTML(sp) {
         const head = `<div class="loc-head"><img class="loc-spr" alt=""><span class="loc-title">📍 ${escapeHtml(sp.name)}</span></div>`;
+        // habilidades da espécie: última = oculta (🔒) quando há 2+. data-ability
+        // vira nome + efeito em PT via PokemonAbilityInfo.hydrate (chamado no render).
+        const abils = (sp.abilities || []).filter(Boolean);
+        const labelOf = (s) => (typeof PokemonAbilityInfo !== 'undefined') ? PokemonAbilityInfo.label(s) : String(s).replace(/[-_]+/g, ' ');
+        const abilBlock = abils.length
+            ? `<div class="loc-abils">🧬 ${abils.map((slug, i) => {
+                const hidden = abils.length >= 2 && i === abils.length - 1;
+                return `${hidden ? '<span class="abil-lock" data-tip="Habilidade oculta (HA)">🔒</span> ' : ''}<span class="pdx-abil" data-ability="${escapeHtml(slug)}">${escapeHtml(labelOf(slug))}</span>`;
+            }).join('<span class="abil-sep"> · </span>')}</div>`
+            : '';
         const locs = sp.locations || [];
         if (!locs.length) {
-            return head + '<div class="loc-none">Sem local de encontro conhecido<br>(evolução, ovo, troca ou evento)</div>';
+            return head + abilBlock + '<div class="loc-none">Sem local de encontro conhecido<br>(evolução, ovo, troca ou evento)</div>';
         }
         const sorted = locs.slice().sort((a, b) => (Number(b.pct) || 0) - (Number(a.pct) || 0)).slice(0, 12);
         const rows = sorted.map((l) => {
@@ -64,7 +74,7 @@
             return `<div class="loc-row"><span class="loc-map">${escapeHtml(l.map)}</span>` +
                 `<span class="loc-meta">${escapeHtml(methodLabel(l.method))} · ${lvl} · ${pct}</span></div>`;
         }).join('');
-        return head + rows +
+        return head + abilBlock + rows +
             (locs.length > 12 ? `<div class="loc-more">+${locs.length - 12} outros locais…</div>` : '');
     }
     function loadSpecies() {
@@ -167,6 +177,8 @@
     function showTip(sp, e) {
         const el = ensureTip();
         el.innerHTML = locHTML(sp);
+        // preenche nome + efeito (PT) das habilidades marcadas com data-ability
+        try { if (typeof PokemonAbilityInfo !== 'undefined') PokemonAbilityInfo.hydrate(el); } catch (_) {}
         // onerror inline é bloqueado pelo CSP da extensão, então ligamos por JS:
         // tenta o gif animado do jogo → cai pro png estático → some se falhar.
         const img = el.querySelector('.loc-spr');

@@ -102,6 +102,17 @@ fetch('https://infinitymmo.net/assets/data/wiki-meta.json')
     .then((r) => r.json())
     .then((d) => { MOVE_WIKI_PT = (d && d.moves) || {}; applyAndRender(); })
     .catch(() => {});
+// habilidades por espécie (da Pokédex cacheada). Convenção: a ÚLTIMA da lista é
+// a OCULTA quando há 2+ (ex.: bidoof [simple, unaware, moody] → moody é oculta).
+let SPECIES_ABIL = new Map();
+const abilKey = (s) => String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+PokemonHelperStorage.getPokedex()
+    .then((cached) => {
+        const items = Array.isArray(cached.items) ? cached.items : [];
+        SPECIES_ABIL = new Map(items.map((it) => [abilKey(it.slug || it.name), Array.isArray(it.abilities) ? it.abilities : []]));
+        applyAndRender();
+    })
+    .catch(() => {});
 const moveSlug = (name) => String(name || '').trim().toLowerCase().replace(/[.'’]/g, '').replace(/[\s-]+/g, '_');
 const escAttr = (h) => String(h).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 const MOVE_CAT_PT = { physical: 'Físico', special: 'Especial', status: 'Status' };
@@ -159,6 +170,9 @@ function createPokemonViewModel(pokemon, location) {
         natureKey: normalizeSearch(natureName),
         natureEffect: getNatureEffect(natureName),
         ability: pokemon.ability,
+        // texto pra busca por habilidade: slug + slug com espaços + nome formatado
+        abilitySearch: normalizeSearch(`${pokemon.ability || ''} ${String(pokemon.ability || '').replace(/[-_]+/g, ' ')} ${PokemonAbilityInfo.label(pokemon.ability)}`),
+        speciesAbilities: SPECIES_ABIL.get(abilKey(pokemon.species || name)) || [],
         heldItem: formatToText(pokemon.heldItem),
         hasItem: pokemon.heldItem !== null && pokemon.heldItem !== undefined && pokemon.heldItem !== '',
         shiny: pokemon.shiny === true,
@@ -224,12 +238,14 @@ function hasAdvancedFilter(values) {
         || (values.natureMode === 'effect' && (
             values.neutralOnly || values.natureIncrease || values.natureDecrease
         ))
+        || (values.ability && values.ability.trim() !== '')
         || values.ivTotalMin > 0
         || STAT_KEYS.some((stat) => values.ivMinimum[stat] > 0);
 }
 
 function pokemonPassesFilters(viewModel, nameQuery, values, advancedEnabled, compiled) {
-    if (nameQuery && !viewModel.normalizedName.includes(nameQuery)) return false;
+    // busca casa por NOME ou HABILIDADE (ex.: "levitate", "intimidate")
+    if (nameQuery && !viewModel.normalizedName.includes(nameQuery) && !(viewModel.abilitySearch && viewModel.abilitySearch.includes(nameQuery))) return false;
     if (!advancedEnabled) return true;
     if (values.shinyOnly && !viewModel.shiny) return false;
     if (values.itemOnly && !viewModel.hasItem) return false;
@@ -254,6 +270,11 @@ function pokemonPassesFilters(viewModel, nameQuery, values, advancedEnabled, com
             if (values.natureIncrease && effect.increases !== values.natureIncrease) return false;
             if (values.natureDecrease && effect.decreases !== values.natureDecrease) return false;
         }
+    }
+
+    if (values.ability && values.ability.trim()) {
+        const q = normalizeSearch(values.ability.trim());
+        if (!(viewModel.abilitySearch && viewModel.abilitySearch.includes(q))) return false;
     }
 
     if (values.ivTotalMin > 0 && Number(viewModel.ivPercent) < values.ivTotalMin) return false;
@@ -378,13 +399,30 @@ function syncUiState() {
     UI_STATE.initialized = true;
 }
 
+// lista as habilidades da espécie: marca a OCULTA (🔒) e DESTACA a atual do
+// Pokémon. Cada slug vira data-ability (o hydrate preenche nome + efeito em PT).
+function abilitiesHTML(vm) {
+    const list = Array.isArray(vm.speciesAbilities) ? vm.speciesAbilities.filter(Boolean) : [];
+    const cur = PokemonAbilityInfo.normalize(vm.ability);
+    if (!list.length) return `<span data-ability="${escapeHtml(vm.ability)}">${escapeHtml(PokemonAbilityInfo.label(vm.ability))}</span>`;
+    const slugs = list.slice();
+    if (cur && !slugs.some((s) => PokemonAbilityInfo.normalize(s) === cur)) slugs.push(vm.ability);
+    const lastIdx = list.length - 1;   // convenção: última da lista = OCULTA (quando há 2+)
+    return slugs.map((slug, i) => {
+        const hidden = list.length >= 2 && i === lastIdx;
+        const isCur = cur && PokemonAbilityInfo.normalize(slug) === cur;
+        // o 🔒 fica FORA do data-ability porque o hydrate reescreve o interior do span
+        return `${hidden ? '<span class="abil-lock" data-tip="Habilidade oculta (HA)">🔒</span> ' : ''}<span class="abil-chip${isCur ? ' abil-cur' : ''}" data-ability="${escapeHtml(slug)}">${escapeHtml(PokemonAbilityInfo.label(slug))}</span>`;
+    }).join('<span class="abil-sep"> · </span>');
+}
+
 function renderDetailRows(viewModel) {
     // avaliação de IVs/natureza/stats (grade Ruim..Excelente) + papel ofensivo
     // principal — mesma fonte (PokemonIvEvaluation) usada no encontro (battle.js)
     const evaluation = PokemonIvEvaluation.evaluate(viewModel.pokemon);
     return `
         <div class="detail-row"><span class="detail-key">Natureza</span><span class="detail-val">${escapeHtml(viewModel.natureName)} ${natureModsHTML(viewModel.natureEffect)}</span></div>
-        <div class="detail-row"><span class="detail-key">Habilidade</span><span class="detail-val" data-ability="${escapeHtml(viewModel.ability)}">${escapeHtml(PokemonAbilityInfo.label(viewModel.ability))}</span></div>
+        <div class="detail-row"><span class="detail-key">Habilidade</span><span class="detail-val detail-abilities">${abilitiesHTML(viewModel)}</span></div>
         <div class="detail-row"><span class="detail-key">Item</span><span class="detail-val">${escapeHtml(viewModel.heldItem)}</span></div>
         <div class="detail-row"><span class="detail-key">Posição</span><span class="detail-val">${escapeHtml(viewModel.slotLabel)}</span></div>
         <div class="detail-row"><span class="detail-key">Avaliação</span><span class="detail-val">${PokemonIvEvaluation.html(viewModel.pokemon)} ${PokemonHelperTooltip.iconHTML('Avalia IVs, natureza e stats base pra classificar o Pokémon.')}</span></div>
@@ -554,6 +592,12 @@ function render() {
 function applyAndRender() {
     applyFilters();
     render();
+    // sugestões do filtro de habilidade = habilidades presentes na coleção
+    if (filterController && filterController.setAbilityOptions) {
+        filterController.setAbilityOptions(
+            DATA_STATE.sourcePokemon.map((vm) => PokemonAbilityInfo.label(vm.ability)).filter(Boolean)
+        );
+    }
 }
 
 function toggleSetValue(set, key) {

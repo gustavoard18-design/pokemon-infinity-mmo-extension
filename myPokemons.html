@@ -63,6 +63,11 @@
         /* habilidade injeta o ⓘ padrão (components/tooltip.js) —
            sem isso o ícone fica cortado pelo ellipsis da linha */
         .detail-val[data-ability] { overflow: visible; white-space: normal; }
+        /* linha de habilidades (todas da espécie): quebra linha e destaca a atual */
+        .detail-abilities { overflow: visible; white-space: normal; }
+        .detail-abilities .abil-cur { font-weight: 800; color: var(--px-accent, #e3350d); }
+        .detail-abilities .abil-lock { cursor: help; }
+        .detail-abilities .abil-sep { color: var(--px-text-dim); }
         .nat-mod { font-family: var(--px-font-mono); font-size: 8px; padding: 2px 4px; background: var(--px-bg-btn2); }
         /* regras .iv-rating[data-rating] moradas em pixel-theme.css — battle.js
            também renderiza PokemonIvEvaluation.html(foe) e precisa delas. */
@@ -87,7 +92,7 @@
     <main class="page-container">
         <div class="pokemon-toolbar">
             <div class="pokemon-toolbar-main">
-                <input type="search" class="px-input pokemon-filter" id="pokemon-name-filter" placeholder="Filtrar por nome…" aria-label="Filtrar Pokémon por nome">
+                <input type="search" class="px-input pokemon-filter" id="pokemon-name-filter" placeholder="Filtrar por nome ou habilidade…" aria-label="Filtrar Pokémon por nome ou habilidade">
                 <button type="button" class="px-btn pokemon-advanced-toggle" id="toggle-advanced-filters" aria-pressed="false" data-tip="Filtros avançados: tipo, nível, IVs, natureza, item, gênero.">▤</button>
             </div>
             <div class="pokemon-toolbar-actions">

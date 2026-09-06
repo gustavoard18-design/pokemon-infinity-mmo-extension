@@ -17,6 +17,7 @@ const PokemonFilters = (() => {
             natureIncrease: '',
             natureDecrease: '',
             neutralOnly: false,
+            ability: '',
             ivTotalMin: 0,
             ivMinimum: Object.fromEntries(STATS.map((stat) => [stat, 0]))
         };
@@ -105,6 +106,15 @@ const PokemonFilters = (() => {
                     <label class="filter-field"><span>Diminui</span><select id="filter-nature-decrease" class="pxl-input"><option value="">Qualquer</option>${EFFECT_STATS.map((stat) => `<option>${stat}</option>`).join('')}</select></label>
                     <label class="filter-field--checkbox"><input type="checkbox" id="filter-nature-neutral"> <span>Neutras</span></label>
                 </div>
+            </fieldset>
+
+            <fieldset class="pokemon-filter-section">
+                <legend>Habilidade</legend>
+                <div class="ability-autocomplete">
+                    <input type="text" id="filter-ability" class="pxl-input" placeholder="Digite uma habilidade" autocomplete="off" list="filter-ability-list">
+                    <datalist id="filter-ability-list"></datalist>
+                </div>
+                <p class="filter-help">Mostra só os Pokémon com essa habilidade.</p>
             </fieldset>
 
             <fieldset class="pokemon-filter-section">
@@ -251,6 +261,7 @@ const PokemonFilters = (() => {
                 natureIncrease: increaseSelect.value,
                 natureDecrease: decreaseSelect.value,
                 neutralOnly: neutralCheckbox.checked,
+                ability: byId('filter-ability').value.trim(),
                 ivTotalMin: (() => {
                     const el = byId('filter-iv-total');
                     const n = Number.parseInt(el.value, 10);
@@ -277,6 +288,7 @@ const PokemonFilters = (() => {
             increaseSelect.value = '';
             decreaseSelect.value = '';
             neutralCheckbox.checked = false;
+            byId('filter-ability').value = '';
             byId('filter-iv-total').value = 0;
             STATS.forEach((stat) => { byId(`filter-iv-${stat}`).value = 0; });
             syncSortDirection();
@@ -291,8 +303,16 @@ const PokemonFilters = (() => {
             callbacks.onClear?.(getValues());
         });
 
+        // popula as sugestões (datalist) com as habilidades presentes na coleção
+        function setAbilityOptions(names) {
+            const list = byId('filter-ability-list');
+            if (!list) return;
+            list.innerHTML = [...new Set(names || [])].filter(Boolean).sort()
+                .map((n) => `<option value="${String(n).replace(/"/g, '&quot;')}"></option>`).join('');
+        }
+
         reset();
-        return { getValues, reset };
+        return { getValues, reset, setAbilityOptions };
     }
 
     return Object.freeze({ mount, defaultValues });
