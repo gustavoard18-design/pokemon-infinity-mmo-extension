@@ -864,15 +864,16 @@ function recordDiscoveredMove(slug) {
     render();
 }
 
-// resolve os golpes do oponente mesclando as fontes (dedupe por slug, máx. 4):
-// 1) golpes já vistos em batalhas anteriores contra esse mesmo oponente recorrente;
-// 2) moveset exato de treinador (quando é batalha de treinador e casa espécie+nível);
-// 3) heurística por nível (fallback pra selvagens/sem dados de treinador).
-// Cada golpe carrega sua origem — confirmados ganham selo VISTO na renderização.
-// Mesclar (em vez de substituir pela fonte de maior prioridade) garante que a
-// lista nunca encolhe no meio da luta quando um golpe é confirmado.
+// resolve os golpes do oponente — SEM depender de NPC e SEM vazar entre lutas.
+// O jogo NÃO envia o moveset do adversário no payload (confirmado), então:
+// 1) golpes CONFIRMADOS nesta própria batalha (os que o Pokémon usou até agora) —
+//    100% do Pokémon que está na sua frente, zerados a cada troca/luta;
+// 2) heurística por nível da espécie (chute pros golpes ainda não vistos).
+// Foram removidas as fontes que casavam por espécie+nível GLOBAL (histórico
+// persistido e moveset de treinador da wiki) — eram elas que colocavam golpes de
+// um NPC no Pokémon de outro. Dedupe por slug, máx. 4.
 function resolveFoeMoves(foe) {
-    const discovered = discoveredMovesFor(foe) || [];
+    const confirmed = Object.keys(state.foeMoveUses || {});   // vistos NESTA luta
     const merged = [];
     const seen = new Set();
     const push = (moves, source) => moves.forEach((move) => {
@@ -880,19 +881,14 @@ function resolveFoeMoves(foe) {
         seen.add(move.slug);
         merged.push({ ...move, source });
     });
-    // 0) moveset real vindo do payload (prioridade máxima quando existe)
-    push(foeActualMoves(foe), 'actual');
-    push(movesWithTypes(discovered), 'discovered');
-    if (state.kind === 'trainer') push(movesWithTypes(trainerMovesFor(foe) || []), 'trainer');
+    push(movesWithTypes(confirmed), 'discovered');
     push(probableMoves(foe), 'heuristic');
-    return { moves: merged, seenCount: merged.filter((move) => move.source === 'discovered' || move.source === 'actual').length };
+    return { moves: merged, seenCount: merged.filter((move) => move.source === 'discovered').length };
 }
 
 const MOVE_SOURCE_LABELS = {
-    actual: 'Moveset real do adversário, vindo do jogo nesta luta.',
-    discovered: 'Visto em batalhas anteriores contra esse mesmo oponente.',
-    trainer: 'Confirmado: moveset exato desse treinador, vindo da wiki.',
-    heuristic: 'Estimado pelo nível do Pokémon — ainda sem dados exatos.'
+    discovered: 'Confirmado: usado por ESTE Pokémon nesta batalha.',
+    heuristic: 'Estimado pelo nível da espécie — o jogo não revela o moveset até ser usado.'
 };
 
 // texto do ⓘ do cabeçalho GOLPES DELE: fonte única usa o rótulo existente;
@@ -901,11 +897,9 @@ function foeMovesHint(resolved) {
     const sources = new Set(resolved.moves.map((move) => move.source));
     if (sources.size <= 1) return MOVE_SOURCE_LABELS[resolved.moves[0]?.source] || '';
     const parts = [];
-    if (sources.has('actual')) parts.push('moveset real do jogo');
-    if (sources.has('discovered')) parts.push(`${resolved.seenCount} confirmado(s) em batalha (selo VISTO)`);
-    if (sources.has('trainer')) parts.push('moveset do treinador (wiki)');
-    if (sources.has('heuristic')) parts.push('estimados pelo nível');
-    return `Mistura de fontes: ${parts.join(' + ')}.`;
+    if (sources.has('discovered')) parts.push(`${resolved.seenCount} confirmado(s) nesta batalha (selo VISTO)`);
+    if (sources.has('heuristic')) parts.push('resto estimado pelo nível');
+    return `${parts.join(' + ')}.`;
 }
 
 // avisa quando os golpes conhecidos do oponente estão perto de acabar o PP
@@ -1072,7 +1066,7 @@ function renderFoeMoves(foe) {
                 : `${details.pp} PP`;
         const ppEmpty = details?.pp != null && used >= details.pp;
         return `<div class="row foe-row" data-tip-html="${tipAttr(moveBanner(move.slug))}">
-                <span class="label">${escapeHtml(moveLabel(move.slug))}${move.source === 'actual' ? '<span class="move-seen" data-tip="Moveset real do adversário, vindo do jogo nesta luta.">REAL</span>' : move.source === 'discovered' ? '<span class="move-seen" data-tip="Golpe confirmado: visto em batalha contra esse oponente.">VISTO</span>' : ''}</span>
+                <span class="label">${escapeHtml(moveLabel(move.slug))}${move.source === 'discovered' ? '<span class="move-seen" data-tip="Confirmado: este Pokémon usou este golpe nesta batalha.">VISTO</span>' : ''}</span>
                 <span class="value">${dmgChip}${multChip}<span class="move-pp-mine${ppEmpty ? ' pp-empty' : ''}">${ppLabel}</span></span>
             </div>`;
     }).join('');
