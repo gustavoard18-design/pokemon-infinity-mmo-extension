@@ -7,8 +7,27 @@ const state = {
     battleId: null, kind: null, foe: null, foeParty: [], party: [], youMon: null, bag: {}, turn: 1,
     canCatch: false, moves: [], caught: false, over: false, active: { you: null, foe: null },
     stages: { you: {}, foe: {} }, foeMoveUses: {}, faintedYou: new Set(),
-    weather: null, screens: { you: {}, foe: {} }, heldItems: {}
+    weather: null, screens: { you: {}, foe: {} }, heldItems: {}, trainerId: null
 };
+
+// identificador do treinador a partir do payload (campo `trainer`). Só devolve
+// uma chave quando é um id DISTINTIVO (id/nome/gfx), nunca uma flag genérica —
+// assim, se o jogo não expõe um id de verdade, não persistimos (evita voltar a
+// vazar golpes entre treinadores diferentes).
+function trainerKeyOf(t) {
+    if (t == null) return null;
+    if (typeof t === 'object') {
+        const id = t.id ?? t.trainerId ?? t.tid ?? t.slug ?? t.name ?? t.gfx;
+        return id != null && String(id).length >= 2 ? `t:${String(id)}` : null;
+    }
+    if (typeof t === 'string') {
+        const s = t.trim().toLowerCase();
+        // ignora valores genéricos que não identificam UM treinador
+        if (s.length < 3 || ['true', 'trainer', 'treinador', 'npc', 'sim', 'yes', '1'].includes(s)) return null;
+        return `t:${t.trim()}`;
+    }
+    return null;   // boolean/number → é flag, não identifica o treinador
+}
 let pokedexBySlug = new Map();
 let trainerMovesByKey = new Map();
 let discoveredMovesByKey = new Map();
@@ -81,7 +100,7 @@ function resetBattle(battleId) {
         battleId: battleId || null, kind: null, foe: null, foeParty: [], youMon: null, turn: 1,
         canCatch: false, moves: [], caught: false, over: false,
         active: { you: null, foe: null }, stages: { you: {}, foe: {} }, foeMoveUses: {},
-        faintedYou: new Set(), weather: null, screens: { you: {}, foe: {} }
+        faintedYou: new Set(), weather: null, screens: { you: {}, foe: {} }, trainerId: null
     });
 }
 
@@ -707,6 +726,8 @@ function updateBattle(data) {
     if (data.foe && (!state.foe || (incomingBattleId && incomingBattleId !== state.battleId))) resetBattle(incomingBattleId);
     if (incomingBattleId) state.battleId = incomingBattleId;
     if (data.kind) state.kind = data.kind;
+    // id do treinador (pra lembrar golpes por treinador+espécie+nível sem vazar)
+    if (data.trainer != null && state.trainerId == null) state.trainerId = trainerKeyOf(data.trainer);
     if (Array.isArray(data.foeParty)) state.foeParty = data.foeParty.map((pokemon) => ({ ...pokemon }));
     if (data.foe) state.foe = { ...data.foe };
 
@@ -843,20 +864,26 @@ function trainerMovesFor(foe) {
 // id/nome de treinador nem um identificador de mapa confiável, então essa é a
 // melhor aproximação disponível — pode confundir dois treinadores diferentes
 // com o mesmo Pokémon no mesmo nível, mas é o que dá pra fazer sem esse dado).
+// chave de memória: TREINADOR + espécie + nível. Só existe quando há um id de
+// treinador distintivo (state.trainerId) — em selvagem/sem id, devolve null e a
+// memória entre lutas fica desligada (evita vazar golpes entre encontros).
 function discoveryKey(species, level) {
-    return `${normalizeSpecies(species)}|${Number(level)}`;
+    if (!state.trainerId) return null;
+    return `${state.trainerId}|${normalizeSpecies(species)}|${Number(level)}`;
 }
 
 function discoveredMovesFor(foe) {
-    return discoveredMovesByKey.get(discoveryKey(foe.species || foe.name, foe.level)) || null;
+    const key = discoveryKey(foe.species || foe.name, foe.level);
+    return key ? (discoveredMovesByKey.get(key) || null) : null;
 }
 
-// golpe visto de fato num turno de batalha: guarda permanentemente vinculado
-// a esse oponente recorrente (espécie+nível), mesmo que a luta atual seja
-// perdida — na próxima vez que ele aparecer, já mostramos o que já vimos.
+// golpe visto num turno: guarda vinculado a ESTE treinador+espécie+nível, então
+// na próxima luta contra o MESMO treinador com o MESMO Pokémon já mostra VISTO —
+// sem contaminar o Pokémon de outros treinadores. Selvagem não persiste.
 function recordDiscoveredMove(slug) {
     if (!state.foe || !MOVE_TYPES[slug]) return;
     const key = discoveryKey(state.foe.species || state.foe.name, state.foe.level);
+    if (!key) { render(); return; }   // sem id de treinador → não persiste
     const existing = discoveredMovesByKey.get(key) || [];
     if (existing.includes(slug)) return;
     discoveredMovesByKey.set(key, [...existing, slug]);
@@ -873,6 +900,7 @@ function recordDiscoveredMove(slug) {
 // persistido e moveset de treinador da wiki) — eram elas que colocavam golpes de
 // um NPC no Pokémon de outro. Dedupe por slug, máx. 4.
 function resolveFoeMoves(foe) {
+    const persisted = discoveredMovesFor(foe) || [];          // vistos deste treinador em lutas anteriores (só se houver id)
     const confirmed = Object.keys(state.foeMoveUses || {});   // vistos NESTA luta
     const merged = [];
     const seen = new Set();
@@ -881,6 +909,7 @@ function resolveFoeMoves(foe) {
         seen.add(move.slug);
         merged.push({ ...move, source });
     });
+    push(movesWithTypes(persisted), 'discovered');
     push(movesWithTypes(confirmed), 'discovered');
     push(probableMoves(foe), 'heuristic');
     return { moves: merged, seenCount: merged.filter((move) => move.source === 'discovered').length };
