@@ -823,23 +823,13 @@ function movesWithTypes(slugs) {
     return slugs.map((slug) => ({ slug, type: MOVE_TYPES[slug] })).filter((move) => move.type);
 }
 
-// moveset REAL do adversário, se o payload de batalha já trouxer (foe.moves ou
-// o Pokémon ativo do foeParty). É a fonte mais confiável — usada com prioridade
-// máxima, acima de treinador/heurística. Se o jogo não expõe, fica vazio (no-op).
+// moveset REAL do adversário a partir do payload — DESATIVADO por ora.
+// O campo lido (foe.moves/moveset/…) NÃO foi confirmado como o moveset de
+// batalha: pode ser a learnset/level-up da espécie, o que injetava golpes
+// ERRADOS com selo "REAL". Só reativar depois de inspecionar um payload real
+// de batalha de treinador e confirmar o nome/conteúdo do campo.
 function foeActualMoves(foe) {
-    // tenta vários nomes de campo prováveis, no foe e no Pokémon ativo do foeParty
-    const pick = (o) => {
-        if (!o) return null;
-        for (const k of ['moves', 'moveset', 'attacks', 'golpes', 'movesData']) {
-            if (Array.isArray(o[k]) && o[k].length) return o[k];
-        }
-        return null;
-    };
-    const src = pick(foe) || pick(state.foeParty[state.active.foe]) || [];
-    return src.map((m) => {
-        const slug = resolveMoveSlug(typeof m === 'string' ? m : (m && (m.slug || m.name || m.move)));
-        return { slug, type: MOVE_TYPES[slug] };
-    }).filter((m) => m.slug && m.type);
+    return [];
 }
 
 // moveset real de um treinador da wiki (data/trainer-moves.js), casando por
