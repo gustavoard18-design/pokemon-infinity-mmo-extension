@@ -597,6 +597,21 @@
                 // for aberta depois — senão abre vazia, porque o jogo só emite
                 // esse payload ao abrir o box no jogo.
                 if (isCharacterPayload) window.__phLastCharData = data;
+                // persiste o roster (time + caixas) pra a aba de batalha recomendar
+                // o melhor "counter" mesmo sem a aba Meus Pokémon aberta. Faz merge:
+                // party e pc chegam em payloads diferentes, então mantém o último de
+                // cada um (mesma lógica do LOCAL_PAYLOAD em myPokemons.js).
+                if (data.party || data.pc) {
+                    try {
+                        PokemonHelperStorage.getRoster().then((prev) => {
+                            const next = {
+                                party: Array.isArray(data.party) && data.party.length ? data.party : (prev.party || []),
+                                pc: Array.isArray(data.pc) && data.pc.length ? data.pc : (prev.pc || [])
+                            };
+                            PokemonHelperStorage.setRoster(next);
+                        }).catch(() => {});
+                    } catch (_) {}
+                }
                 // sinal real de fim de luta: só usado aqui pra saber quando voltar
                 // pra aba anterior — battle.js ignora isso de propósito (ele só olha
                 // pra presença de `foe`), esse "over" não deve virar estado de tela lá.

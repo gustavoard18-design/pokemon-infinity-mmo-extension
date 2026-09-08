@@ -73,6 +73,24 @@
         .move-name { flex: 1 1 auto; min-width: 0; font-size: 12px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .move-name-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
         .move-seen { flex: 0 0 auto; font-family: var(--px-font-mono); font-size: 8px; letter-spacing: .5px; color: var(--px-good); border: 1px solid var(--px-good); padding: 1px 4px; }
+        /* MELHOR ESCOLHA (counter) */
+        .ctr-list { display: flex; flex-direction: column; gap: 5px; }
+        .ctr-pick { background: var(--px-bg-btn2); border: 1px solid var(--px-border-panel); border-radius: var(--px-radius-sm, 4px); padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; }
+        .ctr-line1 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .ctr-tag { font-family: var(--px-font-mono); font-size: 8px; letter-spacing: .5px; color: var(--px-accent); border: 1px solid var(--px-accent); padding: 1px 4px; }
+        .ctr-name { font-family: var(--px-font-mono); font-size: 11px; font-weight: 700; color: var(--px-text-hi); text-transform: uppercase; }
+        .ctr-box { font-family: var(--px-font-mono); font-size: 8px; color: var(--px-text-dim); cursor: help; }
+        .ctr-spd { font-family: var(--px-font-mono); font-size: 8px; margin-left: auto; cursor: help; }
+        .ctr-spd.fast { color: var(--px-good); }
+        .ctr-spd.slow { color: var(--px-text-dim); }
+        .ctr-line2 { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 11px; }
+        .ctr-lbl { font-family: var(--px-font-mono); font-size: 8px; color: var(--px-text-dim); cursor: help; }
+        .ctr-off, .ctr-threat { display: inline-flex; align-items: center; gap: 4px; cursor: help; }
+        .ctr-off .type-tag { font-size: 9px; padding: 1px 4px; }
+        .ctr-off.ko { color: var(--px-good); font-weight: 700; }
+        .ctr-threat { color: var(--px-text-val); }
+        .ctr-threat.ko { color: var(--px-bad); font-weight: 700; }
+        .ctr-empty { margin: 0; padding: 6px 4px; color: var(--px-text-dim); font-size: 11px; cursor: help; }
         .move-sub { font-size: 11px; line-height: 1.1; }
         .move-pp.pp-empty { color: var(--px-bad); }
         .move-mult { font-family: var(--px-font-mono); font-size: 11px; padding: 3px 5px; }

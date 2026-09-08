@@ -31,6 +31,25 @@ function trainerKeyOf(t) {
 let pokedexBySlug = new Map();
 let trainerMovesByKey = new Map();
 let discoveredMovesByKey = new Map();
+// roster completo do jogador (time + caixas), achatado numa lista pra o "counter":
+// { mon, inParty, label } — label = nome (time) ou "Cx.N" (PC).
+let rosterMons = [];
+function setRoster(roster) {
+    const out = [];
+    (Array.isArray(roster?.party) ? roster.party : []).forEach((mon) => {
+        if (mon && (mon.species || mon.name)) out.push({ mon, inParty: true, label: mon.name || mon.species });
+    });
+    (Array.isArray(roster?.pc) ? roster.pc : []).forEach((box, boxIndex) => {
+        (Array.isArray(box?.pokemon) ? box.pokemon : []).forEach((mon) => {
+            if (mon && (mon.species || mon.name)) out.push({ mon, inParty: false, label: `Cx.${boxIndex + 1}` });
+        });
+    });
+    rosterMons = out;
+}
+async function loadRoster() {
+    try { setRoster(await PokemonHelperStorage.getRoster()); render(); }
+    catch (error) { console.warn('[Infinity Dex Helper] Não foi possível carregar o roster:', error); }
+}
 const openMoves = new Set();
 
 // Dados de golpe EM PORTUGUÊS direto do jogo (wiki-meta.json → moves): nome,
@@ -1119,6 +1138,155 @@ function renderFoeMoves(foe) {
     </div>`;
 }
 
+// ---- MELHOR ESCOLHA (counter) --------------------------------------------
+// Cruza os golpes do adversário (os JÁ VISTOS nesta/anteriores lutas + a
+// heurística por nível) com TODO o seu roster (time + caixas do PC) e indica
+// quem melhor encara este Pokémon: quanto VOCÊ causa nele × quanto ELE causa em
+// você × quem é mais rápido. Quanto mais golpes dele forem confirmados, mais
+// confiável fica a parte defensiva.
+
+// HP máximo do defensor (stat ao vivo do payload; fallback pela fórmula de HP)
+function maxHpOf(mon) {
+    const live = Number(mon && mon.stats ? mon.stats.hp : NaN);
+    if (Number.isFinite(live) && live > 0) return live;
+    const entry = pokedexBySlug.get(normalizeSpecies(mon && (mon.species || mon.name)));
+    const base = Number(entry && entry.base ? entry.base.hp : NaN);
+    if (!Number.isFinite(base) || base <= 0) return null;
+    const ivRaw = Number(mon && mon.ivs ? mon.ivs.hp : NaN);
+    const iv = Number.isFinite(ivRaw) ? Math.max(0, Math.min(31, ivRaw)) : 15;
+    const level = Number(mon && mon.level) || 1;
+    return Math.floor((2 * base + iv) * level / 100) + level + 10;
+}
+
+// melhor golpe de `attacker` contra `foe`: maior dano (e % do HP do foe)
+function bestOffenseOn(attacker, foe) {
+    const defenders = typeNames(foe.types);
+    const foeHp = maxHpOf(foe) || Number(foe.maxHp) || Number(foe.hp) || 0;
+    let best = null;
+    (attacker.moves || []).forEach((move) => {
+        const slug = resolveMoveSlug(move.name);
+        const ms = moveStats(slug, move);
+        if (ms.power <= 0) return;
+        const moveType = TYPE_MAPPER[move.type] || MOVE_TYPES[slug];
+        if (!moveType) return;
+        const isSpecial = ms.category === 'special';
+        const mult = liveMultiplier(move.type, foe.types) ?? defMultiplier(moveType, defenders);
+        const isStab = typeNames(attacker.types).includes(moveType);
+        const ab = abilityFactor(attacker, foe, moveType, isSpecial, ms.power, mult, isStab, hpFractionOf(attacker), hpFractionOf(foe, foe.hp));
+        if (ab.immune) return;
+        const itemMult = itemDamageMult(attacker, moveType, isSpecial, mult);
+        const ctx = moveHitCount(slug) * contextFactor(attacker, moveType, isSpecial, 'foe');
+        const dmg = estimateDamage(attacker, { power: ms.power, category: ms.category }, foe, mult, isStab ? 1.5 : 1, 0, 0, itemMult * (ab.mult || 1) * ctx);
+        if (!dmg) return;
+        if (!best || dmg.max > best.dmg.max) {
+            best = { slug, moveName: move.name, moveType, mult, dmg, pct: foeHp > 0 ? Math.min(100, Math.round(dmg.max / foeHp * 100)) : null, ko: foeHp > 0 && dmg.min >= foeHp };
+        }
+    });
+    return best;
+}
+
+// pior ameaça: maior dano que os golpes CONHECIDOS do foe causam em `defender`
+function worstThreatOn(defender, foe, resolved) {
+    const defHp = maxHpOf(defender) || 0;
+    let worst = null;
+    resolved.moves.forEach((move) => {
+        if (STATUS_MOVES.has(move.slug)) return;
+        const ms = moveStats(move.slug, move);
+        if (ms.power <= 0) return;
+        const isSpecial = ms.category === 'special';
+        const mult = defMultiplier(move.type, typeNames(defender.types));
+        const isStabFoe = typeNames(foe.types).includes(move.type);
+        const ab = abilityFactor(foe, defender, move.type, isSpecial, ms.power, mult, isStabFoe, hpFractionOf(foe, foe.hp), hpFractionOf(defender));
+        const itemDef = defenseItemFactor(defender, move.type, isSpecial, mult);
+        if (ab.immune || itemDef.immune) return;
+        const fx = fixedDamage(move.slug, foe, defender);
+        let dmg;
+        if (fx && fx.ohko) dmg = { min: defHp, max: defHp };
+        else if (fx && fx.fixed != null) dmg = { min: fx.fixed, max: fx.fixed };
+        else {
+            const hits = moveHitCount(move.slug);
+            const ctx = contextFactor(foe, move.type, isSpecial, 'you');
+            dmg = estimateDamage(foe, { power: ms.power, category: ms.category }, defender, mult, isStabFoe ? 1.5 : 1, 0, 0, ab.mult * itemDef.mult * ctx);
+            if (dmg && hits > 1) dmg = { min: dmg.min * hits, max: dmg.max * hits };
+        }
+        if (!dmg) return;
+        if (!worst || dmg.max > worst.dmg.max) {
+            worst = { slug: move.slug, moveType: move.type, dmg, pct: defHp > 0 ? Math.min(100, Math.round(dmg.max / defHp * 100)) : null, ko: defHp > 0 && dmg.min >= defHp, seen: move.source === 'discovered' };
+        }
+    });
+    return worst;
+}
+
+function rankCounters(foe) {
+    const resolved = resolveFoeMoves(foe);
+    const foeSpe = effectiveStat(foe, 'spe');
+    const seen = new Set();
+    const scored = [];
+    rosterMons.forEach((entry) => {
+        const mon = entry.mon;
+        // time desmaiado não pode entrar; pula quem está com HP 0 no snapshot
+        const cur = Number(mon.hp);
+        if (entry.inParty && Number.isFinite(cur) && cur <= 0) return;
+        // dedupe (o mesmo Pokémon pode aparecer em time e caixa em snapshots antigos)
+        const id = `${normalizeSpecies(mon.species || mon.name)}|${mon.level}|${mon.ivs ? Object.values(mon.ivs).join('') : ''}|${entry.inParty ? 'p' : 'b'}`;
+        if (seen.has(id)) return;
+        seen.add(id);
+        const off = bestOffenseOn(mon, foe);
+        const threat = worstThreatOn(mon, foe, resolved);
+        const mySpe = effectiveStat(mon, 'spe');
+        const faster = mySpe != null && foeSpe != null ? mySpe > foeSpe : null;
+        let score = (off?.pct ?? 0) - (threat?.pct ?? 0);
+        if (faster === true) score += 20; else if (faster === false) score -= 10;
+        if (off?.ko && faster === true) score += 40;
+        if (threat?.ko) score -= 40;
+        scored.push({ entry, off, threat, faster, score });
+    });
+    scored.sort((a, b) => b.score - a.score);
+    return scored;
+}
+
+function counterRowHTML(pick, tag) {
+    const { entry, off, threat, faster } = pick;
+    const name = escapeHtml(entry.mon.name || entry.mon.species);
+    const place = entry.inParty ? '' : ` <span class="ctr-box" data-tip="Está numa caixa do PC — traga-o antes de usar.">🗄 ${escapeHtml(entry.label)}</span>`;
+    const offType = off ? PokemonPixelIcons.typeColor(off.moveType) : null;
+    const offHTML = off
+        ? `<span class="ctr-off ${off.ko ? 'ko' : ''}" data-tip="Seu melhor golpe: ${escapeHtml(off.moveName)} — dano ${off.dmg.min}–${off.dmg.max}${off.pct != null ? ` (${off.pct}% do HP dele)` : ''}${off.ko ? ' · nocauteia' : ''}."><span class="type-tag" style="background:${offType};color:${PokemonPixelIcons.onColor(offType)}">${escapeHtml(off.moveName)}</span>${off.pct != null ? ` ${off.pct}%` : ''}${off.ko ? ' 💀' : ''}</span>`
+        : '<span class="ctr-off" data-tip="Sem golpe de dano conhecido contra ele.">—</span>';
+    const threatHTML = threat
+        ? `<span class="ctr-threat ${threat.ko ? 'ko' : ''}" data-tip="Maior ameaça dele: ${moveLabel(threat.slug)} — ${threat.dmg.min}–${threat.dmg.max}${threat.pct != null ? ` (${threat.pct}% do seu HP)` : ''}${threat.seen ? ' · CONFIRMADO (VISTO)' : ' · estimado'}${threat.ko ? ' · te nocauteia' : ''}.">${threat.pct != null ? `${threat.pct}%` : moveLabel(threat.slug)}${threat.ko ? ' 💀' : ''}${threat.seen ? ' <span class="move-seen">VISTO</span>' : ''}</span>`
+        : '<span class="ctr-threat" data-tip="Nenhum golpe de dano conhecido dele.">seguro</span>';
+    const spd = faster === true
+        ? '<span class="ctr-spd fast" data-tip="Você é mais rápido — age primeiro.">⚡ + rápido</span>'
+        : faster === false
+            ? '<span class="ctr-spd slow" data-tip="Ele é mais rápido — age primeiro.">🐢 + lento</span>'
+            : '';
+    return `<div class="ctr-pick">
+        <div class="ctr-line1">${tag ? `<span class="ctr-tag">${tag}</span> ` : ''}<span class="ctr-name">${name}</span>${place} ${spd}</div>
+        <div class="ctr-line2"><span class="ctr-lbl" data-tip="Quanto você causa nele.">ATK</span> ${offHTML} <span class="ctr-lbl" data-tip="Quanto ele causa em você (usando os golpes conhecidos).">DEF</span> ${threatHTML}</div>
+    </div>`;
+}
+
+function renderCounter(foe) {
+    if (state.caught) return '';
+    const head = `<div class="section-head"><span class="px-label">MELHOR ESCOLHA</span>${PokemonHelperTooltip.iconHTML('Melhor Pokémon SEU contra este oponente, cruzando o dano que você causa com os golpes conhecidos DELE (quanto mais golpes vistos, mais precisa a defesa). Mostra o melhor do time e, se houver um melhor no PC, também.')}</div>`;
+    if (!rosterMons.length) {
+        return `<div class="section">${head}<p class="ctr-empty" data-tip="Abra seu time/caixas no jogo uma vez pra a extensão registrar seus Pokémon.">Abra seus Pokémon no jogo pra habilitar a recomendação.</p></div>`;
+    }
+    const ranked = rankCounters(foe);
+    if (!ranked.length) return '';
+    const bestParty = ranked.find((r) => r.entry.inParty) || null;
+    const bestOverall = ranked[0];
+    const rows = [];
+    if (bestParty) rows.push(counterRowHTML(bestParty, '★ TIME'));
+    // só mostra o "geral" quando é do PC e diferente do melhor do time
+    if (bestOverall && !bestOverall.entry.inParty && bestOverall !== bestParty) {
+        rows.push(counterRowHTML(bestOverall, '🏆 GERAL'));
+    }
+    if (!rows.length && bestOverall) rows.push(counterRowHTML(bestOverall, ''));
+    return `<div class="section">${head}<div class="ctr-list">${rows.join('')}</div></div>`;
+}
+
 function renderEffRows(moveType) {
     const entries = TYPES.map((type) => ({ combo: [type], value: defMultiplier(moveType, [type]) }));
     const groups = groupByValue(entries).filter(([value]) => value !== 1);
@@ -1231,6 +1399,7 @@ function render() {
     const sectionHtml = {
         ivs:        () => (SCREEN_PREFS.showIvs ? ivsSection : ''),
         best:       () => (!state.caught ? bestPlay(foe) : ''),
+        counter:    () => (SCREEN_PREFS.showCounter !== false && !state.caught ? renderCounter(foe) : ''),
         weaknesses: () => (SCREEN_PREFS.showWeaknesses ? renderWeaknesses(foe) : ''),
         foeMoves:   () => (SCREEN_PREFS.showFoeMoves ? renderFoeMoves(foe) : ''),
         pokeballs:  () => (SCREEN_PREFS.showPokeballs ? renderBalls(foe) : ''),
@@ -1350,9 +1519,14 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         );
         render();
     }
+    if (changes[PokemonHelperStorage.KEYS.roster]) {
+        setRoster(changes[PokemonHelperStorage.KEYS.roster].newValue || { party: [], pc: [] });
+        render();
+    }
 });
 
 loadPokedex();
 loadTrainerMoves();
 loadDiscoveredMoves();
 loadWildItems();
+loadRoster();

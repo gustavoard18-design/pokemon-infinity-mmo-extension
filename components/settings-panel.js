@@ -76,6 +76,10 @@ function buildSettingsPanel(shell) {
             </div>
             <div class="ph-subhead">BATALHA</div>
             <div class="ph-setting-row">
+                <span class="ph-setting-label" id="ph-bt-counter-label">Melhor escolha (counter)</span>
+                <button type="button" class="ph-toggle" id="ph-bt-counter" role="switch" aria-checked="true" aria-labelledby="ph-bt-counter-label"></button>
+            </div>
+            <div class="ph-setting-row">
                 <span class="ph-setting-label" id="ph-bt-stats-label">IVs / Stats</span>
                 <button type="button" class="ph-toggle" id="ph-bt-stats" role="switch" aria-checked="true" aria-labelledby="ph-bt-stats-label"></button>
             </div>
@@ -404,7 +408,8 @@ function buildSettingsPanel(shell) {
             const battleToggles = [
                 ['ph-bt-stats', 'showIvs'], ['ph-bt-weak', 'showWeaknesses'],
                 ['ph-bt-moves', 'showFoeMoves'], ['ph-bt-balls', 'showPokeballs'],
-                ['ph-bt-stages', 'showStatChanges'], ['ph-bt-mymoves', 'showMyMoves']
+                ['ph-bt-stages', 'showStatChanges'], ['ph-bt-mymoves', 'showMyMoves'],
+                ['ph-bt-counter', 'showCounter']
             ];
             battleToggles.forEach(([id, field]) => {
                 bindPrefToggle(id, prefs.screens.battle[field],

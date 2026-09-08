@@ -10,6 +10,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         trainerMoves: 'pkmnHelperTrainerMoves',
         discoveredMoves: 'pkmnHelperDiscoveredMoves',
         wildItems: 'pkmnHelperWildItems',
+        roster: 'pkmnHelperRoster',
         uiPreferences: 'pkmnHelperUiPreferences'
     });
 
@@ -48,6 +49,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
     const BATTLE_SECTIONS = Object.freeze([
         Object.freeze({ key: 'ivs',        label: 'IVs / Stats' }),
         Object.freeze({ key: 'best',       label: 'Melhor Jogada' }),
+        Object.freeze({ key: 'counter',    label: 'Melhor escolha (counter)' }),
         Object.freeze({ key: 'weaknesses', label: 'Fraquezas dele' }),
         Object.freeze({ key: 'foeMoves',   label: 'Golpes dele' }),
         Object.freeze({ key: 'pokeballs',  label: 'Pokébolas' }),
@@ -90,6 +92,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
                 showPokeballs: true,
                 showIvs: true,
                 showMyMoves: true,
+                showCounter: true,
                 order: BATTLE_SECTION_ORDER
             })
         })
@@ -182,7 +185,11 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         setDiscoveredMoves: (value) => write(KEYS.discoveredMoves, value),
         // itens vistos em Pokémon selvagens: { items: [{ species, items:[slug] }] }
         getWildItems: () => read(KEYS.wildItems, { items: [] }),
-        setWildItems: (value) => write(KEYS.wildItems, value)
+        setWildItems: (value) => write(KEYS.wildItems, value),
+        // roster completo (time + caixas do PC) persistido pra a aba de batalha
+        // poder recomendar o melhor "counter" mesmo sem a aba Meus Pokémon aberta.
+        getRoster: () => read(KEYS.roster, { party: [], pc: [] }),
+        setRoster: (value) => write(KEYS.roster, value)
     });
 })();
 
