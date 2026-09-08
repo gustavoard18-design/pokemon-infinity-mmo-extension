@@ -120,12 +120,13 @@
 .px-input::placeholder { color: var(--px-text-dim); }
 .px-input:focus { border-color: var(--px-accent); box-shadow: 0 0 0 3px var(--px-accent-soft); }
 
-.mult-4 { background: #4fa84a; color: #ffffff; border-radius: var(--px-radius-sm); font-weight: 800; }
-.mult-2 { background: #7fc97a; color: #101010; border-radius: var(--px-radius-sm); font-weight: 800; }
+/* chips de efetividade — tons suaves (tinta translúcida) em vez de blocos vívidos */
+.mult-4 { background: rgba(69,209,153,.16); color: var(--px-good); border: 1px solid rgba(69,209,153,.35); border-radius: var(--px-radius-sm); font-weight: 800; }
+.mult-2 { background: rgba(69,209,153,.10); color: var(--px-good); border: 1px solid rgba(69,209,153,.22); border-radius: var(--px-radius-sm); font-weight: 800; }
 .mult-1 { background: var(--px-bg-badge); color: var(--px-text-dim); border-radius: var(--px-radius-sm); font-weight: 800; }
-.mult-0-5 { background: #f0a8a8; color: #5a1010; border-radius: var(--px-radius-sm); font-weight: 800; }
-.mult-0-25 { background: #e3350d; color: #ffffff; border-radius: var(--px-radius-sm); font-weight: 800; }
-.mult-0 { background: #1a1a1a; color: #ffffff; border-radius: var(--px-radius-sm); font-weight: 800; }
+.mult-0-5 { background: rgba(255,107,107,.12); color: #ff9a9a; border: 1px solid rgba(255,107,107,.25); border-radius: var(--px-radius-sm); font-weight: 800; }
+.mult-0-25 { background: rgba(255,107,107,.2); color: #ff8080; border: 1px solid rgba(255,107,107,.4); border-radius: var(--px-radius-sm); font-weight: 800; }
+.mult-0 { background: var(--px-bg-track); color: var(--px-text-dim); border: 1px solid var(--px-border); border-radius: var(--px-radius-sm); font-weight: 800; }
 
 @keyframes px-blip { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 .px-blip { width: 6px; height: 6px; border-radius: 50%; background: var(--px-good); animation: px-blip 1.6s steps(2, end) infinite; }
@@ -164,25 +165,27 @@
     --pxl-fs-xs: 0.58rem;   /* legendas/rótulos em caixa alta (h2 de painel, headers) */
     --pxl-fs-base: 0.7rem;  /* controles interativos (botões, inputs) */
 
-    /* cores de tipo — usadas pelo componente de tag/pill (components/type-tag.js) */
-    --t-normal: #9a9a80;
-    --t-fire: #f0803c;
-    --t-water: #4a90e2;
-    --t-electric: #f5cd35;
-    --t-grass: #63bb5b;
-    --t-ice: #7fd6d6;
-    --t-fighting: #d3425f;
-    --t-poison: #b763cf;
-    --t-ground: #d9a642;
-    --t-flying: #8f7fe0;
-    --t-psychic: #f56a8a;
-    --t-bug: #92bc2c;
-    --t-rock: #c9b787;
-    --t-ghost: #7b62a3;
-    --t-dragon: #5f6fe8;
-    --t-dark: #6f6880;
-    --t-steel: #8fa5b8;
-    --t-fairy: #ee90c0;
+    /* cores de tipo — usadas pelo componente de tag/pill (components/type-tag.js).
+       versão DESSATURADA (v5): tons calmos pra o painel não ficar "colorido
+       demais". Ainda distinguíveis, mas sem gritar; texto branco continua legível. */
+    --t-normal: #9498a0;
+    --t-fire: #c9795a;
+    --t-water: #5a86bf;
+    --t-electric: #c6ab55;
+    --t-grass: #6aa165;
+    --t-ice: #78adb4;
+    --t-fighting: #bd6b78;
+    --t-poison: #9d6bb8;
+    --t-ground: #b39a63;
+    --t-flying: #8b8ec4;
+    --t-psychic: #c47188;
+    --t-bug: #8ba05a;
+    --t-rock: #ab9c78;
+    --t-ghost: #77699a;
+    --t-dragon: #6870bd;
+    --t-dark: #6c6878;
+    --t-steel: #8697a6;
+    --t-fairy: #bd85a6;
 }
 
 /* ---- buttons ---- */
