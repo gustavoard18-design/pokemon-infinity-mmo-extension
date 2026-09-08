@@ -3,6 +3,7 @@ var PokemonCatchRate = globalThis.PokemonCatchRate || (() => {
         poke_ball: { name: 'Poké Ball', multiplier: 1 },
         great_ball: { name: 'Great Ball', multiplier: 1.5 },
         ultra_ball: { name: 'Ultra Ball', multiplier: 2 },
+        infinity_ball: { name: 'Infinity Ball', multiplier: 3 },
         master_ball: { name: 'Master Ball', multiplier: 255 },
         safari_ball: { name: 'Safari Ball', multiplier: 1.5 },
         premier_ball: { name: 'Premier Ball', multiplier: 1 },

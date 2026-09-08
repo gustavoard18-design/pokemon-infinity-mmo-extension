@@ -28,6 +28,7 @@
         poke_ball: 'Bola padrão pra capturar Pokémon selvagens.',
         great_ball: 'Melhor que a Poké Ball, com taxa de captura maior.',
         ultra_ball: 'Alto desempenho, taxa de captura ainda maior.',
+        infinity_ball: 'Bola exclusiva do InfinityMMO: taxa de captura ×3 (melhor que a Ultra Ball).',
         master_ball: 'Captura qualquer Pokémon selvagem sem falhar.',
         net_ball: 'Mais eficaz contra Pokémon de Água e Inseto.',
         dive_ball: 'Mais eficaz com Pokémon do mar/surfe.',
