@@ -864,12 +864,19 @@ function trainerMovesFor(foe) {
 // id/nome de treinador nem um identificador de mapa confiável, então essa é a
 // melhor aproximação disponível — pode confundir dois treinadores diferentes
 // com o mesmo Pokémon no mesmo nível, mas é o que dá pra fazer sem esse dado).
-// chave de memória: TREINADOR + espécie + nível. Só existe quando há um id de
-// treinador distintivo (state.trainerId) — em selvagem/sem id, devolve null e a
-// memória entre lutas fica desligada (evita vazar golpes entre encontros).
+// chave de memória: CONTEXTO + espécie + nível, e é auto-contida (não depende de
+// nada externo pra ser reconstruída — dá pra salvar/carregar verbatim).
+//   • treinador com id distintivo (state.trainerId = "t:<id>") → cada NPC fica
+//     isolado, então o golpe de um treinador nunca aparece no de outro;
+//   • qualquer outro encontro (selvagem/boss/estático) → namespace "w" por
+//     espécie+nível. Boss é encontro fixo (moveset estável), então lembrar é
+//     seguro; e como "w" e "t:<id>" são namespaces separados, nada vaza entre eles.
 function discoveryKey(species, level) {
-    if (!state.trainerId) return null;
-    return `${state.trainerId}|${normalizeSpecies(species)}|${Number(level)}`;
+    const sp = normalizeSpecies(species);
+    const lv = Number(level);
+    if (!sp || !Number.isFinite(lv)) return null;
+    const ctx = state.trainerId || 'w';
+    return `${ctx}|${sp}|${lv}`;
 }
 
 function discoveredMovesFor(foe) {
@@ -877,13 +884,13 @@ function discoveredMovesFor(foe) {
     return key ? (discoveredMovesByKey.get(key) || null) : null;
 }
 
-// golpe visto num turno: guarda vinculado a ESTE treinador+espécie+nível, então
-// na próxima luta contra o MESMO treinador com o MESMO Pokémon já mostra VISTO —
-// sem contaminar o Pokémon de outros treinadores. Selvagem não persiste.
+// golpe visto num turno: guarda vinculado a ESTE contexto+espécie+nível, então
+// no próximo encontro igual (mesmo treinador, ou o mesmo boss/selvagem daquela
+// espécie+nível) já mostra VISTO — sem contaminar o Pokémon de outros treinadores.
 function recordDiscoveredMove(slug) {
     if (!state.foe || !MOVE_TYPES[slug]) return;
     const key = discoveryKey(state.foe.species || state.foe.name, state.foe.level);
-    if (!key) { render(); return; }   // sem id de treinador → não persiste
+    if (!key) { render(); return; }   // espécie/nível inválidos → não persiste
     const existing = discoveredMovesByKey.get(key) || [];
     if (existing.includes(slug)) return;
     discoveredMovesByKey.set(key, [...existing, slug]);
@@ -1272,7 +1279,14 @@ async function loadTrainerMoves() {
 async function loadDiscoveredMoves() {
     try {
         const cached = await PokemonHelperStorage.getDiscoveredMoves();
-        discoveredMovesByKey = new Map((cached.items || []).map((item) => [discoveryKey(item.species, item.level), item.moves]));
+        // a chave é salva verbatim (auto-contida) — não reconstruímos com
+        // discoveryKey() aqui, senão dependeríamos do state.trainerId (que no
+        // load ainda é null) e todas as entradas colidiriam na mesma chave.
+        discoveredMovesByKey = new Map(
+            (cached.items || [])
+                .filter((item) => item && item.key && Array.isArray(item.moves))
+                .map((item) => [item.key, item.moves])
+        );
         render();
     } catch (error) {
         console.warn('[Infinity Dex Helper] Não foi possível carregar golpes descobertos:', error);
@@ -1288,10 +1302,9 @@ async function loadWildItems() {
 
 async function saveDiscoveredMoves() {
     try {
-        const items = [...discoveredMovesByKey.entries()].map(([key, moves]) => {
-            const [species, level] = key.split('|');
-            return { species, level: Number(level), moves };
-        });
+        // salva a chave inteira (auto-contida); assim o load reconstrói o Map
+        // sem depender de contexto de batalha algum.
+        const items = [...discoveredMovesByKey.entries()].map(([key, moves]) => ({ key, moves }));
         await PokemonHelperStorage.setDiscoveredMoves({ items });
     } catch (error) {
         console.warn('[Infinity Dex Helper] Não foi possível salvar golpes descobertos:', error);
@@ -1330,7 +1343,11 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     }
     if (changes[PokemonHelperStorage.KEYS.discoveredMoves]) {
         const items = changes[PokemonHelperStorage.KEYS.discoveredMoves].newValue?.items || [];
-        discoveredMovesByKey = new Map(items.map((item) => [discoveryKey(item.species, item.level), item.moves]));
+        discoveredMovesByKey = new Map(
+            items
+                .filter((item) => item && item.key && Array.isArray(item.moves))
+                .map((item) => [item.key, item.moves])
+        );
         render();
     }
 });
