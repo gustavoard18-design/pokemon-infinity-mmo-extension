@@ -6,7 +6,7 @@
 // cor dos ícones do cabeçalho. Definida DENTRO das funções (não no topo do
 // arquivo) de propósito: este script é reinjetado a cada toggle/reabertura, e
 // um `const` no topo estouraria "already declared" na 2ª injeção.
-function headerIconColor() { return '#1a1a1a'; }
+function headerIconColor() { return 'currentColor'; }
 
 // items: [{ icon: chave de PokemonPixelIcons.UI_SVG, tip, view }]
 function buildHeaderButtons(header, items, collapseItem, maximizeItem = { tip: 'Expandir — F' }) {

@@ -162,7 +162,7 @@
         const chatBtn = document.createElement('button');
         chatBtn.className = 'ph-icon-btn ph-chat-btn';
         chatBtn.dataset.icon = 'chatoff';
-        chatBtn.innerHTML = PokemonPixelIcons.uiIcon('chatoff', '#1a1a1a');
+        chatBtn.innerHTML = PokemonPixelIcons.uiIcon('chatoff', 'currentColor');
         header.insertBefore(chatBtn, header.querySelector('.ph-spacer'));
 
         const isChatHidden = () => {
@@ -183,7 +183,7 @@
             // ícone reflete o estado: balão normal = visível, riscado = oculto
             const iconKey = hidden ? 'chatoff' : 'chat';
             chatBtn.dataset.icon = iconKey;
-            chatBtn.innerHTML = PokemonPixelIcons.uiIcon(iconKey, '#1a1a1a');
+            chatBtn.innerHTML = PokemonPixelIcons.uiIcon(iconKey, 'currentColor');
             chatBtn.classList.toggle('active', hidden);
             chatBtn.dataset.tip = hidden ? 'Mostrar chat do jogo' : 'Ocultar chat do jogo';
             chatBtn.setAttribute('aria-label', chatBtn.dataset.tip);
@@ -732,35 +732,35 @@
             #${ID} {
                 position: fixed; z-index: 2147483647;
                 display: flex; flex-direction: column;
-                background: var(--px-bg, #faf7ef); color: var(--px-text, #1a1a1a);
+                background: var(--px-bg, #0e1219); color: var(--px-text, #dce2ec);
                 font-family: var(--px-font-mono);
-                border: 3px solid var(--px-border-panel, #1a1a1a); border-radius: var(--px-radius-lg, 10px);
-                overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+                border: 1px solid var(--px-border-panel, rgba(255,255,255,.09)); border-radius: var(--px-radius-lg, 14px);
+                overflow: hidden; box-shadow: var(--px-shadow, 0 12px 40px rgba(0,0,0,.5));
             }
             #${ID} .ph-header {
-                display: flex; align-items: center; gap: 3px;
-                height: 36px; padding: 0 4px; flex: 0 0 auto;
-                background: var(--px-accent, #e3350d); border-bottom: 3px solid var(--px-border-panel, #1a1a1a);
+                display: flex; align-items: center; gap: 2px;
+                height: 38px; padding: 0 6px; flex: 0 0 auto;
+                background: var(--px-bg-bar, #161c26); border-bottom: 1px solid var(--px-border-panel, rgba(255,255,255,.09));
+                color: var(--px-text-soft, #aab4c2);
                 cursor: move; user-select: none;
             }
             #${ID} .ph-icon-btn {
-                width: 30px; height: 27px; flex: 0 0 auto;
+                width: 30px; height: 28px; flex: 0 0 auto;
                 display: flex; align-items: center; justify-content: center;
-                border: 2px solid var(--px-border-panel, #1a1a1a); border-radius: var(--px-radius-sm, 6px);
-                padding: 0; background: var(--px-bg-btn, #fff);
+                border: 1px solid transparent; border-radius: var(--px-radius-sm, 8px);
+                padding: 0; background: transparent; color: inherit;
                 cursor: pointer;
-                transition: background-color .12s ease;
+                transition: background-color .14s ease, color .14s ease;
             }
-            #${ID} .ph-icon-btn:hover { background: var(--px-bg-cell, #f4f1e4); }
-            #${ID} .ph-view-btn.active { background: var(--px-mid, #f0c419); }
-            #${ID} .ph-chat-btn.active { background: var(--px-mid, #f0c419); }
+            #${ID} .ph-icon-btn:hover { background: var(--px-bg-cell, #1a2230); color: var(--px-text-hi, #f4f7fc); }
+            #${ID} .ph-view-btn.active, #${ID} .ph-chat-btn.active { background: var(--px-accent, #7c8cff); color: var(--px-on-dark, #fff); }
             #${ID} .ph-collapse-btn { width: 26px; }
             #${ID} .ph-spacer { flex: 1; }
             #${ID} .ph-mapbar {
                 flex: 0 0 auto;
                 display: flex; align-items: center; gap: 6px; padding: 4px 8px;
-                background: var(--px-bg-bar, #f2efe4);
-                border-bottom: 2px solid var(--px-border-panel, #1a1a1a);
+                background: var(--px-bg-bar, #161c26);
+                border-bottom: 1px solid var(--px-border-panel, rgba(255,255,255,.09));
                 font-family: var(--px-font-mono); font-size: 10px;
                 flex-wrap: wrap; max-height: 64px; overflow-y: auto;
             }
@@ -777,11 +777,11 @@
             #${ID} .ph-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: none; }
             #${ID}.full-side .ph-frame { position: static; height: 100%; }
             #${ID}.full-side #pokemon-chart-frame { display: block; flex: 1 1 auto; min-width: 0; order: 1; }
-            #${ID}.full-side .ph-frame.side-active { display: block; flex: 0 0 var(--ph-side-width, 360px); border-right: 3px solid var(--px-border-panel, #1a1a1a); order: 0; }
+            #${ID}.full-side .ph-frame.side-active { display: block; flex: 0 0 var(--ph-side-width, 360px); border-right: 1px solid var(--px-border-panel, rgba(255,255,255,.09)); order: 0; }
             #${ID} .ph-status {
                 flex: 0 0 auto; height: 24px;
                 display: flex; align-items: center; gap: 7px; padding: 0 8px;
-                background: var(--px-bg-bar, #f2efe4); border-top: 2px solid var(--px-border-panel, #1a1a1a);
+                background: var(--px-bg-bar, #161c26); border-top: 1px solid var(--px-border-panel, rgba(255,255,255,.09));
             }
             #${ID} .ph-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--px-good, #4fa84a); animation: ph-blip 1.6s steps(2,end) infinite; }
             @keyframes ph-blip { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
