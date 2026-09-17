@@ -122,6 +122,21 @@
                 });
             } catch (_) {}
         }
+        // re-encaixe IMEDIATO quando o espaço muda (o observer acima só reage
+        // depois que o interceptor republica o retângulo, o que pode levar até
+        // ~1s). Ao redimensionar a janela ou entrar/sair de TELA CHEIA, o canvas
+        // do jogo muda de tamanho na hora — então re-encaixamos já, e algumas
+        // vezes após a transição (o Phaser leva alguns frames pra reassentar o
+        // canvas, então um único redock pegaria a geometria antiga).
+        if (!window.__phViewportHooked) {
+            window.__phViewportHooked = true;
+            let rt = null;
+            const refitSoon = () => { clearTimeout(rt); rt = setTimeout(redock, 60); };
+            const refitAfterTransition = () => { redock(); [120, 300, 600, 1000].forEach((ms) => setTimeout(redock, ms)); };
+            window.addEventListener('resize', refitSoon, { passive: true });
+            document.addEventListener('fullscreenchange', refitAfterTransition);
+            document.addEventListener('webkitfullscreenchange', refitAfterTransition);
+        }
         [300, 1200, 2500].forEach((ms) => setTimeout(redock, ms));
 
         // ---- bolha flutuante: estado recolhido (menor espaço possível na tela) ----
