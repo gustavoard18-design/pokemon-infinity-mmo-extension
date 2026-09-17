@@ -314,10 +314,27 @@
         };
         battleFrame.addEventListener('load', relayTypeChart);
         [600, 2000, 4000].forEach((ms) => setTimeout(relayTypeChart, ms));
+        // auto-minimizar ao ENTRAR num mapa marcado (ex.: sua ilha). Só reage na
+        // TRANSIÇÃO pra o mapa — não fica recolhendo de novo se você reabrir o
+        // painel enquanto continua no mesmo mapa.
+        const checkAutoMinimize = () => {
+            const overlay = document.getElementById(ID);
+            if (!overlay) return;
+            const key = document.documentElement.dataset.pkmnMapKey || '';
+            if (key === window.__phLastMapKey) return;
+            const prev = window.__phLastMapKey;
+            window.__phLastMapKey = key;
+            if (prev == null || !key) return;   // 1ª leitura / mapa vazio: não minimiza
+            const list = uiPrefs().autoMinimizeMaps || [];
+            if (list.includes(key) && !overlay.classList.contains('collapsed')) {
+                setCollapsed(overlay, currentSettings(overlay), true);
+            }
+        };
         if (!window.__phDexObserver) {
             window.__phDexObserver = new MutationObserver((records) => {
                 relayDex();
                 if (records.some((r) => r.attributeName === 'data-pkmn-type-chart')) relayTypeChart();
+                if (records.some((r) => r.attributeName === 'data-pkmn-map-key')) checkAutoMinimize();
             });
             try {
                 window.__phDexObserver.observe(document.documentElement, {
@@ -325,10 +342,10 @@
                 });
             } catch (_) {}
         }
-        [400, 1500].forEach((ms) => setTimeout(relayDex, ms));
+        [400, 1500].forEach((ms) => setTimeout(() => { relayDex(); checkAutoMinimize(); }, ms));
         // rede de segurança: reenvia periodicamente (o iframe ignora se não mudou),
         // caso o MutationObserver perca alguma atualização de captura ao vivo.
-        if (!window.__phDexRelayTimer) window.__phDexRelayTimer = setInterval(relayDex, 2500);
+        if (!window.__phDexRelayTimer) window.__phDexRelayTimer = setInterval(() => { relayDex(); checkAutoMinimize(); }, 2500);
 
         body.appendChild(battleFrame);
         body.appendChild(myPokemonsFrame);

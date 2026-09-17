@@ -80,6 +80,7 @@ var PokemonHelperStorage = globalThis.PokemonHelperStorage || (() => {
         minimizeAfterBattle: false,   // recolher pra bolha quando a luta termina
         minimizeOnLeave: true,        // recolher pra bolha ao sair da aba/tela do jogo
         dockToGameGap: true,          // encaixar na faixa preta que o jogo deixa à esquerda
+        autoMinimizeMaps: [],         // chaves de mapa em que o painel recolhe sozinho ao entrar (ex.: sua ilha)
         screens: Object.freeze({
             myPokemons: Object.freeze({
                 expandPokemonByDefault: false,

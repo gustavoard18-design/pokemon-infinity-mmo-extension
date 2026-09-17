@@ -64,6 +64,10 @@ function buildSettingsPanel(shell) {
                 <span class="ph-setting-label" id="ph-dock-gap-label">Encaixar na faixa do jogo</span>
                 <button type="button" class="ph-toggle" id="ph-dock-gap" role="switch" aria-checked="true" aria-labelledby="ph-dock-gap-label"></button>
             </div>
+            <div class="ph-setting-row" data-tip="Recolhe o painel pra bolha automaticamente ao ENTRAR no mapa atual (ex.: sua ilha). Marque estando no mapa que quer.">
+                <span class="ph-setting-label" id="ph-auto-min-map-label">Minimizar ao entrar neste mapa<span id="ph-auto-min-map-name" class="ph-hint" style="display:block;margin:2px 0 0"></span></span>
+                <button type="button" class="ph-toggle" id="ph-auto-min-map" role="switch" aria-checked="false" aria-labelledby="ph-auto-min-map-label"></button>
+            </div>
             <div class="ph-set-head">TELAS</div>
             <div class="ph-subhead">MEUS POKÉMON</div>
             <div class="ph-setting-row">
@@ -399,6 +403,41 @@ function buildSettingsPanel(shell) {
 
             bindPrefToggle('ph-dock-gap', prefs.dockToGameGap !== false,
                 (dockToGameGap) => PokemonHelperStorage.setUiPreferences({ dockToGameGap }));
+
+            // "Minimizar ao entrar neste mapa": marca/desmarca o MAPA ATUAL na lista
+            // autoMinimizeMaps. Lê a chave do mapa (data-pkmn-map-key) e o nome
+            // exibido no painel. Sem mapa carregado, fica desabilitado.
+            (function bindAutoMinMap() {
+                const toggle = panel.querySelector('#ph-auto-min-map');
+                const nameEl = panel.querySelector('#ph-auto-min-map-name');
+                if (!toggle) return;
+                const key = (document.documentElement.dataset.pkmnMapKey || '').trim();
+                const overlayName = document.querySelector('#pokemon-type-matchup-overlay .ph-map-name');
+                const mapName = overlayName ? overlayName.textContent.trim() : '';
+                const list = Array.isArray(prefs.autoMinimizeMaps) ? prefs.autoMinimizeMaps.slice() : [];
+                if (!key) {
+                    if (nameEl) nameEl.textContent = 'Entre num mapa pra poder marcá-lo.';
+                    toggle.setAttribute('aria-disabled', 'true');
+                    toggle.style.opacity = '.4';
+                    toggle.style.pointerEvents = 'none';
+                    return;
+                }
+                if (nameEl) nameEl.textContent = `Mapa atual: ${mapName && mapName !== '—' ? mapName : key}`;
+                setToggleState(toggle, list.includes(key));
+                toggle.addEventListener('click', () => {
+                    const enabled = toggle.getAttribute('aria-checked') !== 'true';
+                    setToggleState(toggle, enabled);
+                    const set = new Set(list);
+                    if (enabled) set.add(key); else set.delete(key);
+                    const next = [...set];
+                    PokemonHelperStorage.setUiPreferences({ autoMinimizeMaps: next })
+                        .then(() => { list.length = 0; next.forEach((k) => list.push(k)); })
+                        .catch((error) => {
+                            setToggleState(toggle, !enabled);
+                            console.warn('[Infinity Dex Helper] Não foi possível salvar a preferência:', error);
+                        });
+                });
+            })();
 
             bindPrefToggle('ph-mp-groups', prefs.screens.myPokemons.expandGroupsByDefault,
                 (v) => PokemonHelperStorage.setUiPreferences({ screens: { myPokemons: { expandGroupsByDefault: v } } }));
