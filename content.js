@@ -14,6 +14,7 @@
     const DEFAULT_SETTINGS = PokemonHelperStorage.DEFAULT_OVERLAY_SETTINGS;
     const MIN_WIDTH = 220;
     const MIN_HEIGHT = 180;
+    const DOCK_MIN_GAP = 120;   // faixa preta mínima pra encaixar (menor em tela cheia)
     const BATTLE_RETURN_DELAY_MS = 4000;
     const FLEE_RETURN_DELAY_MS = 1000;
     let battleReturnTimer = null;
@@ -975,14 +976,23 @@
                 return { left: p[0], top: p[1], width: p[2], height: p[3] };
             }
         }
-        let best = null, bestArea = 0;
+        // fallback: o jogo tem 2 canvas — um de FUNDO que ocupa a largura toda e
+        // o canvas do JOGO, que é letterboxed (mais estreito, com faixa preta ao
+        // lado). Queremos o do jogo, então preferimos o maior canvas que NÃO
+        // ocupa quase toda a largura da janela (senão pegaríamos o fundo e o gap
+        // daria 0). Se todos forem full-width, cai pro maior mesmo.
+        const vw = window.innerWidth;
+        let best = null, bestArea = 0, bestFull = null, bestFullArea = 0;
         document.querySelectorAll('canvas').forEach((c) => {
             if (c.closest(`#${ID}`)) return; // ignora canvas nosso, se houver
             const r = c.getBoundingClientRect();
+            if (r.width <= 120 || r.height <= 120) return;
             const area = r.width * r.height;
-            if (area > bestArea && r.width > 120 && r.height > 120) { bestArea = area; best = r; }
+            if (r.width < vw * 0.97) {           // letterboxed (tem faixa ao lado)
+                if (area > bestArea) { bestArea = area; best = r; }
+            } else if (area > bestFullArea) { bestFullArea = area; bestFull = r; }
         });
-        return best;
+        return best || bestFull;
     }
 
     // encaixa o painel na faixa preta que o jogo deixa à esquerda (quando o
@@ -995,7 +1005,11 @@
         if (!rect) return false;
         const vw = window.innerWidth, vh = window.innerHeight;
         const gapWidth = Math.floor(rect.left);
-        if (gapWidth < MIN_WIDTH) return false; // sem faixa preta suficiente à esquerda
+        // encaixa mesmo em faixas estreitas: em TELA CHEIA o jogo cresce em
+        // altura, o canvas fica mais largo e o gap encolhe (ex.: ~200px). O
+        // limite antigo (MIN_WIDTH=220) fazia o painel desistir e ficar por cima
+        // do mapa. DOCK_MIN_GAP menor deixa o painel acompanhar o gap real.
+        if (gapWidth < DOCK_MIN_GAP) return false; // faixa pequena demais pra ser útil
         // gruda nas bordas: coluna de altura total encostada no canto superior
         // esquerdo, com a largura exata da faixa preta (left efetivo = 0).
         settings.width = Math.min(gapWidth, vw);

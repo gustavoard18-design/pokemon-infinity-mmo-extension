@@ -222,6 +222,14 @@
     };
     setInterval(tick, 1000);
     tick();
+    // ao redimensionar ou entrar/sair de TELA CHEIA, o canvas do jogo muda de
+    // tamanho (e o gap lateral encolhe/cresce). O tick de 1s pegaria isso tarde,
+    // então recalculamos várias vezes logo após o evento (o Phaser leva alguns
+    // frames pra reassentar o canvas), publicando o novo retângulo na hora.
+    const kickRect = () => { for (let i = 1; i <= 6; i++) setTimeout(tick, i * 120); };
+    window.addEventListener('resize', kickRect, { passive: true });
+    document.addEventListener('fullscreenchange', kickRect);
+    document.addEventListener('webkitfullscreenchange', kickRect);
 })();
 
 // ---- Mercado: busca e agrega os anúncios (roda no MAIN world, usa o token) --
