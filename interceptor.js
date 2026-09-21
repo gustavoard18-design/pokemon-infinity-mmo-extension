@@ -159,7 +159,9 @@
     function prettyMapKey(key) {
         if (typeof key !== 'string' || !key.trim()) return null;
         return key.trim()
-            .replace(/[:_\-/]+/g, ' ')
+            .replace(/[:_\-/]+/g, ' ')               // separadores -> espaço
+            .replace(/([a-z\d])([A-Z])/g, '$1 $2')   // camelCase -> "camel Case" (VermilionCity -> Vermilion City)
+            .replace(/([A-Za-z])(\d)/g, '$1 $2')     // letra->dígito (Route5 -> Route 5)
             .replace(/\s+/g, ' ')
             .trim()
             .replace(/\b\w/g, (c) => c.toUpperCase());
