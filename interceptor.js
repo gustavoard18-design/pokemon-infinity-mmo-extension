@@ -153,6 +153,18 @@
         return best ? best.text : null;
     }
 
+    // fallback do nome do mapa: deriva um rótulo legível a partir de G.mapKey
+    // (sempre disponível quando você está num mapa). Usado quando a sonda por
+    // posição não acha o texto (ex.: o jogo mudou o HUD e a âncora não bate mais).
+    function prettyMapKey(key) {
+        if (typeof key !== 'string' || !key.trim()) return null;
+        return key.trim()
+            .replace(/[:_\-/]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+
     // Geometria REAL da área renderizada do jogo. O <canvas> ocupa a largura
     // toda, mas o Phaser desenha o jogo centralizado preservando a proporção,
     // deixando barras pretas dos lados. Calculamos esse retângulo pela razão de
@@ -213,7 +225,10 @@
             } catch (_) {}
             const nameEl = document.querySelector('#pokemon-type-matchup-overlay .ph-map-name');
             if (!nameEl) return; // painel ainda não montado
-            const name = currentMapName();
+            // preferimos o nome "bonito" do HUD (sonda por posição); se ela falhar,
+            // caímos no rótulo derivado de G.mapKey — assim o mapa nunca fica vazio.
+            let name = currentMapName();
+            if (!name) { try { name = prettyMapKey(window.G && window.G.mapKey); } catch (_) {} }
             const show = name || '—';
             if (show === last) return;
             last = show;
