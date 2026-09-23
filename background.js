@@ -44,9 +44,10 @@ async function refreshAbilities(force = false) {
     return abilityCheckPromise;
 }
 
-// baixa o dex "cru" do jogo e devolve um Map slug -> weight (hectogramas).
-// Nunca lança: se falhar, devolve um Map vazio (Pokédex segue sem peso).
-async function fetchWeightBySlug() {
+// baixa o dex "cru" do jogo e devolve um Map slug -> { weight, height }
+// (weight em hectogramas ÷10 = kg; height em decímetros ÷10 = m).
+// Nunca lança: se falhar, devolve um Map vazio (Pokédex segue sem peso/altura).
+async function fetchSizeBySlug() {
     try {
         const r = await fetch(POKEDEX_WEIGHTS_URL, { cache: 'no-store' });
         if (!r.ok) return new Map();
@@ -54,7 +55,10 @@ async function fetchWeightBySlug() {
         const arr = Array.isArray(data) ? data : (data.mons || data.pokemon || Object.values(data)[0] || []);
         const map = new Map();
         (Array.isArray(arr) ? arr : []).forEach((m) => {
-            if (m && m.slug && Number.isFinite(Number(m.weight))) map.set(m.slug, Number(m.weight));
+            if (!m || !m.slug) return;
+            const weight = Number.isFinite(Number(m.weight)) ? Number(m.weight) : null;
+            const height = Number.isFinite(Number(m.height)) ? Number(m.height) : null;
+            if (weight != null || height != null) map.set(m.slug, { weight, height });
         });
         return map;
     } catch (_) {
@@ -70,8 +74,8 @@ async function refreshPokedex(force = false) {
         // re-baixa se o cache for de um schema antigo (sem o campo `abilities`),
         // pra não esperar 24h após a atualização que passou a guardar habilidades.
         const hasAbilities = cached.items[0] && 'abilities' in cached.items[0];
-        const hasWeight = cached.items[0] && 'weight' in cached.items[0];
-        if (!force && cached.items.length && age < POKEDEX_MAX_AGE && hasAbilities && hasWeight) return cached;
+        const hasSize = cached.items[0] && 'weight' in cached.items[0] && 'height' in cached.items[0];
+        if (!force && cached.items.length && age < POKEDEX_MAX_AGE && hasAbilities && hasSize) return cached;
         try {
             const response = await fetch(POKEDEX_URL, { cache: 'no-store' });
             if (!response.ok) throw new Error(`InfinityMMO respondeu com status ${response.status}`);
@@ -80,9 +84,9 @@ async function refreshPokedex(force = false) {
             if (!Array.isArray(remoteItems)) {
                 throw new Error('Pokédex remota inválida');
             }
-            // peso por slug (arquivo separado do jogo). Falha em silêncio: se não
-            // vier, a Pokédex ainda funciona, só sem peso.
-            const weightBySlug = await fetchWeightBySlug();
+            // peso/altura por slug (arquivo separado do jogo). Falha em silêncio:
+            // se não vier, a Pokédex ainda funciona, só sem peso/altura.
+            const sizeBySlug = await fetchSizeBySlug();
             const items = remoteItems.filter((item) => item?.slug && Number.isFinite(Number(item.catchRate))).map((item) => ({
                 slug: item.slug,
                 name: item.name,
@@ -90,7 +94,8 @@ async function refreshPokedex(force = false) {
                 types: Array.isArray(item.types) ? item.types : [],
                 catchRate: Number(item.catchRate),
                 base: item.base || null,
-                weight: weightBySlug.get(item.slug) ?? null,   // hectogramas (÷10 = kg)
+                weight: sizeBySlug.get(item.slug)?.weight ?? null,   // hectogramas (÷10 = kg)
+                height: sizeBySlug.get(item.slug)?.height ?? null,   // decímetros (÷10 = m)
                 // habilidades da espécie (slugs). Convenção da wiki/jogo: a ÚLTIMA
                 // é a oculta quando há 2+ (ex.: bidoof [simple,unaware,moody]).
                 abilities: Array.isArray(item.abilities) ? item.abilities.filter(Boolean) : [],

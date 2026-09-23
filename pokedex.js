@@ -33,15 +33,19 @@
     const POKEDEX_URL = 'https://infinitymmo.net/assets/data/wiki-pokedex.json';
     // a wiki-pokedex NÃO traz peso; este arquivo do jogo sim (weight em hg).
     const POKEDEX_WEIGHTS_URL = 'https://infinitymmo.net/assets/data/pokedex.json';
-    function mapMons(mons, weights) {
+    function mapMons(mons, sizes) {
         return (mons || [])
             .filter((m) => m && m.dex != null && m.slug)
-            .map((m) => ({
-                dex: Number(m.dex), slug: m.slug, name: m.name || m.slug, types: m.types || [],
-                abilities: Array.isArray(m.abilities) ? m.abilities.filter(Boolean) : [],
-                locations: Array.isArray(m.locations) ? m.locations : [],
-                weight: (weights && weights.get(m.slug)) ?? (Number.isFinite(Number(m.weight)) ? Number(m.weight) : null)
-            }))
+            .map((m) => {
+                const s = sizes && sizes.get(m.slug);
+                return {
+                    dex: Number(m.dex), slug: m.slug, name: m.name || m.slug, types: m.types || [],
+                    abilities: Array.isArray(m.abilities) ? m.abilities.filter(Boolean) : [],
+                    locations: Array.isArray(m.locations) ? m.locations : [],
+                    weight: (s && s.weight != null) ? s.weight : (Number.isFinite(Number(m.weight)) ? Number(m.weight) : null),
+                    height: (s && s.height != null) ? s.height : (Number.isFinite(Number(m.height)) ? Number(m.height) : null)
+                };
+            })
             .sort((a, b) => a.dex - b.dex);
     }
 
@@ -60,8 +64,11 @@
 
     function locHTML(sp) {
         const kg = (Number.isFinite(Number(sp.weight)) && Number(sp.weight) > 0) ? Number(sp.weight) / 10 : null;
-        const weightTag = kg != null ? `<span class="loc-meta">⚖️ ${kg.toLocaleString('pt-BR')} kg</span>` : '';
-        const head = `<div class="loc-head"><img class="loc-spr" alt=""><span class="loc-title">📍 ${escapeHtml(sp.name)}</span>${weightTag}</div>`;
+        const m = (Number.isFinite(Number(sp.height)) && Number(sp.height) > 0) ? Number(sp.height) / 10 : null;
+        const sizeTag = (kg != null || m != null)
+            ? `<span class="loc-meta">${m != null ? `📏 ${m.toLocaleString('pt-BR')} m` : ''}${(kg != null && m != null) ? ' · ' : ''}${kg != null ? `⚖️ ${kg.toLocaleString('pt-BR')} kg` : ''}</span>`
+            : '';
+        const head = `<div class="loc-head"><img class="loc-spr" alt=""><span class="loc-title">📍 ${escapeHtml(sp.name)}</span>${sizeTag}</div>`;
         // habilidades da espécie: última = oculta (🔒) quando há 2+. data-ability
         // vira nome + efeito em PT via PokemonAbilityInfo.hydrate (chamado no render).
         const abils = (sp.abilities || []).filter(Boolean);
@@ -86,12 +93,15 @@
         return head + abilBlock + rows +
             (locs.length > 12 ? `<div class="loc-more">+${locs.length - 12} outros locais…</div>` : '');
     }
-    function fetchWeights() {
+    function fetchSizes() {
         return fetch(POKEDEX_WEIGHTS_URL).then((r) => r.json()).then((d) => {
             const arr = Array.isArray(d) ? d : (d.mons || d.pokemon || Object.values(d)[0] || []);
             const map = new Map();
             (Array.isArray(arr) ? arr : []).forEach((m) => {
-                if (m && m.slug && Number.isFinite(Number(m.weight))) map.set(m.slug, Number(m.weight));
+                if (!m || !m.slug) return;
+                const weight = Number.isFinite(Number(m.weight)) ? Number(m.weight) : null;
+                const height = Number.isFinite(Number(m.height)) ? Number(m.height) : null;
+                if (weight != null || height != null) map.set(m.slug, { weight, height });
             });
             return map;
         }).catch(() => new Map());
@@ -99,11 +109,11 @@
     function loadSpecies() {
         return Promise.all([
             fetch(POKEDEX_URL).then((r) => r.json()).then((d) => d && d.mons).catch(() => null),
-            fetchWeights()
-        ]).then(([mons, weights]) => {
-            if (mons) { SPECIES = mapMons(mons, weights); return; }
-            // fallback: base da extensão (já vem com peso agora)
-            return PokemonHelperStorage.getPokedex().then((data) => { SPECIES = mapMons(data && data.items, weights); });
+            fetchSizes()
+        ]).then(([mons, sizes]) => {
+            if (mons) { SPECIES = mapMons(mons, sizes); return; }
+            // fallback: base da extensão (já vem com peso/altura agora)
+            return PokemonHelperStorage.getPokedex().then((data) => { SPECIES = mapMons(data && data.items, sizes); });
         });
     }
 

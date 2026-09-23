@@ -106,16 +106,22 @@ fetch('https://infinitymmo.net/assets/data/wiki-meta.json')
 // a OCULTA quando há 2+ (ex.: bidoof [simple, unaware, moody] → moody é oculta).
 let SPECIES_ABIL = new Map();
 let SPECIES_WEIGHT = new Map();   // abilKey -> peso em hectogramas (÷10 = kg)
+let SPECIES_HEIGHT = new Map();   // abilKey -> altura em decímetros (÷10 = m)
 const abilKey = (s) => String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
 const speciesWeightKg = (species) => {
     const hg = SPECIES_WEIGHT.get(abilKey(species));
     return Number.isFinite(hg) && hg > 0 ? hg / 10 : null;
+};
+const speciesHeightM = (species) => {
+    const dm = SPECIES_HEIGHT.get(abilKey(species));
+    return Number.isFinite(dm) && dm > 0 ? dm / 10 : null;
 };
 PokemonHelperStorage.getPokedex()
     .then((cached) => {
         const items = Array.isArray(cached.items) ? cached.items : [];
         SPECIES_ABIL = new Map(items.map((it) => [abilKey(it.slug || it.name), Array.isArray(it.abilities) ? it.abilities : []]));
         SPECIES_WEIGHT = new Map(items.map((it) => [abilKey(it.slug || it.name), Number(it.weight)]));
+        SPECIES_HEIGHT = new Map(items.map((it) => [abilKey(it.slug || it.name), Number(it.height)]));
         applyAndRender();
     })
     .catch(() => {});
@@ -434,6 +440,7 @@ function renderDetailRows(viewModel) {
         <div class="detail-row"><span class="detail-key">Avaliação</span><span class="detail-val">${PokemonIvEvaluation.html(viewModel.pokemon)} ${PokemonHelperTooltip.iconHTML('Avalia IVs, natureza e stats base pra classificar o Pokémon.')}</span></div>
         <div class="detail-row"><span class="detail-key">Atq Principal</span><span class="detail-val">${escapeHtml(evaluation.role)}</span></div>
         ${(() => { const kg = speciesWeightKg(viewModel.pokemon.species || viewModel.name); return kg == null ? '' : `<div class="detail-row"><span class="detail-key">Peso</span><span class="detail-val">${kg.toLocaleString('pt-BR')} kg</span></div>`; })()}
+        ${(() => { const m = speciesHeightM(viewModel.pokemon.species || viewModel.name); return m == null ? '' : `<div class="detail-row"><span class="detail-key">Altura</span><span class="detail-val">${m.toLocaleString('pt-BR')} m</span></div>`; })()}
     `;
 }
 

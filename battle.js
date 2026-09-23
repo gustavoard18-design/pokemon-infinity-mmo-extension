@@ -254,6 +254,12 @@ function weightKgOf(mon) {
     const hg = entry && Number(entry.weight);
     return Number.isFinite(hg) && hg > 0 ? hg / 10 : null;
 }
+// altura do Pokémon em metros (campo height em decímetros).
+function heightMOf(mon) {
+    const entry = pokedexBySlug.get(normalizeSpecies(mon && (mon.species || mon.name)));
+    const dm = entry && Number(entry.height);
+    return Number.isFinite(dm) && dm > 0 ? dm / 10 : null;
+}
 // Low Kick / Grass Knot: a POTÊNCIA varia com o peso do ALVO (kg).
 const WEIGHT_BASED_MOVES = new Set(['low_kick', 'grass_knot']);
 function weightBasedPower(kg) {
@@ -1410,6 +1416,10 @@ function render() {
             if (kg == null) return '';
             const lk = weightBasedPower(kg);
             return metaCell('PESO', `${kg.toLocaleString('pt-BR')} kg`, `Peso do oponente. Low Kick / Grass Knot nele têm ${lk} de potência (varia com o peso do alvo).`);
+        })()}
+        ${(() => {
+            const m = heightMOf(foe);
+            return m == null ? '' : metaCell('ALTURA', `${m.toLocaleString('pt-BR')} m`, 'Altura do oponente.');
         })()}
     </div>`;
 
