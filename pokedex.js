@@ -31,10 +31,17 @@
     // buscamos a Pokédex completa direto do jogo (tem dex, nome e tipos). A
     // página da extensão tem permissão de host pra infinitymmo.net.
     const POKEDEX_URL = 'https://infinitymmo.net/assets/data/wiki-pokedex.json';
-    function mapMons(mons) {
+    // a wiki-pokedex NÃO traz peso; este arquivo do jogo sim (weight em hg).
+    const POKEDEX_WEIGHTS_URL = 'https://infinitymmo.net/assets/data/pokedex.json';
+    function mapMons(mons, weights) {
         return (mons || [])
             .filter((m) => m && m.dex != null && m.slug)
-            .map((m) => ({ dex: Number(m.dex), slug: m.slug, name: m.name || m.slug, types: m.types || [], abilities: Array.isArray(m.abilities) ? m.abilities.filter(Boolean) : [], locations: Array.isArray(m.locations) ? m.locations : [] }))
+            .map((m) => ({
+                dex: Number(m.dex), slug: m.slug, name: m.name || m.slug, types: m.types || [],
+                abilities: Array.isArray(m.abilities) ? m.abilities.filter(Boolean) : [],
+                locations: Array.isArray(m.locations) ? m.locations : [],
+                weight: (weights && weights.get(m.slug)) ?? (Number.isFinite(Number(m.weight)) ? Number(m.weight) : null)
+            }))
             .sort((a, b) => a.dex - b.dex);
     }
 
@@ -52,7 +59,9 @@
     const pngUrl = (slug) => `https://infinitymmo.net/assets/pokemon/${slug}.png`;
 
     function locHTML(sp) {
-        const head = `<div class="loc-head"><img class="loc-spr" alt=""><span class="loc-title">📍 ${escapeHtml(sp.name)}</span></div>`;
+        const kg = (Number.isFinite(Number(sp.weight)) && Number(sp.weight) > 0) ? Number(sp.weight) / 10 : null;
+        const weightTag = kg != null ? `<span class="loc-meta">⚖️ ${kg.toLocaleString('pt-BR')} kg</span>` : '';
+        const head = `<div class="loc-head"><img class="loc-spr" alt=""><span class="loc-title">📍 ${escapeHtml(sp.name)}</span>${weightTag}</div>`;
         // habilidades da espécie: última = oculta (🔒) quando há 2+. data-ability
         // vira nome + efeito em PT via PokemonAbilityInfo.hydrate (chamado no render).
         const abils = (sp.abilities || []).filter(Boolean);
@@ -77,14 +86,25 @@
         return head + abilBlock + rows +
             (locs.length > 12 ? `<div class="loc-more">+${locs.length - 12} outros locais…</div>` : '');
     }
-    function loadSpecies() {
-        return fetch(POKEDEX_URL)
-            .then((r) => r.json())
-            .then((d) => { SPECIES = mapMons(d && d.mons); })
-            .catch(() => {
-                // fallback: base da extensão (pode não ter dex → lista vazia)
-                return PokemonHelperStorage.getPokedex().then((data) => { SPECIES = mapMons(data && data.items); });
+    function fetchWeights() {
+        return fetch(POKEDEX_WEIGHTS_URL).then((r) => r.json()).then((d) => {
+            const arr = Array.isArray(d) ? d : (d.mons || d.pokemon || Object.values(d)[0] || []);
+            const map = new Map();
+            (Array.isArray(arr) ? arr : []).forEach((m) => {
+                if (m && m.slug && Number.isFinite(Number(m.weight))) map.set(m.slug, Number(m.weight));
             });
+            return map;
+        }).catch(() => new Map());
+    }
+    function loadSpecies() {
+        return Promise.all([
+            fetch(POKEDEX_URL).then((r) => r.json()).then((d) => d && d.mons).catch(() => null),
+            fetchWeights()
+        ]).then(([mons, weights]) => {
+            if (mons) { SPECIES = mapMons(mons, weights); return; }
+            // fallback: base da extensão (já vem com peso agora)
+            return PokemonHelperStorage.getPokedex().then((data) => { SPECIES = mapMons(data && data.items, weights); });
+        });
     }
 
     function buildGenButtons() {

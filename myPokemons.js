@@ -105,11 +105,17 @@ fetch('https://infinitymmo.net/assets/data/wiki-meta.json')
 // habilidades por espécie (da Pokédex cacheada). Convenção: a ÚLTIMA da lista é
 // a OCULTA quando há 2+ (ex.: bidoof [simple, unaware, moody] → moody é oculta).
 let SPECIES_ABIL = new Map();
+let SPECIES_WEIGHT = new Map();   // abilKey -> peso em hectogramas (÷10 = kg)
 const abilKey = (s) => String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+const speciesWeightKg = (species) => {
+    const hg = SPECIES_WEIGHT.get(abilKey(species));
+    return Number.isFinite(hg) && hg > 0 ? hg / 10 : null;
+};
 PokemonHelperStorage.getPokedex()
     .then((cached) => {
         const items = Array.isArray(cached.items) ? cached.items : [];
         SPECIES_ABIL = new Map(items.map((it) => [abilKey(it.slug || it.name), Array.isArray(it.abilities) ? it.abilities : []]));
+        SPECIES_WEIGHT = new Map(items.map((it) => [abilKey(it.slug || it.name), Number(it.weight)]));
         applyAndRender();
     })
     .catch(() => {});
@@ -427,6 +433,7 @@ function renderDetailRows(viewModel) {
         <div class="detail-row"><span class="detail-key">Posição</span><span class="detail-val">${escapeHtml(viewModel.slotLabel)}</span></div>
         <div class="detail-row"><span class="detail-key">Avaliação</span><span class="detail-val">${PokemonIvEvaluation.html(viewModel.pokemon)} ${PokemonHelperTooltip.iconHTML('Avalia IVs, natureza e stats base pra classificar o Pokémon.')}</span></div>
         <div class="detail-row"><span class="detail-key">Atq Principal</span><span class="detail-val">${escapeHtml(evaluation.role)}</span></div>
+        ${(() => { const kg = speciesWeightKg(viewModel.pokemon.species || viewModel.name); return kg == null ? '' : `<div class="detail-row"><span class="detail-key">Peso</span><span class="detail-val">${kg.toLocaleString('pt-BR')} kg</span></div>`; })()}
     `;
 }
 

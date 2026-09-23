@@ -10,6 +10,9 @@ const ABILITIES_URL = 'https://infinitymmo.net/assets/data/wiki-abilities.json';
 const ABILITIES_MAX_AGE = 24 * 60 * 60 * 1000;
 const POKEDEX_ALARM = 'pkmn-helper-refresh-pokedex';
 const POKEDEX_URL = 'https://infinitymmo.net/assets/data/wiki-pokedex.json';
+// dex "cru" do jogo (num/slug/height/weight) — a wiki-pokedex NÃO traz peso, e
+// este arquivo sim. Peso vem em hectogramas (÷10 = kg). Casamos por slug.
+const POKEDEX_WEIGHTS_URL = 'https://infinitymmo.net/assets/data/pokedex.json';
 const POKEDEX_MAX_AGE = 24 * 60 * 60 * 1000;
 const TRAINER_MOVES_ALARM = 'pkmn-helper-refresh-trainer-moves';
 const TRAINERS_URL = 'https://infinitymmo.net/assets/data/trainers.json';
@@ -41,6 +44,24 @@ async function refreshAbilities(force = false) {
     return abilityCheckPromise;
 }
 
+// baixa o dex "cru" do jogo e devolve um Map slug -> weight (hectogramas).
+// Nunca lança: se falhar, devolve um Map vazio (Pokédex segue sem peso).
+async function fetchWeightBySlug() {
+    try {
+        const r = await fetch(POKEDEX_WEIGHTS_URL, { cache: 'no-store' });
+        if (!r.ok) return new Map();
+        const data = await r.json();
+        const arr = Array.isArray(data) ? data : (data.mons || data.pokemon || Object.values(data)[0] || []);
+        const map = new Map();
+        (Array.isArray(arr) ? arr : []).forEach((m) => {
+            if (m && m.slug && Number.isFinite(Number(m.weight))) map.set(m.slug, Number(m.weight));
+        });
+        return map;
+    } catch (_) {
+        return new Map();
+    }
+}
+
 async function refreshPokedex(force = false) {
     if (pokedexCheckPromise) return pokedexCheckPromise;
     pokedexCheckPromise = (async () => {
@@ -49,7 +70,8 @@ async function refreshPokedex(force = false) {
         // re-baixa se o cache for de um schema antigo (sem o campo `abilities`),
         // pra não esperar 24h após a atualização que passou a guardar habilidades.
         const hasAbilities = cached.items[0] && 'abilities' in cached.items[0];
-        if (!force && cached.items.length && age < POKEDEX_MAX_AGE && hasAbilities) return cached;
+        const hasWeight = cached.items[0] && 'weight' in cached.items[0];
+        if (!force && cached.items.length && age < POKEDEX_MAX_AGE && hasAbilities && hasWeight) return cached;
         try {
             const response = await fetch(POKEDEX_URL, { cache: 'no-store' });
             if (!response.ok) throw new Error(`InfinityMMO respondeu com status ${response.status}`);
@@ -58,6 +80,9 @@ async function refreshPokedex(force = false) {
             if (!Array.isArray(remoteItems)) {
                 throw new Error('Pokédex remota inválida');
             }
+            // peso por slug (arquivo separado do jogo). Falha em silêncio: se não
+            // vier, a Pokédex ainda funciona, só sem peso.
+            const weightBySlug = await fetchWeightBySlug();
             const items = remoteItems.filter((item) => item?.slug && Number.isFinite(Number(item.catchRate))).map((item) => ({
                 slug: item.slug,
                 name: item.name,
@@ -65,6 +90,7 @@ async function refreshPokedex(force = false) {
                 types: Array.isArray(item.types) ? item.types : [],
                 catchRate: Number(item.catchRate),
                 base: item.base || null,
+                weight: weightBySlug.get(item.slug) ?? null,   // hectogramas (÷10 = kg)
                 // habilidades da espécie (slugs). Convenção da wiki/jogo: a ÚLTIMA
                 // é a oculta quando há 2+ (ex.: bidoof [simple,unaware,moody]).
                 abilities: Array.isArray(item.abilities) ? item.abilities.filter(Boolean) : [],

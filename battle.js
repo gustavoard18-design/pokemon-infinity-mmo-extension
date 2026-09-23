@@ -248,6 +248,31 @@ function stageMultiplier(stage) {
     return s >= 0 ? (2 + s) / 2 : 2 / (2 - s);
 }
 
+// peso do Pokémon em kg, pela Pokédex do jogo (campo weight em hectogramas).
+function weightKgOf(mon) {
+    const entry = pokedexBySlug.get(normalizeSpecies(mon && (mon.species || mon.name)));
+    const hg = entry && Number(entry.weight);
+    return Number.isFinite(hg) && hg > 0 ? hg / 10 : null;
+}
+// Low Kick / Grass Knot: a POTÊNCIA varia com o peso do ALVO (kg).
+const WEIGHT_BASED_MOVES = new Set(['low_kick', 'grass_knot']);
+function weightBasedPower(kg) {
+    if (kg == null) return null;
+    if (kg < 10) return 20;
+    if (kg < 25) return 40;
+    if (kg < 50) return 60;
+    if (kg < 100) return 80;
+    if (kg < 200) return 100;
+    return 120;
+}
+// devolve `ms` com a potência ajustada quando o golpe depende do peso do
+// defensor; se não for golpe de peso (ou faltar o peso), devolve o próprio ms.
+function withWeightPower(slug, ms, defender) {
+    if (!ms || !WEIGHT_BASED_MOVES.has(slug)) return ms;
+    const p = weightBasedPower(weightKgOf(defender));
+    return p != null ? { ...ms, power: p } : ms;
+}
+
 // stat efetivo de um Pokémon: usa o valor ao vivo (payload) quando existe; se
 // faltar (o jogo nem sempre manda os stats completos do oponente), calcula do
 // base da Pokédex + IV + nível (natureza neutra) em vez de usar 1 — senão a
@@ -490,7 +515,7 @@ function bestPlay(foe) {
     state.party.forEach((pokemon, index) => {
         if (!pokemon || isYouFainted(index)) return;
         (pokemon.moves || []).forEach((move, moveIndex) => {
-            const ms = moveStats(resolveMoveSlug(move.name), move);   // poder real do jogo
+            const ms = withWeightPower(resolveMoveSlug(move.name), moveStats(resolveMoveSlug(move.name), move), foe);   // poder real do jogo (Low Kick/Grass Knot pelo peso do foe)
             if (Number(move.pp) <= 0 || ms.power <= 0) return;
             const moveType = TYPE_MAPPER[move.type];
             const multiplier = liveMultiplier(move.type, foe.types) ?? defMultiplier(moveType, defenders);
@@ -515,7 +540,7 @@ function bestPlay(foe) {
         state.moves.forEach((move, moveIndex) => {
             const slug = resolveMoveSlug(move.name);
             const moveType = MOVE_TYPES[slug];
-            const ms = moveStats(slug, move);
+            const ms = withWeightPower(slug, moveStats(slug, move), foe);
             if (!moveType || Number(move.pp) <= 0 || ms.power <= 0) return;
             const multiplier = liveMultiplier(move.type, foe.types) ?? defMultiplier(moveType, defenders);
             const stab = typeNames(activePokemon.types).includes(moveType) ? 1.5 : 1;
@@ -587,7 +612,7 @@ function renderMyMoves(foe) {
     const scored = state.moves.map((move) => {
         const slug = resolveMoveSlug(move.name);
         const moveType = MOVE_TYPES[slug];
-        const ms = moveStats(slug, move);   // poder/categoria reais do jogo
+        const ms = withWeightPower(slug, moveStats(slug, move), foe);   // poder/categoria reais (Low Kick/Grass Knot pelo peso do foe)
         let score = -1;
         let dmgChip = '';
         if (moveType && Number(move.pp) > 0 && ms.power > 0) {
@@ -1061,7 +1086,7 @@ function renderFoeMoves(foe) {
         // no melhor caso; amarelo = pode nocautear dependendo da variação.
         let dmgChip = '';
         if (!isStatus && myActive) {
-            const ms = moveStats(move.slug, move);
+            const ms = withWeightPower(move.slug, moveStats(move.slug, move), myActive);   // golpe de peso: usa o SEU peso (você é o alvo)
             if (ms.power > 0) {
                 const isSpecial = ms.category === 'special';
                 const multiplier = defMultiplier(move.type, typeNames(myActive.types));
@@ -1165,7 +1190,7 @@ function bestOffenseOn(attacker, foe) {
     let best = null;
     (attacker.moves || []).forEach((move) => {
         const slug = resolveMoveSlug(move.name);
-        const ms = moveStats(slug, move);
+        const ms = withWeightPower(slug, moveStats(slug, move), foe);
         if (ms.power <= 0) return;
         const moveType = TYPE_MAPPER[move.type] || MOVE_TYPES[slug];
         if (!moveType) return;
@@ -1191,7 +1216,7 @@ function worstThreatOn(defender, foe, resolved) {
     let worst = null;
     resolved.moves.forEach((move) => {
         if (STATUS_MOVES.has(move.slug)) return;
-        const ms = moveStats(move.slug, move);
+        const ms = withWeightPower(move.slug, moveStats(move.slug, move), defender);   // golpe de peso: alvo é o SEU Pokémon candidato
         if (ms.power <= 0) return;
         const isSpecial = ms.category === 'special';
         const mult = defMultiplier(move.type, typeNames(defender.types));
@@ -1380,6 +1405,12 @@ function render() {
         ${metaCell('ATQ PRINCIPAL', evaluation.role, 'Estimado pelo maior stat ofensivo.')}
         ${metaCell('AVALIAÇÃO', PokemonIvEvaluation.html(foe), 'Avaliação combinando IVs, natureza e stats base.')}
         ${metaCell('IVS TOTAL', `${evaluation.percent}%`, 'Percentual dos IVs em relação ao máximo.', ivColor(evaluation.percent * 31 / 100))}
+        ${(() => {
+            const kg = weightKgOf(foe);
+            if (kg == null) return '';
+            const lk = weightBasedPower(kg);
+            return metaCell('PESO', `${kg.toLocaleString('pt-BR')} kg`, `Peso do oponente. Low Kick / Grass Knot nele têm ${lk} de potência (varia com o peso do alvo).`);
+        })()}
     </div>`;
 
     const ivsSection = `<div class="section">
